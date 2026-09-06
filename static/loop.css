@@ -17,6 +17,27 @@
     position: relative;
 }
 
+#loop-back-button {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 1;
+
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    cursor: pointer;
+    font-size: 28px;
+    line-height: 1;
+}
+
+#loop-back-button:hover {
+    background: rgba(255, 255, 255, 0.24);
+}
+
 #loop-artwork {
     width: 450px;
     height: 450px;
@@ -26,4 +47,34 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+}
+
+#loop-track-info {
+    position: absolute;
+    bottom: 48px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(80vw, 600px);
+    color: #fff;
+    text-align: center;
+}
+
+#loop-track-title {
+    overflow: hidden;
+    font-size: 28px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#loop-track-artist,
+#loop-track-album {
+    margin-top: 6px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 16px;
+}
+
+#loop-track-album::before {
+    content: "Album: ";
+    color: rgba(255, 255, 255, 0.45);
 }
