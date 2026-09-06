@@ -1,3 +1,11 @@
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
 #loop {
     position: fixed;
     inset: 0;
@@ -15,6 +23,30 @@
     background: #000;
 
     position: relative;
+}
+
+#loop-player::after {
+    content: "";
+    position: absolute;
+
+    width: 40px;
+    height: 40px;
+
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    border-radius: 50%;
+    z-index: 2;
+    pointer-events: none;
+
+    background:
+        radial-gradient(
+            circle,
+            #000 0 12px,
+            rgba(255, 255, 255, 0.15) 12px 14px,
+            transparent 14px
+        );
 }
 
 #loop-back-button {
@@ -42,11 +74,13 @@
     width: 450px;
     height: 450px;
     object-fit: cover;
+    border-radius: 100%;
 
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    animation: spin 10s linear infinite;
 }
 
 #loop-track-info {
