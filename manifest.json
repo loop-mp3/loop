@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "loop.mp3",
+  "version": "0.1.0",
+  "description": "A vinyl-inspired music player interface for YouTube Music.",
+  "author": "loop.mp3",
+  "content_scripts": [
+    {
+      "matches": ["https://music.youtube.com/*"],
+      "js": ["index.js"],
+      "css": ["static/loop.css"],
+      "run_at": "document_start"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

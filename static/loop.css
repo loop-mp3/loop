@@ -1,0 +1,12 @@
+#loop-debug-badge {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 2147483647;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #111;
+  color: #fff;
+  font: 600 14px system-ui, sans-serif;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
