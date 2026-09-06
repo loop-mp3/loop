@@ -1,3 +1,3 @@
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("[loop.mp3] extension installed");
+  console.log("[loop.mp3] extension initialised");
 });
