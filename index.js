@@ -84,6 +84,41 @@ function updateLoop(artworkURL, trackInfo) {
     loop.querySelector("#loop-track-album").textContent = trackInfo.album;
 }
 
+let recordFrame;
+
+function getCurrentMedia() {
+    const media = [...document.querySelectorAll("video, audio")]
+        .filter((element) => Number.isFinite(element.duration) && element.duration > 0);
+    return media.find((element) => !element.paused && !element.ended) || media[0];
+}
+
+function syncRecordMotion() {
+    const artwork = document.querySelector("#loop-artwork");
+    const media = getCurrentMedia();
+
+    if (!artwork || !media) {
+        recordFrame = undefined;
+        return;
+    }
+
+    // Use multiple rotations per track: shorter tracks spin faster and longer
+    // tracks spin slower, without making one rotation equal the whole song.
+    const rotationsPerTrack = 30;
+    const rotation = (media.currentTime / media.duration) * rotationsPerTrack * 360;
+    artwork.style.setProperty("--loop-rotation", `${rotation}deg`);
+
+    if (!media.paused && !media.ended) {
+        recordFrame = requestAnimationFrame(syncRecordMotion);
+    } else {
+        recordFrame = undefined;
+    }
+}
+
+function watchPlaybackState() {
+    const media = getCurrentMedia();
+    if (media && !media.paused && recordFrame === undefined) syncRecordMotion();
+}
+
 let lastTrackId;
 let metadataRequest = 0;
 
@@ -101,16 +136,22 @@ async function updateForCurrentTrack(playerBar) {
 
     lastTrackId = trackId;
     const requestId = ++metadataRequest;
+    updateLoop(getVinylArtwork(trackId), getTrackInfo(playerBar));
+    syncRecordMotion();
     const trackInfo = await getTrackInfoFromTrackId(trackId, playerBar);
     if (requestId !== metadataRequest || trackId !== getCurrentTrackId()) return;
     updateLoop(getVinylArtwork(trackId), trackInfo);
+    syncRecordMotion();
     console.log("[loop.mp3] Current track metadata:", trackInfo);
 }
 
 function init(playerBar) {
     console.log("[loop.mp3] YTM is ready", playerBar);
     updateForCurrentTrack(playerBar);
-    setInterval(() => updateForCurrentTrack(playerBar), 500);
+    setInterval(() => {
+        updateForCurrentTrack(playerBar);
+        watchPlaybackState();
+    }, 100);
 }
 
 waitForYTM(init);
