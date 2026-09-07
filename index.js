@@ -214,7 +214,7 @@ function updateLoop(artworkURL, trackInfo) {
                     <div><kbd>K</kbd> Previous track</div>
                     <div><kbd>J</kbd> Next track</div>
                     <div><kbd>Ctrl + M</kbd> Search</div>
-                    <div><kbd>Ctrl + Q</kbd> See queue <span>(not implemented)</span></div>
+                    <div><kbd>Ctrl + Q</kbd> See queue</div>
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
                     <label class="loop-navigation-toggle">
                         <input id="loop-navigation-toggle" type="checkbox">
@@ -239,6 +239,12 @@ function updateLoop(artworkURL, trackInfo) {
                     <button id="loop-play-button" type="button" aria-label="Play">&#9654;</button>
                     <button id="loop-next-button" type="button" aria-label="Next track" hidden>&#9197;</button>
                     <button id="loop-mute-button" type="button" aria-label="Mute">&#128266;</button>
+                    <button id="loop-queue-button" type="button" aria-label="Show queue">&#9776;</button>
+                    <button id="loop-search-button" type="button" aria-label="Search">
+                        <svg class="loop-icon" viewBox="0 0 512 512" aria-hidden="true">
+                            <path fill="currentColor" d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.1-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0s208 93.1 208 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/>
+                        </svg>
+                    </button>
                 </div>
                 <img id="loop-artwork" alt="Album artwork" onerror="this.onerror=null; this.src='${getFallbackArtwork()}';">
                 <div id="loop-track-info">
@@ -267,6 +273,12 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-background-toggle").addEventListener("change", (event) => {
             setKawarpEnabled(event.target.checked);
         });
+        loop.querySelector("#loop-queue-button").addEventListener("click", () => {
+            sendLoopShortcut("q", { ctrlKey: true });
+        });
+        loop.querySelector("#loop-search-button").addEventListener("click", () => {
+            sendLoopShortcut("m", { ctrlKey: true });
+        });
         loop.querySelector("#loop-vinyl-toggle").addEventListener("change", (event) => {
             loop.classList.toggle("loop-no-vinyl", event.target.checked);
         });
@@ -278,8 +290,11 @@ function updateLoop(artworkURL, trackInfo) {
         loop.addEventListener("click", (event) => {
             const searchBar = document.querySelector("ytmusic-search-box");
             const resultsPanel = document.getElementById("loop-search-results");
+            const queuePanel = document.getElementById("loop-queue-panel");
             const shortcutsPanel = document.getElementById("loop-shortcuts-panel");
             const shortcutsButton = document.getElementById("loop-shortcuts-button");
+            const queueButton = document.getElementById("loop-queue-button");
+            const searchButton = document.getElementById("loop-search-button");
 
             if (
                 resultsPanel &&
@@ -303,13 +318,17 @@ function updateLoop(artworkURL, trackInfo) {
                 event.target instanceof Node &&
                 ((searchBar && searchBar.contains(event.target)) ||
                     (resultsPanel && resultsPanel.contains(event.target)) ||
+                    (queuePanel && queuePanel.contains(event.target)) ||
                     (shortcutsPanel && shortcutsPanel.contains(event.target)) ||
-                    (shortcutsButton && shortcutsButton.contains(event.target)))
+                    (shortcutsButton && shortcutsButton.contains(event.target)) ||
+                    (queueButton && queueButton.contains(event.target)) ||
+                    (searchButton && searchButton.contains(event.target)))
             ) {
                 return;
             }
 
             closeLoopSearchPanel();
+            restoreLoopQueue();
             hideLoopSearch();
         });
     }
@@ -426,6 +445,22 @@ function sendYTMShortcut(key) {
     document.dispatchEvent(new KeyboardEvent("keyup", eventOptions));
 }
 
+function sendLoopShortcut(key, modifiers = {}) {
+    const keyCode = key.toUpperCase().charCodeAt(0);
+    const eventOptions = {
+        key,
+        code: `Key${key.toUpperCase()}`,
+        keyCode,
+        which: keyCode,
+        bubbles: true,
+        cancelable: true,
+        ...modifiers,
+    };
+
+    document.dispatchEvent(new KeyboardEvent("keydown", eventOptions));
+    document.dispatchEvent(new KeyboardEvent("keyup", eventOptions));
+}
+
 function playPreviousTrack() {
     sendYTMShortcut("j");
 }
@@ -475,6 +510,17 @@ let emptyScreenDismissed = false;
 async function updateForCurrentTrack(playerBar) {
     const trackId = getCurrentTrackId();
     if (!trackId) {
+        const media = getCurrentMedia();
+        const loop = document.getElementById("loop");
+        if (media && !emptyScreenDismissed) {
+            if (!loop || loop.classList.contains("loop-empty")) {
+                updateLoop(
+                    lastTrackId ? getVinylArtwork(lastTrackId) : getFallbackArtwork(),
+                    getTrackInfo(playerBar)
+                );
+            }
+            return;
+        }
         if (!emptyScreenDismissed) {
             updateLoop(getFallbackArtwork(), {
                 title: "Nothing is playing",
@@ -528,6 +574,12 @@ let originalSearchResultsParent;
 let originalSearchResultsNextSibling;
 let originalSearchParent;
 let originalSearchNextSibling;
+let loopQueueObserver;
+let originalQueueRenderer;
+let originalQueueParent;
+let originalQueueNextSibling;
+let originalQueueStyle;
+let originalQueueHidden;
 
 function restoreYTMSearch() {
     const searchBar = document.querySelector("ytmusic-search-box");
@@ -538,6 +590,8 @@ function restoreYTMSearch() {
     loopSearchMutationObserver = undefined;
     loopSearchResultsObserver?.disconnect();
     loopSearchResultsObserver = undefined;
+    loopQueueObserver?.disconnect();
+    loopQueueObserver = undefined;
     disposeKawarpBackground();
 
     if (searchBar) {
@@ -562,6 +616,7 @@ function restoreYTMSearch() {
     }
 
     restoreLoopSearchResults();
+    restoreLoopQueue();
 
     document.getElementById("loop")?.remove();
     originalSearchParent = undefined;
@@ -587,6 +642,40 @@ function restoreLoopSearchResults() {
     originalSearchResultsNextSibling = undefined;
 }
 
+function restoreLoopQueue() {
+    loopQueueObserver?.disconnect();
+    loopQueueObserver = undefined;
+
+    if (originalQueueRenderer && originalQueueParent?.isConnected) {
+        originalQueueParent.insertBefore(
+            originalQueueRenderer,
+            originalQueueNextSibling?.parentNode === originalQueueParent
+                ? originalQueueNextSibling
+                : null
+        );
+    }
+
+    if (originalQueueRenderer) {
+        if (originalQueueStyle === null || originalQueueStyle === undefined) {
+            originalQueueRenderer.removeAttribute("style");
+        } else {
+            originalQueueRenderer.setAttribute("style", originalQueueStyle);
+        }
+        if (originalQueueHidden) {
+            originalQueueRenderer.setAttribute("hidden", "");
+        } else {
+            originalQueueRenderer.removeAttribute("hidden");
+        }
+    }
+
+    document.getElementById("loop-queue-panel")?.remove();
+    originalQueueRenderer = undefined;
+    originalQueueParent = undefined;
+    originalQueueNextSibling = undefined;
+    originalQueueStyle = undefined;
+    originalQueueHidden = undefined;
+}
+
 function closeLoopSearchPanel() {
     loopSearchResultsObserver?.disconnect();
     loopSearchResultsObserver = undefined;
@@ -598,6 +687,68 @@ function closeLoopSearchPanel() {
     const suggestionList = searchBar?.querySelector("#suggestion-list") ||
         document.querySelector("#suggestion-list");
     if (suggestionList) suggestionList.hidden = false;
+}
+
+function getLoopQueuePanel() {
+    let panel = document.getElementById("loop-queue-panel");
+    if (!panel) {
+        panel = document.createElement("div");
+        panel.id = "loop-queue-panel";
+        document.getElementById("loop")?.appendChild(panel);
+    }
+    return panel;
+}
+
+function renderLoopQueue() {
+    const panel = getLoopQueuePanel();
+    const source = originalQueueRenderer ||
+        document.querySelector("ytmusic-tab-renderer#tab-renderer") ||
+        document.querySelector("ytmusic-player-page ytmusic-tab-renderer#tab-renderer");
+
+    if (!source || !panel) return false;
+
+    if (!originalQueueRenderer) {
+        originalQueueRenderer = source;
+        originalQueueParent = source.parentNode;
+        originalQueueNextSibling = source.nextSibling;
+        originalQueueStyle = source.getAttribute("style");
+        originalQueueHidden = source.hasAttribute("hidden");
+    }
+
+    panel.replaceChildren(source);
+    source.removeAttribute("hidden");
+    source.style.setProperty("display", "block", "important");
+    source.style.setProperty("visibility", "visible", "important");
+    source.style.setProperty("opacity", "1", "important");
+    source.style.setProperty("position", "relative", "important");
+    source.style.setProperty("width", "100%", "important");
+    source.style.setProperty("height", "auto", "important");
+    source.style.setProperty("min-height", "180px", "important");
+    source.style.setProperty("max-height", "none", "important");
+    source.style.setProperty("overflow", "visible", "important");
+    return true;
+}
+
+function showLoopQueue() {
+    const loop = document.getElementById("loop");
+    if (!loop) return;
+
+    const panel = document.getElementById("loop-queue-panel");
+    if (panel && originalQueueRenderer && panel.contains(originalQueueRenderer)) {
+        restoreLoopQueue();
+        return;
+    }
+
+    if (renderLoopQueue()) return;
+
+    loopQueueObserver?.disconnect();
+    loopQueueObserver = new MutationObserver(() => {
+        if (renderLoopQueue()) {
+            loopQueueObserver?.disconnect();
+            loopQueueObserver = undefined;
+        }
+    });
+    loopQueueObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 function getLoopSearchResultsPanel() {
@@ -723,13 +874,32 @@ function showLoopSearch() {
     });
     loopSearchMutationObserver.observe(searchBar, { childList: true, subtree: true });
 
+    requestAnimationFrame(() => {
+        const input = searchBar.querySelector("#input") || searchBar.querySelector("input");
+        input?.focus();
+    });
+
     console.log("[loop.mp3] Search shown");
 }
 
 document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && document.getElementById("loop")) {
+        event.preventDefault();
+        closeLoopSearchPanel();
+        restoreLoopQueue();
+        hideLoopSearch();
+        return;
+    }
+
     if (event.ctrlKey && event.key === "m") {
         console.log("[loop.mp3] Search called");
         showLoopSearch();
+        return;
+    }
+
+    if (event.ctrlKey && event.key.toLowerCase() === "q") {
+        event.preventDefault();
+        showLoopQueue();
         return;
     }
 
