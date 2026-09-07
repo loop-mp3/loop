@@ -211,8 +211,8 @@ function updateLoop(artworkURL, trackInfo) {
                 <div id="loop-shortcuts-panel" hidden>
                     <div class="loop-shortcuts-title">Loop shortcuts</div>
                     <div><kbd>M</kbd> Mute / unmute</div>
-                    <div><kbd>J</kbd> Previous track</div>
-                    <div><kbd>K</kbd> Next track</div>
+                    <div><kbd>K</kbd> Previous track</div>
+                    <div><kbd>J</kbd> Next track</div>
                     <div><kbd>Ctrl + M</kbd> Search</div>
                     <div><kbd>Ctrl + Q</kbd> See queue <span>(not implemented)</span></div>
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
