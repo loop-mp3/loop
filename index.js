@@ -56,7 +56,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
 }
 
 function goBackToNormal() {
-    document.getElementById("loop")?.remove();
+    restoreYTMSearch();
     console.log("[loop.mp3] Loop removed, back to normal YTM");
 }
 
@@ -77,11 +77,38 @@ function updateLoop(artworkURL, trackInfo) {
             </div>`;
         document.body.appendChild(loop);
         loop.querySelector("#loop-back-button").addEventListener("click", goBackToNormal);
+        loop.addEventListener("click", (event) => {
+            const searchBar = document.querySelector("ytmusic-search-box");
+            const resultsPanel = document.getElementById("loop-search-results");
+
+            if (
+                event.target instanceof Node &&
+                ((searchBar && searchBar.contains(event.target)) ||
+                    (resultsPanel && resultsPanel.contains(event.target)))
+            ) {
+                return;
+            }
+
+            closeLoopSearchPanel();
+            hideLoopSearch();
+        });
     }
-    loop.querySelector("#loop-artwork").src = artworkURL;
-    loop.querySelector("#loop-track-title").textContent = trackInfo.title;
-    loop.querySelector("#loop-track-artist").textContent = trackInfo.artist;
-    loop.querySelector("#loop-track-album").textContent = trackInfo.album;
+    const artwork = loop.querySelector("#loop-artwork");
+    const title = loop.querySelector("#loop-track-title");
+    const artist = loop.querySelector("#loop-track-artist");
+    const album = loop.querySelector("#loop-track-album");
+
+    // YouTube Music can replace DOM nodes while navigating between tracks.
+    // Rebuild the injected UI if one of its required nodes disappeared.
+    if (!artwork || !title || !artist || !album) {
+        loop.remove();
+        return updateLoop(artworkURL, trackInfo);
+    }
+
+    artwork.src = artworkURL;
+    title.textContent = trackInfo.title;
+    artist.textContent = trackInfo.artist;
+    album.textContent = trackInfo.album;
 }
 
 let recordFrame;
@@ -144,6 +171,241 @@ async function updateForCurrentTrack(playerBar) {
     syncRecordMotion();
     console.log("[loop.mp3] Current track metadata:", trackInfo);
 }
+
+function hideLoopSearch() {
+    const searchBar = document.querySelector("ytmusic-search-box");
+
+    if (!searchBar) return;
+
+    loopSearchResizeObserver?.disconnect();
+    loopSearchResizeObserver = undefined;
+    loopSearchMutationObserver?.disconnect();
+    loopSearchMutationObserver = undefined;
+    searchBar.style.setProperty("display", "none", "important");
+    searchBar.style.setProperty("top", "50%", "important");
+
+    console.log("[loop.mp3] Search hidden");
+}
+
+let loopSearchResizeObserver;
+let loopSearchMutationObserver;
+let loopSearchResultsObserver;
+let originalSearchResultsParent;
+let originalSearchResultsNextSibling;
+let originalSearchParent;
+let originalSearchNextSibling;
+
+function restoreYTMSearch() {
+    const searchBar = document.querySelector("ytmusic-search-box");
+
+    loopSearchResizeObserver?.disconnect();
+    loopSearchResizeObserver = undefined;
+    loopSearchMutationObserver?.disconnect();
+    loopSearchMutationObserver = undefined;
+    loopSearchResultsObserver?.disconnect();
+    loopSearchResultsObserver = undefined;
+
+    if (searchBar) {
+        searchBar.style.removeProperty("display");
+        searchBar.style.removeProperty("position");
+        searchBar.style.removeProperty("top");
+        searchBar.style.removeProperty("left");
+        searchBar.style.removeProperty("right");
+        searchBar.style.removeProperty("bottom");
+        searchBar.style.removeProperty("transform");
+        searchBar.style.removeProperty("z-index");
+        searchBar.style.removeProperty("overflow");
+
+        if (originalSearchParent?.isConnected) {
+            originalSearchParent.insertBefore(
+                searchBar,
+                originalSearchNextSibling?.parentNode === originalSearchParent
+                    ? originalSearchNextSibling
+                    : null
+            );
+        }
+    }
+
+    restoreLoopSearchResults();
+
+    document.getElementById("loop")?.remove();
+    originalSearchParent = undefined;
+    originalSearchNextSibling = undefined;
+    originalSearchResultsParent = undefined;
+    originalSearchResultsNextSibling = undefined;
+}
+
+function restoreLoopSearchResults() {
+    const searchResults = document.querySelector("ytmusic-tabbed-search-results-renderer") ||
+        document.getElementById("loop-search-results")?.querySelector("ytmusic-tabbed-search-results-renderer");
+
+    if (searchResults && originalSearchResultsParent?.isConnected) {
+        originalSearchResultsParent.insertBefore(
+            searchResults,
+            originalSearchResultsNextSibling?.parentNode === originalSearchResultsParent
+                ? originalSearchResultsNextSibling
+                : null
+        );
+    }
+
+    originalSearchResultsParent = undefined;
+    originalSearchResultsNextSibling = undefined;
+}
+
+function closeLoopSearchPanel() {
+    loopSearchResultsObserver?.disconnect();
+    loopSearchResultsObserver = undefined;
+    restoreLoopSearchResults();
+    document.getElementById("loop-search-results")?.remove();
+
+    const searchBar = document.querySelector("ytmusic-search-box");
+    searchBar?.style.setProperty("top", "50%", "important");
+    const suggestionList = searchBar?.querySelector("#suggestion-list") ||
+        document.querySelector("#suggestion-list");
+    if (suggestionList) suggestionList.hidden = false;
+}
+
+function getLoopSearchResultsPanel() {
+    let panel = document.getElementById("loop-search-results");
+    if (!panel) {
+        panel = document.createElement("div");
+        panel.id = "loop-search-results";
+        document.getElementById("loop")?.appendChild(panel);
+    }
+    return panel;
+}
+
+function renderLoopSearchResults(searchBar) {
+    const source = document.querySelector("ytmusic-tabbed-search-results-renderer");
+    const panel = getLoopSearchResultsPanel();
+
+    if (!source || !panel) return false;
+
+    if (!originalSearchResultsParent) {
+        originalSearchResultsParent = source.parentNode;
+        originalSearchResultsNextSibling = source.nextSibling;
+    }
+    panel.replaceChildren(source);
+
+    const panelHeight = panel.getBoundingClientRect().height;
+    if (panelHeight > 0) {
+        const gap = 8;
+        searchBar.style.setProperty(
+            "top",
+            `calc(50% - ${(panelHeight + gap) / 2}px)`,
+            "important"
+        );
+    }
+
+    const searchBounds = searchBar.getBoundingClientRect();
+    panel.style.setProperty("top", `${searchBounds.bottom + 8}px`, "important");
+    panel.style.setProperty("left", `${searchBounds.left}px`, "important");
+    panel.style.setProperty("width", `${searchBounds.width}px`, "important");
+    return true;
+}
+
+function showLoopSearchResults(searchBar) {
+    const suggestionList = searchBar.querySelector("#suggestion-list") ||
+        document.querySelector("#suggestion-list");
+    if (suggestionList) suggestionList.hidden = true;
+
+    const render = () => {
+        const rendered = renderLoopSearchResults(searchBar);
+        if (rendered) {
+            loopSearchResultsObserver?.disconnect();
+            loopSearchResultsObserver = undefined;
+        }
+        return rendered;
+    };
+    if (render()) return;
+
+    loopSearchResultsObserver?.disconnect();
+    loopSearchResultsObserver = new MutationObserver(render);
+    loopSearchResultsObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+function positionLoopSearch(searchBar, suggestionList) {
+    if (!suggestionList || suggestionList.getBoundingClientRect().height === 0) {
+        searchBar.style.setProperty("top", "50%", "important");
+        return;
+    }
+
+    const suggestionHeight = suggestionList.getBoundingClientRect().height;
+    const gap = 8;
+    searchBar.style.setProperty(
+        "top",
+        `calc(50% - ${(suggestionHeight + gap) / 2}px)`,
+        "important"
+    );
+
+}
+
+function showLoopSuggestions(searchBar) {
+    const suggestionList = searchBar.querySelector("#suggestion-list") ||
+        document.querySelector("#suggestion-list");
+
+    if (!suggestionList) return;
+
+    searchBar.style.setProperty("top", "50%", "important");
+
+    if (!suggestionList.textContent.trim()) {
+        return;
+    }
+
+    suggestionList.style.setProperty("z-index", "999999999999999", "important");
+    suggestionList.style.setProperty("padding", "8px 0", "important");
+}
+
+function showLoopSearch() {
+    const searchBar = document.querySelector("ytmusic-search-box");
+    const loop = document.getElementById("loop");
+
+    if (!searchBar || !loop) {
+        console.log("[loop.mp3] Search bar or Loop not found");
+        return;
+    }
+
+    if (searchBar.parentNode !== loop) {
+        originalSearchParent = searchBar.parentNode;
+        originalSearchNextSibling = searchBar.nextSibling;
+    }
+    loop.appendChild(searchBar);
+
+    searchBar.style.setProperty("display", "block", "important");
+    searchBar.style.setProperty("position", "fixed", "important");
+    searchBar.style.setProperty("top", "50%", "important");
+    searchBar.style.setProperty("left", "50%", "important");
+    searchBar.style.setProperty("right", "auto", "important");
+    searchBar.style.setProperty("bottom", "auto", "important");
+    searchBar.style.setProperty("transform", "translate(-50%, -50%)", "important");
+    searchBar.style.setProperty("z-index", "999999999999999", "important");
+    searchBar.style.setProperty("overflow", "visible", "important");
+
+    showLoopSuggestions(searchBar);
+    loopSearchMutationObserver?.disconnect();
+    loopSearchMutationObserver = new MutationObserver(() => {
+        showLoopSuggestions(searchBar);
+    });
+    loopSearchMutationObserver.observe(searchBar, { childList: true, subtree: true });
+
+    console.log("[loop.mp3] Search shown");
+}
+
+document.addEventListener("keydown", (event) => {
+    if (event.ctrlKey && event.key === "m") {
+        console.log("[loop.mp3] Search called");
+        showLoopSearch();
+        return;
+    }
+
+    if (event.key === "Enter") {
+        const searchBar = document.querySelector("ytmusic-search-box");
+        if (searchBar && event.target instanceof Node && searchBar.contains(event.target)) {
+            // Let YouTube Music process the query, then mirror its results in the Loop panel.
+            setTimeout(() => showLoopSearchResults(searchBar), 0);
+        }
+    }
+});
 
 function init(playerBar) {
     console.log("[loop.mp3] YTM is ready", playerBar);

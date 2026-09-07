@@ -2,7 +2,7 @@
     position: fixed;
     inset: 0;
 
-    z-index: 2147483647;
+    z-index: 999999999999999;
 
     display: flex;
     align-items: center;
@@ -15,6 +15,37 @@
     background: #000;
 
     position: relative;
+}
+
+#loop ytmusic-search-box,
+#loop ytmusic-search-box #suggestion-list {
+    z-index: 999999999999999 !important;
+}
+
+#loop ytmusic-search-box #suggestion-list {
+    padding: 8px 0 !important;
+}
+
+#loop-search-results {
+    position: fixed;
+    z-index: 999999999999999;
+    box-sizing: border-box;
+    max-height: min(70vh, 640px);
+    overflow: hidden;
+    background: #030303;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+#loop-search-results > ytmusic-tabbed-search-results-renderer {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    max-height: min(70vh, 640px);
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 #loop-player::after {
