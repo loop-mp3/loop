@@ -12,9 +12,19 @@
 #loop-player {
     width: 100vw;
     height: 100vh;
-    background: #2421ff;
+    background: #000000;
 
     position: relative;
+}
+
+#loop-kawarp-background {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
 }
 
 #loop ytmusic-search-box,
@@ -103,6 +113,63 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) rotate(var(--loop-rotation, 0deg));
+}
+
+#loop.loop-no-vinyl #loop-artwork {
+    border-radius: 12px;
+    transform: translate(-50%, -50%);
+}
+
+#loop.loop-no-vinyl #loop-player::after {
+    display: none;
+}
+
+#loop-empty-state {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 3;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    text-align: center;
+}
+
+#loop-empty-state[hidden] {
+    display: none;
+}
+
+.loop-empty-title {
+    font-size: 32px;
+    font-weight: 700;
+}
+
+.loop-empty-subtitle {
+    margin-top: 10px;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 17px;
+}
+
+#loop-empty-state kbd {
+    display: inline-block;
+    margin-top: 22px;
+    padding: 5px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 5px;
+    color: rgba(255, 255, 255, 0.8);
+    font-family: inherit;
+    font-size: 12px;
+}
+
+.loop-empty #loop-controls {
+    display: none;
+}
+
+.loop-empty #loop-track-album {
+    display: none;
+}
+
+.loop-empty #loop-empty-state {
+    display: none;
 }
 
 #loop-track-info {

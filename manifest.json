@@ -15,6 +15,12 @@
   "host_permissions": [
     "https://www.youtube.com/*"
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["config/shader.json", "static/kawarp.js"],
+      "matches": ["https://music.youtube.com/*"]
+    }
+  ],
   "background": {
     "service_worker": "background.js"
   }

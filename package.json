@@ -1,0 +1,8 @@
+{
+  "name": "loop-mp3",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@kawarp/core": "1.2.0"
+  }
+}

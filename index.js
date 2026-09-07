@@ -19,6 +19,143 @@ function getVinylArtwork(trackId) {
     return trackId ? `https://img.youtube.com/vi/${trackId}/maxresdefault.jpg` : getFallbackArtwork();
 }
 
+const defaultKawarpSettings = {
+    enabled: true,
+    kawarpOpacity: 0.57,
+    kawarpWarpIntensity: 1,
+    kawarpBlurPasses: 7,
+    kawarpAnimationSpeed: 0.3,
+    kawarpTransitionDuration: 1000,
+    kawarpSaturation: 2,
+    kawarpDithering: 0.004,
+    kawarpAudioScaleBoost: 1.1,
+    audioResponsive: true,
+    audioSpeedMultiplier: 4.5,
+    audioBeatThreshold: 0.01,
+    pauseOnInactive: true,
+    showLogs: true,
+    showOnBrowsePages: false,
+    enableAnimatedArt: true,
+    shaderType: "kawarp",
+    distortion: 0.93,
+    swirl: 0.97,
+    offsetX: 0,
+    offsetY: 0,
+    scale: 1.25,
+    rotation: 0,
+    speed: 0.07,
+    opacity: 0.33,
+    audioScaleBoost: 1.3,
+    boostDullColors: true,
+    vibrantSaturationThreshold: 30,
+    vibrantRatioThreshold: 50,
+    boostIntensity: 50,
+};
+
+let kawarpSettings = { ...defaultKawarpSettings };
+let kawarpBackground;
+let kawarpEnabled = true;
+let kawarpRendererClass;
+let kawarpRendererPromise;
+
+function getExtensionURL(path) {
+    const runtime = globalThis.chrome?.runtime || globalThis.browser?.runtime;
+    return runtime?.getURL(path) || path;
+}
+
+function loadKawarpRenderer() {
+    if (!kawarpRendererPromise) {
+        kawarpRendererPromise = import(getExtensionURL("static/kawarp.js"))
+            .then(({ Kawarp }) => {
+                kawarpRendererClass = Kawarp;
+                return Kawarp;
+            });
+    }
+    return kawarpRendererPromise;
+}
+
+function setKawarpCanvasVisibility(enabled) {
+    const canvas = document.querySelector("#loop-kawarp-background");
+    if (canvas) canvas.style.display = enabled ? "block" : "none";
+}
+
+function applyKawarpSettings(settings) {
+    kawarpSettings = { ...defaultKawarpSettings, ...settings };
+    kawarpEnabled = kawarpEnabled && kawarpSettings.enabled !== false;
+    kawarpBackground?.setOptions({
+        warpIntensity: kawarpSettings.kawarpWarpIntensity,
+        blurPasses: kawarpSettings.kawarpBlurPasses,
+        animationSpeed: kawarpSettings.kawarpAnimationSpeed,
+        transitionDuration: kawarpSettings.kawarpTransitionDuration,
+        saturation: kawarpSettings.kawarpSaturation,
+        dithering: kawarpSettings.kawarpDithering,
+        scale: kawarpSettings.scale,
+    });
+    const canvas = document.querySelector("#loop-kawarp-background");
+    if (canvas) {
+        canvas.style.opacity = String(kawarpSettings.opacity ?? kawarpSettings.kawarpOpacity);
+        canvas.style.display = kawarpEnabled ? "block" : "none";
+    }
+    const backgroundToggle = document.querySelector("#loop-background-toggle");
+    if (backgroundToggle) backgroundToggle.checked = kawarpEnabled;
+}
+
+async function loadKawarpSettings() {
+    try {
+        const response = await fetch(getExtensionURL("config/shader.json"));
+        if (!response.ok) throw new Error(`shader.json returned ${response.status}`);
+        const config = await response.json();
+        applyKawarpSettings(config.settings || config);
+    } catch (error) {
+        console.warn("[loop.mp3] Could not load Kawarp settings:", error);
+    }
+}
+
+function setKawarpEnabled(enabled) {
+    kawarpEnabled = enabled;
+    setKawarpCanvasVisibility(enabled);
+}
+
+function disposeKawarpBackground() {
+    kawarpBackground?.dispose();
+    kawarpBackground = undefined;
+}
+
+function updateKawarpArtwork(artworkURL) {
+    const canvas = document.querySelector("#loop-kawarp-background");
+    if (!canvas) return;
+
+    if (!kawarpRendererClass) {
+        loadKawarpRenderer()
+            .then(() => updateKawarpArtwork(artworkURL))
+            .catch((error) => console.warn("[loop.mp3] Could not load @kawarp/core:", error));
+        return;
+    }
+
+    try {
+        if (!kawarpBackground) {
+            kawarpBackground = new kawarpRendererClass(canvas, {
+                warpIntensity: kawarpSettings.kawarpWarpIntensity,
+                blurPasses: kawarpSettings.kawarpBlurPasses,
+                animationSpeed: kawarpSettings.kawarpAnimationSpeed,
+                transitionDuration: kawarpSettings.kawarpTransitionDuration,
+                saturation: kawarpSettings.kawarpSaturation,
+                dithering: kawarpSettings.kawarpDithering,
+                scale: kawarpSettings.scale,
+            });
+            canvas.style.opacity = String(kawarpSettings.opacity ?? kawarpSettings.kawarpOpacity);
+            setKawarpCanvasVisibility(kawarpEnabled);
+            window.addEventListener("resize", () => kawarpBackground?.resize(), { passive: true });
+            kawarpBackground.start();
+        }
+        kawarpBackground.loadImage(artworkURL).catch((error) => {
+            console.warn("[loop.mp3] Could not load artwork into Kawarp:", error);
+        });
+    } catch (error) {
+        console.warn("[loop.mp3] Could not initialize Kawarp:", error);
+    }
+}
+
 function getTrackInfo(playerBar) {
     const title = playerBar.querySelector(".title")?.textContent.trim() || "Unknown title";
     const byline = playerBar.querySelector("yt-formatted-string.byline.ytmusic-player-bar") ||
@@ -56,6 +193,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
 }
 
 function goBackToNormal() {
+    if (!getCurrentTrackId()) emptyScreenDismissed = true;
     restoreYTMSearch();
     console.log("[loop.mp3] Loop removed, back to normal YTM");
 }
@@ -69,6 +207,7 @@ function updateLoop(artworkURL, trackInfo) {
             <div id="loop-player">
                 <button id="loop-back-button" type="button" aria-label="Return to YouTube Music">&#215;</button>
                 <button id="loop-shortcuts-button" type="button" aria-label="Show keyboard shortcuts">?</button>
+                <canvas id="loop-kawarp-background" aria-hidden="true"></canvas>
                 <div id="loop-shortcuts-panel" hidden>
                     <div class="loop-shortcuts-title">Loop shortcuts</div>
                     <div><kbd>M</kbd> Mute / unmute</div>
@@ -81,6 +220,19 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-navigation-toggle" type="checkbox">
                         Show previous/next buttons
                     </label>
+                    <label class="loop-navigation-toggle">
+                        <input id="loop-background-toggle" type="checkbox" checked>
+                        Animated artwork background
+                    </label>
+                    <label class="loop-navigation-toggle">
+                        <input id="loop-vinyl-toggle" type="checkbox">
+                        Don’t show vinyl
+                    </label>
+                </div>
+                <div id="loop-empty-state" hidden>
+                    <div class="loop-empty-title">Nothing is playing</div>
+                    <div class="loop-empty-subtitle">Search something to play</div>
+                    <kbd>Ctrl + M</kbd>
                 </div>
                 <div id="loop-inline-buttons" aria-label="Playback controls">
                     <button id="loop-previous-button" type="button" aria-label="Previous track" hidden>&#9198;</button>
@@ -111,6 +263,12 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-seek").addEventListener("input", seekTrack);
         loop.querySelector("#loop-navigation-toggle").addEventListener("change", (event) => {
             setTrackNavigationButtonsVisible(event.target.checked);
+        });
+        loop.querySelector("#loop-background-toggle").addEventListener("change", (event) => {
+            setKawarpEnabled(event.target.checked);
+        });
+        loop.querySelector("#loop-vinyl-toggle").addEventListener("change", (event) => {
+            loop.classList.toggle("loop-no-vinyl", event.target.checked);
         });
         loop.querySelector("#loop-shortcuts-button").addEventListener("click", (event) => {
             event.stopPropagation();
@@ -159,18 +317,22 @@ function updateLoop(artworkURL, trackInfo) {
     const title = loop.querySelector("#loop-track-title");
     const artist = loop.querySelector("#loop-track-artist");
     const album = loop.querySelector("#loop-track-album");
+    const emptyState = loop.querySelector("#loop-empty-state");
 
     // YouTube Music can replace DOM nodes while navigating between tracks.
     // Rebuild the injected UI if one of its required nodes disappeared.
-    if (!artwork || !title || !artist || !album) {
+    if (!artwork || !title || !artist || !album || !emptyState) {
         loop.remove();
         return updateLoop(artworkURL, trackInfo);
     }
 
-    artwork.src = artworkURL;
+    artwork.src = trackInfo.empty ? getFallbackArtwork() : artworkURL;
     title.textContent = trackInfo.title;
     artist.textContent = trackInfo.artist;
     album.textContent = trackInfo.album;
+    loop.classList.toggle("loop-empty", Boolean(trackInfo.empty));
+    emptyState.hidden = !trackInfo.empty;
+    updateKawarpArtwork(artwork.src);
     updatePlaybackControls(getCurrentMedia());
 }
 
@@ -212,7 +374,7 @@ function updatePlaybackControls(media = getCurrentMedia()) {
 
     playButton.textContent = media.paused ? "▶" : "⏸";
     playButton.setAttribute("aria-label", media.paused ? "Play" : "Pause");
-    muteButton.textContent = media.muted ? "🔇" : "🔊";
+    muteButton.textContent = media.muted ? "♩" : "♪";
     muteButton.setAttribute("aria-label", media.muted ? "Unmute" : "Mute");
     seek.max = Number.isFinite(media.duration) ? String(media.duration) : "0";
     seek.value = Number.isFinite(media.currentTime) ? String(media.currentTime) : "0";
@@ -308,10 +470,22 @@ function watchPlaybackState() {
 
 let lastTrackId;
 let metadataRequest = 0;
+let emptyScreenDismissed = false;
 
 async function updateForCurrentTrack(playerBar) {
     const trackId = getCurrentTrackId();
-    if (!trackId) return;
+    if (!trackId) {
+        if (!emptyScreenDismissed) {
+            updateLoop(getFallbackArtwork(), {
+                title: "Nothing is playing",
+                artist: "Search something to play",
+                album: "",
+                empty: true,
+            });
+        }
+        return;
+    }
+    emptyScreenDismissed = false;
     if (trackId === lastTrackId) {
         const liveInfo = getTrackInfo(playerBar);
         const albumNode = document.querySelector("#loop-track-album");
@@ -364,6 +538,7 @@ function restoreYTMSearch() {
     loopSearchMutationObserver = undefined;
     loopSearchResultsObserver?.disconnect();
     loopSearchResultsObserver = undefined;
+    disposeKawarpBackground();
 
     if (searchBar) {
         searchBar.style.removeProperty("display");
@@ -605,4 +780,8 @@ function init(playerBar) {
     }, 100);
 }
 
+loadKawarpRenderer().catch((error) => {
+    console.warn("[loop.mp3] Could not load @kawarp/core:", error);
+});
+loadKawarpSettings();
 waitForYTM(init);
