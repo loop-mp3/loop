@@ -12,7 +12,7 @@
 #loop-player {
     width: 100vw;
     height: 100vh;
-    background: #000;
+    background: #2421ff;
 
     position: relative;
 }
@@ -94,8 +94,8 @@
 }
 
 #loop-artwork {
-    width: 450px;
-    height: 450px;
+    width: 400px;
+    height: 400px;
     object-fit: cover;
     border-radius: 100%;
 
@@ -113,6 +113,133 @@
     width: min(80vw, 600px);
     color: #fff;
     text-align: center;
+}
+
+#loop-controls {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    color: #fff;
+}
+
+#loop-seek-row {
+    position: absolute;
+    top: calc(50% + 205px);
+    left: 50%;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: min(80vw, 600px);
+    transform: translateX(-50%);
+    pointer-events: auto;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 12px;
+}
+
+#loop-seek {
+    flex: 1;
+    accent-color: #fff;
+    cursor: pointer;
+}
+
+#loop-inline-buttons {
+    position: absolute;
+    top: 19px;
+    right: 106px;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+#loop-inline-buttons button,
+#loop-shortcuts-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    cursor: pointer;
+    font-size: 15px;
+    pointer-events: auto;
+}
+
+#loop-inline-buttons button[hidden] {
+    display: none;
+}
+
+#loop-shortcuts-button {
+    position: absolute;
+    top: 19px;
+    z-index: 4;
+    right: 64px;
+}
+
+#loop-play-button {
+    background: rgba(255, 255, 255, 0.9) !important;
+    color: #000 !important;
+}
+
+#loop-shortcuts-panel {
+    position: absolute;
+    top: 61px;
+    right: 64px;
+    z-index: 4;
+    width: max-content;
+    min-width: 250px;
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    background: rgba(8, 8, 8, 0.94);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 13px;
+    line-height: 1.8;
+    pointer-events: auto;
+}
+
+#loop-shortcuts-panel[hidden] {
+    display: none;
+}
+
+.loop-shortcuts-title {
+    margin-bottom: 4px;
+    color: #fff;
+    font-weight: 700;
+}
+
+#loop-shortcuts-panel kbd {
+    display: inline-block;
+    min-width: 58px;
+    margin-right: 5px;
+    padding: 0 5px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 11px;
+    text-align: center;
+}
+
+#loop-shortcuts-panel span {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.loop-navigation-toggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 6px;
+    color: #fff;
+    cursor: pointer;
 }
 
 #loop-track-title {

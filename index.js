@@ -68,23 +68,85 @@ function updateLoop(artworkURL, trackInfo) {
         loop.innerHTML = `
             <div id="loop-player">
                 <button id="loop-back-button" type="button" aria-label="Return to YouTube Music">&#215;</button>
+                <button id="loop-shortcuts-button" type="button" aria-label="Show keyboard shortcuts">?</button>
+                <div id="loop-shortcuts-panel" hidden>
+                    <div class="loop-shortcuts-title">Loop shortcuts</div>
+                    <div><kbd>M</kbd> Mute / unmute</div>
+                    <div><kbd>J</kbd> Previous track</div>
+                    <div><kbd>K</kbd> Next track</div>
+                    <div><kbd>Ctrl + M</kbd> Search</div>
+                    <div><kbd>Ctrl + Q</kbd> See queue <span>(not implemented)</span></div>
+                    <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
+                    <label class="loop-navigation-toggle">
+                        <input id="loop-navigation-toggle" type="checkbox">
+                        Show previous/next buttons
+                    </label>
+                </div>
+                <div id="loop-inline-buttons" aria-label="Playback controls">
+                    <button id="loop-previous-button" type="button" aria-label="Previous track" hidden>&#9198;</button>
+                    <button id="loop-play-button" type="button" aria-label="Play">&#9654;</button>
+                    <button id="loop-next-button" type="button" aria-label="Next track" hidden>&#9197;</button>
+                    <button id="loop-mute-button" type="button" aria-label="Mute">&#128266;</button>
+                </div>
                 <img id="loop-artwork" alt="Album artwork" onerror="this.onerror=null; this.src='${getFallbackArtwork()}';">
                 <div id="loop-track-info">
                     <div id="loop-track-title"></div>
                     <div id="loop-track-artist"></div>
                     <div id="loop-track-album"></div>
                 </div>
+                <div id="loop-controls" aria-label="Playback controls">
+                    <div id="loop-seek-row">
+                        <span id="loop-current-time">0:00</span>
+                        <input id="loop-seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="Seek through track">
+                        <span id="loop-duration">0:00</span>
+                    </div>
+                </div>
             </div>`;
         document.body.appendChild(loop);
         loop.querySelector("#loop-back-button").addEventListener("click", goBackToNormal);
+        loop.querySelector("#loop-play-button").addEventListener("click", togglePlayback);
+        loop.querySelector("#loop-mute-button").addEventListener("click", toggleMute);
+        loop.querySelector("#loop-previous-button").addEventListener("click", playPreviousTrack);
+        loop.querySelector("#loop-next-button").addEventListener("click", playNextTrack);
+        loop.querySelector("#loop-seek").addEventListener("input", seekTrack);
+        loop.querySelector("#loop-navigation-toggle").addEventListener("change", (event) => {
+            setTrackNavigationButtonsVisible(event.target.checked);
+        });
+        loop.querySelector("#loop-shortcuts-button").addEventListener("click", (event) => {
+            event.stopPropagation();
+            const panel = loop.querySelector("#loop-shortcuts-panel");
+            panel.hidden = !panel.hidden;
+        });
         loop.addEventListener("click", (event) => {
             const searchBar = document.querySelector("ytmusic-search-box");
             const resultsPanel = document.getElementById("loop-search-results");
+            const shortcutsPanel = document.getElementById("loop-shortcuts-panel");
+            const shortcutsButton = document.getElementById("loop-shortcuts-button");
+
+            if (
+                resultsPanel &&
+                event.target instanceof Element &&
+                resultsPanel.contains(event.target) &&
+                event.target.closest(
+                    "a[href*='/watch'], ytmusic-responsive-list-item-renderer, " +
+                    "ytmusic-two-row-item-renderer, ytmusic-item-renderer, " +
+                    "ytmusic-playlist-panel-video-renderer, ytmusic-video-renderer, " +
+                    "ytmusic-music-video-renderer"
+                )
+            ) {
+                setTimeout(() => {
+                    closeLoopSearchPanel();
+                    hideLoopSearch();
+                }, 0);
+                return;
+            }
 
             if (
                 event.target instanceof Node &&
                 ((searchBar && searchBar.contains(event.target)) ||
-                    (resultsPanel && resultsPanel.contains(event.target)))
+                    (resultsPanel && resultsPanel.contains(event.target)) ||
+                    (shortcutsPanel && shortcutsPanel.contains(event.target)) ||
+                    (shortcutsButton && shortcutsButton.contains(event.target)))
             ) {
                 return;
             }
@@ -109,6 +171,7 @@ function updateLoop(artworkURL, trackInfo) {
     title.textContent = trackInfo.title;
     artist.textContent = trackInfo.artist;
     album.textContent = trackInfo.album;
+    updatePlaybackControls(getCurrentMedia());
 }
 
 let recordFrame;
@@ -119,9 +182,105 @@ function getCurrentMedia() {
     return media.find((element) => !element.paused && !element.ended) || media[0];
 }
 
+function formatTime(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60).toString().padStart(2, "0");
+    return `${minutes}:${remainingSeconds}`;
+}
+
+function updatePlaybackControls(media = getCurrentMedia()) {
+    const playButton = document.querySelector("#loop-play-button");
+    const muteButton = document.querySelector("#loop-mute-button");
+    const seek = document.querySelector("#loop-seek");
+    const currentTime = document.querySelector("#loop-current-time");
+    const duration = document.querySelector("#loop-duration");
+
+    if (!playButton || !muteButton || !seek || !currentTime || !duration) return;
+
+    if (!media) {
+        playButton.textContent = "▶";
+        playButton.setAttribute("aria-label", "Play");
+        muteButton.textContent = "🔊";
+        muteButton.setAttribute("aria-label", "Mute");
+        seek.value = "0";
+        seek.max = "0";
+        currentTime.textContent = "0:00";
+        duration.textContent = "0:00";
+        return;
+    }
+
+    playButton.textContent = media.paused ? "▶" : "⏸";
+    playButton.setAttribute("aria-label", media.paused ? "Play" : "Pause");
+    muteButton.textContent = media.muted ? "🔇" : "🔊";
+    muteButton.setAttribute("aria-label", media.muted ? "Unmute" : "Mute");
+    seek.max = Number.isFinite(media.duration) ? String(media.duration) : "0";
+    seek.value = Number.isFinite(media.currentTime) ? String(media.currentTime) : "0";
+    currentTime.textContent = formatTime(media.currentTime);
+    duration.textContent = formatTime(media.duration);
+}
+
+function togglePlayback() {
+    const media = getCurrentMedia();
+    if (!media) return;
+
+    if (media.paused) {
+        media.play().catch((error) => console.warn("[loop.mp3] Could not play media:", error));
+    } else {
+        media.pause();
+    }
+    updatePlaybackControls(media);
+}
+
+function toggleMute() {
+    const media = getCurrentMedia();
+    if (!media) return;
+
+    media.muted = !media.muted;
+    updatePlaybackControls(media);
+}
+
+function seekTrack(event) {
+    const media = getCurrentMedia();
+    if (!media) return;
+
+    const nextTime = Number(event.target.value);
+    if (Number.isFinite(nextTime)) media.currentTime = nextTime;
+    updatePlaybackControls(media);
+}
+
+function sendYTMShortcut(key) {
+    const keyCode = key.toUpperCase().charCodeAt(0);
+    const eventOptions = {
+        key,
+        code: `Key${key.toUpperCase()}`,
+        keyCode,
+        which: keyCode,
+        bubbles: true,
+        cancelable: true,
+    };
+
+    document.dispatchEvent(new KeyboardEvent("keydown", eventOptions));
+    document.dispatchEvent(new KeyboardEvent("keyup", eventOptions));
+}
+
+function playPreviousTrack() {
+    sendYTMShortcut("j");
+}
+
+function playNextTrack() {
+    sendYTMShortcut("k");
+}
+
+function setTrackNavigationButtonsVisible(visible) {
+    document.querySelector("#loop-previous-button")?.toggleAttribute("hidden", !visible);
+    document.querySelector("#loop-next-button")?.toggleAttribute("hidden", !visible);
+}
+
 function syncRecordMotion() {
     const artwork = document.querySelector("#loop-artwork");
     const media = getCurrentMedia();
+    updatePlaybackControls(media);
 
     if (!artwork || !media) {
         recordFrame = undefined;
@@ -143,6 +302,7 @@ function syncRecordMotion() {
 
 function watchPlaybackState() {
     const media = getCurrentMedia();
+    updatePlaybackControls(media);
     if (media && !media.paused && recordFrame === undefined) syncRecordMotion();
 }
 
@@ -396,6 +556,35 @@ document.addEventListener("keydown", (event) => {
         console.log("[loop.mp3] Search called");
         showLoopSearch();
         return;
+    }
+
+    // Ignore the synthetic J/K events generated for YouTube Music itself.
+    if (!event.isTrusted) return;
+
+    const target = event.target;
+    const isTyping = target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable);
+    if (
+        document.getElementById("loop") &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.repeat &&
+        !isTyping
+    ) {
+        if (event.key.toLowerCase() === "m") {
+            toggleMute();
+            return;
+        }
+        if (event.key.toLowerCase() === "j") {
+            playPreviousTrack();
+            return;
+        }
+        if (event.key.toLowerCase() === "k") {
+            playNextTrack();
+            return;
+        }
     }
 
     if (event.key === "Enter") {
