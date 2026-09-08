@@ -38,7 +38,7 @@ async function checkYTMusicAuth() {
     const response = await chrome.runtime.sendMessage({ action: "CHECK_AUTH" });
     return !!response?.isLoggedIn;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -228,7 +228,7 @@ function makeActionDockDraggable(dock, handle) {
 async function warnIfNotSignedIn() {
     try {
         const isSignedIn = await checkYTMusicAuth();
-        if (!isSignedIn && !authWarningShown) {
+        if (isSignedIn === false && !authWarningShown) {
             authWarningShown = true;
             console.warn("[loop.mp3] YouTube Music is not signed in with Google.");
             showAuthWarningPopup();
