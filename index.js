@@ -55,8 +55,51 @@ const defaultKawarpSettings = {
 let kawarpSettings = { ...defaultKawarpSettings };
 let kawarpBackground;
 let kawarpEnabled = true;
+let loopPreferences = {
+    animatedBackground: true,
+    hideVinyl: false,
+};
 let kawarpRendererClass;
 let kawarpRendererPromise;
+
+const loopPreferencesKey = "loop.mp3.preferences";
+
+function getStoredLoopPreferences() {
+    const storage = globalThis.chrome?.storage?.local || globalThis.browser?.storage?.local;
+    if (storage) {
+        return new Promise((resolve) => {
+            storage.get(loopPreferencesKey, (result) => resolve(result?.[loopPreferencesKey] || {}));
+        });
+    }
+
+    try {
+        return Promise.resolve(JSON.parse(localStorage.getItem(loopPreferencesKey) || "{}"));
+    } catch {
+        return Promise.resolve({});
+    }
+}
+
+function saveLoopPreferences() {
+    const storage = globalThis.chrome?.storage?.local || globalThis.browser?.storage?.local;
+    if (storage) {
+        storage.set({ [loopPreferencesKey]: loopPreferences });
+        return;
+    }
+
+    try {
+        localStorage.setItem(loopPreferencesKey, JSON.stringify(loopPreferences));
+    } catch {
+        // Preferences are optional; continue if storage is unavailable.
+    }
+}
+
+function applyLoopPreferences() {
+    const loop = document.querySelector("#loop");
+    if (!loop) return;
+    loop.classList.toggle("loop-no-vinyl", loopPreferences.hideVinyl);
+    const vinylToggle = loop.querySelector("#loop-vinyl-toggle");
+    if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
+}
 
 function getExtensionURL(path) {
     const runtime = globalThis.chrome?.runtime || globalThis.browser?.runtime;
@@ -81,7 +124,7 @@ function setKawarpCanvasVisibility(enabled) {
 
 function applyKawarpSettings(settings) {
     kawarpSettings = { ...defaultKawarpSettings, ...settings };
-    kawarpEnabled = kawarpEnabled && kawarpSettings.enabled !== false;
+    kawarpEnabled = loopPreferences.animatedBackground && kawarpSettings.enabled !== false;
     kawarpBackground?.setOptions({
         warpIntensity: kawarpSettings.kawarpWarpIntensity,
         blurPasses: kawarpSettings.kawarpBlurPasses,
@@ -111,8 +154,16 @@ async function loadKawarpSettings() {
     }
 }
 
+async function loadLoopPreferences() {
+    loopPreferences = { ...loopPreferences, ...(await getStoredLoopPreferences()) };
+    applyKawarpSettings(kawarpSettings);
+    applyLoopPreferences();
+}
+
 function setKawarpEnabled(enabled) {
     kawarpEnabled = enabled;
+    loopPreferences.animatedBackground = enabled;
+    saveLoopPreferences();
     setKawarpCanvasVisibility(enabled);
 }
 
@@ -261,6 +312,7 @@ function updateLoop(artworkURL, trackInfo) {
                 </div>
             </div>`;
         document.body.appendChild(loop);
+        applyLoopPreferences();
         loop.querySelector("#loop-back-button").addEventListener("click", goBackToNormal);
         loop.querySelector("#loop-play-button").addEventListener("click", togglePlayback);
         loop.querySelector("#loop-mute-button").addEventListener("click", toggleMute);
@@ -280,7 +332,9 @@ function updateLoop(artworkURL, trackInfo) {
             sendLoopShortcut("m", { ctrlKey: true });
         });
         loop.querySelector("#loop-vinyl-toggle").addEventListener("change", (event) => {
-            loop.classList.toggle("loop-no-vinyl", event.target.checked);
+            loopPreferences.hideVinyl = event.target.checked;
+            saveLoopPreferences();
+            applyLoopPreferences();
         });
         loop.querySelector("#loop-shortcuts-button").addEventListener("click", (event) => {
             event.stopPropagation();
@@ -954,4 +1008,5 @@ loadKawarpRenderer().catch((error) => {
     console.warn("[loop.mp3] Could not load @kawarp/core:", error);
 });
 loadKawarpSettings();
+loadLoopPreferences();
 waitForYTM(init);
