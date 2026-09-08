@@ -240,7 +240,12 @@ async function warnIfNotSignedIn() {
 
 function getExtensionURL(path) {
     const runtime = globalThis.chrome?.runtime || globalThis.browser?.runtime;
-    return runtime?.getURL(path) || path;
+    try {
+        return runtime?.getURL(path) || path;
+    } catch (error) {
+        console.warn("[loop.mp3] Extension context unavailable while resolving asset:", error);
+        return path;
+    }
 }
 
 function loadKawarpRenderer() {
