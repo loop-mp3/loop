@@ -6,11 +6,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.scripting.executeScript({
       target: { tabId: sender.tab.id },
       world: 'MAIN',
-      func: () => {
-        if (!window.ytcfg || typeof window.ytcfg.get !== 'function') return false;
-        const loggedIn = window.ytcfg.get('LOGGED_IN');
-        return loggedIn === true || loggedIn === 1 || loggedIn === '1' || loggedIn === 'true';
-      }
+      func: () => document.getElementById('channel-handle') !== null
     })
     .then(([result]) => sendResponse({ isLoggedIn: !!result?.result }))
     .catch(() => sendResponse({ isLoggedIn: false }));
