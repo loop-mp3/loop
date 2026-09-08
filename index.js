@@ -19,6 +19,20 @@ function getVinylArtwork(trackId) {
     return trackId ? `https://img.youtube.com/vi/${trackId}/maxresdefault.jpg` : getFallbackArtwork();
 }
 
+function loadFontAwesome() {
+    if (document.querySelector('link[data-loop-font-awesome="true"]')) return;
+    const mountPoint = document.head || document.documentElement;
+    if (!mountPoint) {
+        setTimeout(loadFontAwesome, 0);
+        return;
+    }
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css";
+    link.dataset.loopFontAwesome = "true";
+    mountPoint.appendChild(link);
+}
+
 async function checkYTMusicAuth() {
   try {
     const response = await chrome.runtime.sendMessage({ action: "CHECK_AUTH" });
@@ -132,6 +146,83 @@ function showAuthWarningPopup() {
         </div>`;
     (document.getElementById("loop") || document.body).appendChild(popup);
     popup.querySelector(".loop-auth-warning-dismiss").addEventListener("click", () => popup.remove());
+}
+
+function findYTMActionButton(action) {
+    const playerBar = document.querySelector("ytmusic-player-bar");
+    if (!playerBar) return null;
+
+    const candidates = [...playerBar.querySelectorAll("button, [role=button]")];
+    return candidates.find((button) => {
+        const label = [
+            button.getAttribute("aria-label"),
+            button.getAttribute("title"),
+            button.textContent,
+        ].filter(Boolean).join(" ").toLowerCase();
+        if (!label || !label.includes(action)) return false;
+        if (action === "like" && label.includes("dislike")) return false;
+        return button.offsetParent !== null;
+    });
+}
+
+function triggerYTMAction(action) {
+    const button = findYTMActionButton(action);
+    if (button) {
+        button.click();
+        return;
+    }
+    console.warn(`[loop.mp3] Could not find YouTube Music ${action} button.`);
+}
+
+function getCurrentArtistURL() {
+    const playerBar = document.querySelector("ytmusic-player-bar");
+    const byline = playerBar?.querySelector("yt-formatted-string.byline a, .byline a");
+    return byline?.href || null;
+}
+
+function subscribeToCurrentArtist() {
+    const artistURL = getCurrentArtistURL();
+    if (!artistURL) {
+        console.warn("[loop.mp3] Could not find the current artist channel.");
+        return;
+    }
+    window.open(artistURL, "_blank", "noopener,noreferrer");
+}
+
+function makeActionDockDraggable(dock, handle) {
+    let dragState;
+
+    handle.addEventListener("pointerdown", (event) => {
+        const rect = dock.getBoundingClientRect();
+        dragState = {
+            pointerId: event.pointerId,
+            offsetX: event.clientX - rect.left,
+            offsetY: event.clientY - rect.top,
+        };
+        dock.setPointerCapture?.(event.pointerId);
+        dock.classList.add("loop-action-dock-dragging");
+        event.preventDefault();
+    });
+
+    handle.addEventListener("pointermove", (event) => {
+        if (!dragState || dragState.pointerId !== event.pointerId) return;
+        const maxLeft = Math.max(0, window.innerWidth - dock.offsetWidth);
+        const maxTop = Math.max(0, window.innerHeight - dock.offsetHeight);
+        const left = Math.min(maxLeft, Math.max(0, event.clientX - dragState.offsetX));
+        const top = Math.min(maxTop, Math.max(0, event.clientY - dragState.offsetY));
+        dock.style.left = `${left}px`;
+        dock.style.top = `${top}px`;
+        dock.style.right = "auto";
+        dock.style.bottom = "auto";
+    });
+
+    const stopDragging = (event) => {
+        if (!dragState || dragState.pointerId !== event.pointerId) return;
+        dragState = undefined;
+        dock.classList.remove("loop-action-dock-dragging");
+    };
+    handle.addEventListener("pointerup", stopDragging);
+    handle.addEventListener("pointercancel", stopDragging);
 }
 
 async function warnIfNotSignedIn() {
@@ -356,6 +447,21 @@ function updateLoop(artworkURL, trackInfo) {
                         <span id="loop-duration">0:00</span>
                     </div>
                 </div>
+                <div id="loop-action-dock" aria-label="Track actions">
+                    <button id="loop-action-dock-handle" type="button" aria-label="Drag track actions">
+                        <i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>
+                    </button>
+                    <button id="loop-like-button" type="button" aria-label="Like current track" title="Like current track">
+                        <i class="fa-solid fa-thumbs-up" aria-hidden="true"></i>
+                    </button>
+                    <button id="loop-dislike-button" type="button" aria-label="Dislike current track" title="Dislike current track">
+                        <i class="fa-solid fa-thumbs-down" aria-hidden="true"></i>
+                    </button>
+                    <button id="loop-subscribe-button" type="button" aria-label="Subscribe to artist" title="Open artist channel to subscribe">
+                        <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
+                        <span>Subscribe</span>
+                    </button>
+                </div>
             </div>`;
         document.body.appendChild(loop);
         applyLoopPreferences();
@@ -365,6 +471,13 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-previous-button").addEventListener("click", playPreviousTrack);
         loop.querySelector("#loop-next-button").addEventListener("click", playNextTrack);
         loop.querySelector("#loop-seek").addEventListener("input", seekTrack);
+        loop.querySelector("#loop-like-button").addEventListener("click", () => triggerYTMAction("like"));
+        loop.querySelector("#loop-dislike-button").addEventListener("click", () => triggerYTMAction("dislike"));
+        loop.querySelector("#loop-subscribe-button").addEventListener("click", subscribeToCurrentArtist);
+        makeActionDockDraggable(
+            loop.querySelector("#loop-action-dock"),
+            loop.querySelector("#loop-action-dock-handle")
+        );
         loop.querySelector("#loop-navigation-toggle").addEventListener("change", (event) => {
             setTrackNavigationButtonsVisible(event.target.checked);
         });
@@ -1051,6 +1164,7 @@ function init(playerBar) {
     }, 100);
 }
 
+loadFontAwesome();
 loadKawarpRenderer().catch((error) => {
     console.warn("[loop.mp3] Could not load @kawarp/core:", error);
 });
