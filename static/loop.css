@@ -150,6 +150,10 @@
     display: none;
 }
 
+#loop.loop-empty #loop-action-dock {
+    display: none;
+}
+
 #loop-empty-state {
     position: absolute;
     top: 50%;
