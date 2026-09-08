@@ -16,7 +16,8 @@
     "https://www.youtube.com/*"
   ],
   "permissions": [
-    "storage"
+    "storage",
+    "scripting"
   ],
   "web_accessible_resources": [
     {
