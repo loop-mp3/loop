@@ -360,3 +360,60 @@
     content: "Album: ";
     color: rgba(255, 255, 255, 0.45);
 }
+
+#loop-auth-warning {
+    position: fixed;
+    inset: 0;
+    z-index: 1000000000000000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.62);
+}
+
+.loop-auth-warning-card {
+    width: min(420px, 100%);
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 14px;
+    background: #111;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+    color: #fff;
+    text-align: center;
+}
+
+.loop-auth-warning-title {
+    font-size: 21px;
+    font-weight: 700;
+}
+
+.loop-auth-warning-card p {
+    margin: 12px 0 20px;
+    color: rgba(255, 255, 255, 0.72);
+    line-height: 1.5;
+}
+
+.loop-auth-warning-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.loop-auth-warning-signin,
+.loop-auth-warning-dismiss {
+    padding: 9px 18px;
+    border: 0;
+    border-radius: 999px;
+    background: #fff;
+    color: #000;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.loop-auth-warning-dismiss {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+}

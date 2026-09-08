@@ -19,6 +19,15 @@ function getVinylArtwork(trackId) {
     return trackId ? `https://img.youtube.com/vi/${trackId}/maxresdefault.jpg` : getFallbackArtwork();
 }
 
+async function checkYTMusicAuth() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: "CHECK_AUTH" });
+    return !!response?.isLoggedIn;
+  } catch {
+    return false;
+  }
+}
+
 const defaultKawarpSettings = {
     enabled: true,
     kawarpOpacity: 0.57,
@@ -61,6 +70,7 @@ let loopPreferences = {
 };
 let kawarpRendererClass;
 let kawarpRendererPromise;
+let authWarningShown = false;
 
 const loopPreferencesKey = "loop.mp3.preferences";
 
@@ -99,6 +109,42 @@ function applyLoopPreferences() {
     loop.classList.toggle("loop-no-vinyl", loopPreferences.hideVinyl);
     const vinylToggle = loop.querySelector("#loop-vinyl-toggle");
     if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
+}
+
+function showAuthWarningPopup() {
+    if (document.getElementById("loop-auth-warning")) return;
+
+    const popup = document.createElement("div");
+    popup.id = "loop-auth-warning";
+    popup.setAttribute("role", "dialog");
+    popup.setAttribute("aria-modal", "true");
+    popup.innerHTML = `
+        <div class="loop-auth-warning-card">
+            <div class="loop-auth-warning-title">Sign in to YouTube Music</div>
+            <p>You are not signed in with Google. Sign in for the best Loop experience.</p>
+            <div class="loop-auth-warning-actions">
+                <a
+                    class="loop-auth-warning-signin"
+                    href="https://accounts.google.com/ServiceLogin?ltmpl=music&service=youtube&uilel=3&passive=true&continue=https%3A%2F%2Fwww.youtube.com%2Fsignin%3Faction_handle_signin%3Dtrue%26app%3Ddesktop%26hl%3Den%26next%3Dhttps%253A%252F%252Fmusic.youtube.com%252F%26feature%3D__FEATURE__&hl=en"
+                >Sign in with Google</a>
+                <button type="button" class="loop-auth-warning-dismiss">Got it</button>
+            </div>
+        </div>`;
+    (document.getElementById("loop") || document.body).appendChild(popup);
+    popup.querySelector(".loop-auth-warning-dismiss").addEventListener("click", () => popup.remove());
+}
+
+async function warnIfNotSignedIn() {
+    try {
+        const isSignedIn = await checkYTMusicAuth();
+        if (!isSignedIn && !authWarningShown) {
+            authWarningShown = true;
+            console.warn("[loop.mp3] YouTube Music is not signed in with Google.");
+            showAuthWarningPopup();
+        }
+    } catch (error) {
+        console.warn("[loop.mp3] Could not determine YouTube Music sign-in status:", error);
+    }
 }
 
 function getExtensionURL(path) {
@@ -997,6 +1043,7 @@ document.addEventListener("keydown", (event) => {
 
 function init(playerBar) {
     console.log("[loop.mp3] YTM is ready", playerBar);
+    warnIfNotSignedIn();
     updateForCurrentTrack(playerBar);
     setInterval(() => {
         updateForCurrentTrack(playerBar);
