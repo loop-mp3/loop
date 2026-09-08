@@ -12,7 +12,7 @@ function getCurrentTrackId() {
 }
 
 function getFallbackArtwork() {
-    return "https://res.cloudinary.com/djvsr0z4i/image/upload/v1787306926/NO_COVERART_AVAILABLE_ARTWORK2_m8hlzz.png";
+    return getExtensionURL("static/fallback-artwork.png");
 }
 
 function getVinylArtwork(trackId) {

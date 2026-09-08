@@ -20,7 +20,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["config/shader.json", "static/kawarp.js"],
+      "resources": ["config/shader.json", "static/kawarp.js", "static/fallback-artwork.png"],
       "matches": ["https://music.youtube.com/*"]
     }
   ],
