@@ -169,24 +169,30 @@ function triggerYTMAction(action) {
     const button = findYTMActionButton(action);
     if (button) {
         button.click();
+        setTimeout(syncTrackFeedbackState, 100);
         return;
     }
     console.warn(`[loop.mp3] Could not find YouTube Music ${action} button.`);
 }
 
-function getCurrentArtistURL() {
-    const playerBar = document.querySelector("ytmusic-player-bar");
-    const byline = playerBar?.querySelector("yt-formatted-string.byline a, .byline a");
-    return byline?.href || null;
-}
+function syncTrackFeedbackState() {
+    const likeButton = document.querySelector("#loop-like-button");
+    const dislikeButton = document.querySelector("#loop-dislike-button");
+    if (!likeButton || !dislikeButton) return;
 
-function subscribeToCurrentArtist() {
-    const artistURL = getCurrentArtistURL();
-    if (!artistURL) {
-        console.warn("[loop.mp3] Could not find the current artist channel.");
-        return;
+    for (const [action, dockButton] of [["like", likeButton], ["dislike", dislikeButton]]) {
+        const ytmButton = findYTMActionButton(action);
+        const label = [
+            ytmButton?.getAttribute("aria-label"),
+            ytmButton?.getAttribute("title"),
+        ].filter(Boolean).join(" ").toLowerCase();
+        const isActive = ytmButton?.getAttribute("aria-pressed") === "true" ||
+            label.includes(`un${action}`) ||
+            label.includes(`remove ${action}`);
+        dockButton.classList.toggle("loop-action-active", Boolean(isActive));
+        dockButton.setAttribute("aria-pressed", String(Boolean(isActive)));
+        dockButton.title = `${isActive ? "Remove" : action === "like" ? "Like" : "Dislike"} current track`;
     }
-    window.open(artistURL, "_blank", "noopener,noreferrer");
 }
 
 function makeActionDockDraggable(dock, handle) {
@@ -462,10 +468,6 @@ function updateLoop(artworkURL, trackInfo) {
                     <button id="loop-dislike-button" type="button" aria-label="Dislike current track" title="Dislike current track">
                         <i class="fa-solid fa-thumbs-down" aria-hidden="true"></i>
                     </button>
-                    <button id="loop-subscribe-button" type="button" aria-label="Subscribe to artist" title="Open artist channel to subscribe">
-                        <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
-                        <span>Subscribe</span>
-                    </button>
                 </div>
             </div>`;
         document.body.appendChild(loop);
@@ -478,7 +480,6 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-seek").addEventListener("input", seekTrack);
         loop.querySelector("#loop-like-button").addEventListener("click", () => triggerYTMAction("like"));
         loop.querySelector("#loop-dislike-button").addEventListener("click", () => triggerYTMAction("dislike"));
-        loop.querySelector("#loop-subscribe-button").addEventListener("click", subscribeToCurrentArtist);
         makeActionDockDraggable(
             loop.querySelector("#loop-action-dock"),
             loop.querySelector("#loop-action-dock-handle")
@@ -569,6 +570,7 @@ function updateLoop(artworkURL, trackInfo) {
     album.textContent = trackInfo.album;
     loop.classList.toggle("loop-empty", Boolean(trackInfo.empty));
     emptyState.hidden = !trackInfo.empty;
+    syncTrackFeedbackState();
     updateKawarpArtwork(artwork.src);
     updatePlaybackControls(getCurrentMedia());
 }

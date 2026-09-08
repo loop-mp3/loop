@@ -400,6 +400,11 @@
     background: rgba(255, 255, 255, 0.14);
 }
 
+#loop-action-dock button.loop-action-active {
+    background: rgba(255, 255, 255, 0.24);
+    color: #7dd3fc;
+}
+
 #loop-action-dock-handle {
     color: rgba(255, 255, 255, 0.5) !important;
     cursor: grab !important;
@@ -407,16 +412,6 @@
 
 #loop-action-dock.loop-action-dock-dragging #loop-action-dock-handle {
     cursor: grabbing !important;
-}
-
-#loop-subscribe-button {
-    gap: 7px;
-    background: rgba(255, 255, 255, 0.12) !important;
-}
-
-#loop-subscribe-button span {
-    font-size: 12px;
-    font-weight: 700;
 }
 
 #loop-auth-warning {
