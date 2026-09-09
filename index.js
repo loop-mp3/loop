@@ -453,7 +453,7 @@ function updateLoop(artworkURL, trackInfo) {
             sendLoopShortcut("q", { ctrlKey: true });
         });
         loop.querySelector("#loop-search-button").addEventListener("click", () => {
-            sendLoopShortcut("m", { ctrlKey: true });
+            sendLoopShortcut("k", { ctrlKey: true });
         });
         loop.querySelector("#loop-vinyl-toggle").addEventListener("change", (event) => {
             loopPreferences.hideVinyl = event.target.checked;
