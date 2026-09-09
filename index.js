@@ -758,6 +758,11 @@ async function updateForCurrentTrack(playerBar) {
         if (albumNode && albumNode.textContent === "Unknown album" && liveInfo.album !== "Unknown album") {
             albumNode.textContent = liveInfo.album;
         }
+
+        // YouTube Music updates its feedback controls asynchronously after a
+        // track change. Keep retrying while the track is current so the dock
+        // does not remain stuck with the previous track's liked state.
+        syncTrackFeedbackState();
         return;
     }
 
