@@ -195,42 +195,6 @@ function syncTrackFeedbackState() {
     }
 }
 
-function makeActionDockDraggable(dock, handle) {
-    let dragState;
-
-    handle.addEventListener("pointerdown", (event) => {
-        const rect = dock.getBoundingClientRect();
-        dragState = {
-            pointerId: event.pointerId,
-            offsetX: event.clientX - rect.left,
-            offsetY: event.clientY - rect.top,
-        };
-        dock.setPointerCapture?.(event.pointerId);
-        dock.classList.add("loop-action-dock-dragging");
-        event.preventDefault();
-    });
-
-    handle.addEventListener("pointermove", (event) => {
-        if (!dragState || dragState.pointerId !== event.pointerId) return;
-        const maxLeft = Math.max(0, window.innerWidth - dock.offsetWidth);
-        const maxTop = Math.max(0, window.innerHeight - dock.offsetHeight);
-        const left = Math.min(maxLeft, Math.max(0, event.clientX - dragState.offsetX));
-        const top = Math.min(maxTop, Math.max(0, event.clientY - dragState.offsetY));
-        dock.style.left = `${left}px`;
-        dock.style.top = `${top}px`;
-        dock.style.right = "auto";
-        dock.style.bottom = "auto";
-    });
-
-    const stopDragging = (event) => {
-        if (!dragState || dragState.pointerId !== event.pointerId) return;
-        dragState = undefined;
-        dock.classList.remove("loop-action-dock-dragging");
-    };
-    handle.addEventListener("pointerup", stopDragging);
-    handle.addEventListener("pointercancel", stopDragging);
-}
-
 async function warnIfNotSignedIn() {
     try {
         const isSignedIn = await checkYTMusicAuth();
@@ -459,9 +423,6 @@ function updateLoop(artworkURL, trackInfo) {
                     </div>
                 </div>
                 <div id="loop-action-dock" aria-label="Track actions">
-                    <button id="loop-action-dock-handle" type="button" aria-label="Drag track actions">
-                        <i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>
-                    </button>
                     <button id="loop-like-button" type="button" aria-label="Like current track" title="Like current track">
                         <i class="fa-solid fa-thumbs-up" aria-hidden="true"></i>
                     </button>
@@ -480,10 +441,6 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-seek").addEventListener("input", seekTrack);
         loop.querySelector("#loop-like-button").addEventListener("click", () => triggerYTMAction("like"));
         loop.querySelector("#loop-dislike-button").addEventListener("click", () => triggerYTMAction("dislike"));
-        makeActionDockDraggable(
-            loop.querySelector("#loop-action-dock"),
-            loop.querySelector("#loop-action-dock-handle")
-        );
         loop.querySelector("#loop-navigation-toggle").addEventListener("change", (event) => {
             setTrackNavigationButtonsVisible(event.target.checked);
         });
