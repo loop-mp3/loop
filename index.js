@@ -395,7 +395,9 @@ function updateLoop(artworkURL, trackInfo) {
                 <div id="loop-empty-state" hidden>
                     <div class="loop-empty-title">Nothing is playing</div>
                     <div class="loop-empty-subtitle">Search something to play</div>
-                    <kbd>Ctrl + M</kbd>
+                    <kbd>Ctrl + K</kbd>
+                     <div><kbd>H</kbd> Rewind 10 seconds</div>
+                    <div><kbd>L</kbd> Forward 10 seconds</div>
                 </div>
                 <div id="loop-inline-buttons" aria-label="Playback controls">
                     <button id="loop-previous-button" type="button" aria-label="Previous track" hidden>&#9198;</button>
