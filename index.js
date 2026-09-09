@@ -376,9 +376,11 @@ function updateLoop(artworkURL, trackInfo) {
                     <div><kbd>M</kbd> Mute / unmute</div>
                     <div><kbd>K</kbd> Previous track</div>
                     <div><kbd>J</kbd> Next track</div>
-                    <div><kbd>Ctrl + M</kbd> Search</div>
+                    <div><kbd>Ctrl + K</kbd> Search</div>
                     <div><kbd>Ctrl + Q</kbd> See queue</div>
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
+                    <div><kbd>H</kbd> Rewind 10 seconds</div>
+                    <div><kbd>L</kbd> Forward 10 seconds</div>
                     <label class="loop-navigation-toggle">
                         <input id="loop-navigation-toggle" type="checkbox">
                         Show previous/next buttons
@@ -606,6 +608,14 @@ function seekTrack(event) {
 
     const nextTime = Number(event.target.value);
     if (Number.isFinite(nextTime)) media.currentTime = nextTime;
+    updatePlaybackControls(media);
+}
+
+function seekBy(seconds) {
+    const media = getCurrentMedia();
+    if (!media) return;
+
+    media.currentTime = Math.max(0, Math.min(media.duration, media.currentTime + seconds));
     updatePlaybackControls(media);
 }
 
@@ -1075,7 +1085,7 @@ document.addEventListener("keydown", (event) => {
         return;
     }
 
-    if (event.ctrlKey && event.key === "m") {
+    if (event.ctrlKey && event.key.toLowerCase() === "k") {
         console.log("[loop.mp3] Search called");
         showLoopSearch();
         return;
@@ -1112,6 +1122,14 @@ document.addEventListener("keydown", (event) => {
         }
         if (event.key.toLowerCase() === "k") {
             playNextTrack();
+            return;
+        }
+        if (event.key.toLowerCase() === "h") {
+            seekBy(-10);
+            return;
+        }
+        if (event.key.toLowerCase() === "l") {
+            seekBy(10);
             return;
         }
     }
