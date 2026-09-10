@@ -99,9 +99,13 @@ let authWarningShown = false;
 let loopUpdateBlocked = false;
 
 const loopPreferencesKey = "loop.mp3.preferences";
-const updateURL = "https://loop.mizucode.qzz.io/update";
+const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
 
-function openUpdateInBrowser(event) {
+function getUpdateURL() {
+    return defaultUpdateURL;
+}
+
+function openUpdateInBrowser(event, updateURL) {
     const isElectron = /Electron/i.test(navigator.userAgent) ||
         Boolean(globalThis.process?.versions?.electron);
     if (!isElectron) return;
@@ -124,6 +128,7 @@ function showUpdateNotice(config) {
     const message = document.createElement("span");
     message.textContent = config.update_notice || "A new Loop update is available.";
     const link = document.createElement("a");
+    const updateURL = getUpdateURL();
     link.href = updateURL;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
@@ -136,7 +141,7 @@ function showUpdateNotice(config) {
     notice.append(message, link, dismiss);
     loopPlayer.prepend(notice);
 
-    link.addEventListener("click", openUpdateInBrowser);
+    link.addEventListener("click", (event) => openUpdateInBrowser(event, updateURL));
     dismiss.addEventListener("click", (event) => {
         event.stopPropagation();
         notice.remove();
@@ -157,12 +162,13 @@ function showRequiredUpdateBlocker(config) {
     message.textContent = config.update_notice ||
         "This version of Loop is no longer supported. Update to continue.";
     const link = document.createElement("a");
+    const updateURL = getUpdateURL();
     link.href = updateURL;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     link.textContent = "Download the update";
     blocker.append(title, message, link);
-    link.addEventListener("click", openUpdateInBrowser);
+    link.addEventListener("click", (event) => openUpdateInBrowser(event, updateURL));
     (document.body || document.documentElement).appendChild(blocker);
 }
 
