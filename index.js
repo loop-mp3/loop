@@ -45,14 +45,12 @@ function isUserSignedIn() {
     return null;
 }
 
-
 async function checkYTMusicAuth() {
-  try {
-    const response = isUserSignedIn()   
-    return !!response?.isLoggedIn;
-  } catch {
-    return null;
-  }
+    try {
+        return isUserSignedIn();
+    } catch {
+        return null;
+    }
 }
 
 const defaultKawarpSettings = {
