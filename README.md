@@ -1,9 +1,6 @@
-# loop.mp3
+# Loop
+## The <code>dwm</code> of music players.
 
-The Loop YouTube Music WebExtension.
+A minimal, keyboard-first music player built around the music instead of everything surrounding it.
 
-## Current milestone
-
-Load the extension on `music.youtube.com` and display a small `loop.mp3` badge.
-
-Next: build the Loop UI and begin replacing the YouTube Music interface.
+## Get it [here](https://loop.mizucode.qzz.io/)
