@@ -32,10 +32,24 @@ function loadFontAwesome() {
     link.dataset.loopFontAwesome = "true";
     mountPoint.appendChild(link);
 }
+function isUserSignedIn() {
+  // YouTube natively defines ytcfg to grab inner configuration values safely
+  if (typeof ytcfg !== 'undefined' && typeof ytcfg.get === 'function') {
+    return ytcfg.get('LOGGED_IN') === true;
+  }
+  
+  // Fallback fallback option looking directly at the config object
+  if (window.yt && window.yt.config_) {
+    return window.yt.config_.LOGGED_IN === true;
+  }
+  
+  return false;
+}
+
 
 async function checkYTMusicAuth() {
   try {
-    const response = await chrome.runtime.sendMessage({ action: "CHECK_AUTH" });
+    const response = isUserSignedIn()   
     return !!response?.isLoggedIn;
   } catch {
     return null;

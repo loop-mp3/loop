@@ -1,6 +1,8 @@
 chrome.runtime.onInstalled.addListener(() => {
   console.log("[loop.mp3] extension initialised");
 });
+// sorry boy we dont need you anymor
+/*
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "CHECK_AUTH" && sender.tab?.id) {
     chrome.scripting.executeScript({
@@ -13,3 +15,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 });
+*/
