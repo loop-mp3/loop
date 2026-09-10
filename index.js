@@ -1089,7 +1089,7 @@ document.addEventListener("keydown", (event) => {
         return;
     }
 
-    if (event.ctrlKey && event.key === "m") {
+    if (event.ctrlKey && event.key === "k") {
         console.log("[loop.mp3] Search called");
         showLoopSearch();
         return;
