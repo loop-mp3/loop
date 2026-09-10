@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "loop.mp3",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A minimal, keyboard-first music player built on top of YouTube Music.",
   "author": "Saaransh_Xd",
   "content_scripts": [
