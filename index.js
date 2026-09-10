@@ -140,7 +140,7 @@ let kawarpBackground;
 let kawarpEnabled = true;
 let loopPreferences = {
     animatedBackground: true,
-    hideVinyl: false,
+    hideVinyl: true,
 };
 let kawarpRendererClass;
 let kawarpRendererPromise;
