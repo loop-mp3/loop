@@ -355,9 +355,22 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
     }
 }
 
+function syncWindowTitle() {
+    const loop = document.getElementById("loop");
+    if (!loop || loop.classList.contains("loop-empty")) {
+        document.title = "loop";
+        return;
+    }
+
+    const title = loop.querySelector("#loop-track-title")?.textContent.trim();
+    const artist = loop.querySelector("#loop-track-artist")?.textContent.trim();
+    document.title = title && artist ? `Loop | ${title} by ${artist}` : "loop";
+}
+
 function goBackToNormal() {
     if (!getCurrentTrackId()) emptyScreenDismissed = true;
     restoreYTMSearch();
+    document.title = "loop";
     console.log("[loop.mp3] Loop removed, back to normal YTM");
 }
 
@@ -379,8 +392,6 @@ function updateLoop(artworkURL, trackInfo) {
                     <div><kbd>Ctrl + K</kbd> Search</div>
                     <div><kbd>Ctrl + Q</kbd> See queue</div>
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
-                    <div><kbd>H</kbd> Rewind 10 seconds</div>
-                    <div><kbd>L</kbd> Forward 10 seconds</div>
                     <label class="loop-navigation-toggle">
                         <input id="loop-navigation-toggle" type="checkbox">
                         Show previous/next buttons
@@ -398,8 +409,6 @@ function updateLoop(artworkURL, trackInfo) {
                     <div class="loop-empty-title">Nothing is playing</div>
                     <div class="loop-empty-subtitle">Search something to play</div>
                     <kbd>Ctrl + K</kbd>
-                     <div><kbd>H</kbd> Rewind 10 seconds</div>
-                    <div><kbd>L</kbd> Forward 10 seconds</div>
                 </div>
                 <div id="loop-inline-buttons" aria-label="Playback controls">
                     <button id="loop-previous-button" type="button" aria-label="Previous track" hidden>&#9198;</button>
@@ -531,6 +540,7 @@ function updateLoop(artworkURL, trackInfo) {
     album.textContent = trackInfo.album;
     loop.classList.toggle("loop-empty", Boolean(trackInfo.empty));
     emptyState.hidden = !trackInfo.empty;
+    syncWindowTitle();
     syncTrackFeedbackState();
     updateKawarpArtwork(artwork.src);
     updatePlaybackControls(getCurrentMedia());
@@ -608,14 +618,6 @@ function seekTrack(event) {
 
     const nextTime = Number(event.target.value);
     if (Number.isFinite(nextTime)) media.currentTime = nextTime;
-    updatePlaybackControls(media);
-}
-
-function seekBy(seconds) {
-    const media = getCurrentMedia();
-    if (!media) return;
-
-    media.currentTime = Math.max(0, Math.min(media.duration, media.currentTime + seconds));
     updatePlaybackControls(media);
 }
 
@@ -727,6 +729,7 @@ async function updateForCurrentTrack(playerBar) {
         if (albumNode && albumNode.textContent === "Unknown album" && liveInfo.album !== "Unknown album") {
             albumNode.textContent = liveInfo.album;
         }
+        syncWindowTitle();
 
         // YouTube Music updates its feedback controls asynchronously after a
         // track change. Keep retrying while the track is current so the dock
@@ -813,6 +816,7 @@ function restoreYTMSearch() {
     restoreLoopQueue();
 
     document.getElementById("loop")?.remove();
+    document.title = "loop";
     originalSearchParent = undefined;
     originalSearchNextSibling = undefined;
     originalSearchResultsParent = undefined;
@@ -1085,7 +1089,7 @@ document.addEventListener("keydown", (event) => {
         return;
     }
 
-    if (event.ctrlKey && event.key.toLowerCase() === "k") {
+    if (event.ctrlKey && event.key === "m") {
         console.log("[loop.mp3] Search called");
         showLoopSearch();
         return;
@@ -1124,14 +1128,6 @@ document.addEventListener("keydown", (event) => {
             playNextTrack();
             return;
         }
-        if (event.key.toLowerCase() === "h") {
-            seekBy(-10);
-            return;
-        }
-        if (event.key.toLowerCase() === "l") {
-            seekBy(10);
-            return;
-        }
     }
 
     if (event.key === "Enter") {
@@ -1145,6 +1141,7 @@ document.addEventListener("keydown", (event) => {
 
 function init(playerBar) {
     console.log("[loop.mp3] YTM is ready", playerBar);
+    document.title = "loop";
     warnIfNotSignedIn();
     updateForCurrentTrack(playerBar);
     setInterval(() => {
