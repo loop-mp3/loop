@@ -51,9 +51,9 @@ function publishDiscordActivity({ force = false } = {}) {
 
     const activity = {
         details: "Listening to Loop",
-        state: `${title} by ${artist}`,
+        state: title,
         largeImageKey: artwork,
-        largeImageText: `${title} — ${artist}`,
+        largeImageText: artist,
     };
     if (!media.paused && Number.isFinite(duration) && duration > 0) {
         const startTimestamp = now - Math.floor(position * 1000);
