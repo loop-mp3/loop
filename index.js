@@ -96,8 +96,100 @@ let loopPreferences = {
 let kawarpRendererClass;
 let kawarpRendererPromise;
 let authWarningShown = false;
+let loopUpdateBlocked = false;
 
 const loopPreferencesKey = "loop.mp3.preferences";
+const updateURL = "https://loop.mizucode.qzz.io/update";
+
+function openUpdateInBrowser(event) {
+    const isElectron = /Electron/i.test(navigator.userAgent) ||
+        Boolean(globalThis.process?.versions?.electron);
+    if (!isElectron) return;
+
+    // Electron clients commonly handle window.open as an external browser
+    // request. Keep the normal anchor fallback if that handler is absent.
+    event.preventDefault();
+    const browserWindow = window.open(updateURL, "_blank", "noopener,noreferrer");
+    if (!browserWindow) window.location.assign(updateURL);
+}
+
+function showUpdateNotice(config) {
+    const loopPlayer = document.querySelector("#loop-player");
+    if (!loopPlayer || document.getElementById("loop-update-notice")) return;
+
+    const notice = document.createElement("aside");
+    notice.id = "loop-update-notice";
+    notice.setAttribute("role", "status");
+
+    const message = document.createElement("span");
+    message.textContent = config.update_notice || "A new Loop update is available.";
+    const link = document.createElement("a");
+    link.href = updateURL;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Download the update";
+    const dismiss = document.createElement("button");
+    dismiss.type = "button";
+    dismiss.className = "loop-update-notice-dismiss";
+    dismiss.setAttribute("aria-label", "Dismiss update notice");
+    dismiss.textContent = "×";
+    notice.append(message, link, dismiss);
+    loopPlayer.prepend(notice);
+
+    link.addEventListener("click", openUpdateInBrowser);
+    dismiss.addEventListener("click", (event) => {
+        event.stopPropagation();
+        notice.remove();
+    });
+}
+
+function showRequiredUpdateBlocker(config) {
+    if (document.getElementById("loop-required-update")) return;
+
+    const blocker = document.createElement("div");
+    blocker.id = "loop-required-update";
+    blocker.setAttribute("role", "alertdialog");
+    blocker.setAttribute("aria-modal", "true");
+
+    const title = document.createElement("h1");
+    title.textContent = "Loop needs an update";
+    const message = document.createElement("p");
+    message.textContent = config.update_notice ||
+        "This version of Loop is no longer supported. Update to continue.";
+    const link = document.createElement("a");
+    link.href = updateURL;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Download the update";
+    blocker.append(title, message, link);
+    link.addEventListener("click", openUpdateInBrowser);
+    (document.body || document.documentElement).appendChild(blocker);
+}
+
+async function checkForUpdates() {
+    try {
+        const response = await fetch("https://loop.mizucode.qzz.io/config.json", {
+            cache: "no-store",
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const config = await response.json();
+        if (!config || typeof config !== "object") return false;
+
+        const updateRequired = Number(config.is_update_required) === 1;
+        if (updateRequired) {
+            showRequiredUpdateBlocker(config);
+            loopUpdateBlocked = true;
+            return true;
+        }
+        // A flag value of 0 means the extension remains usable and the
+        // server-provided update notice should be shown.
+        return config;
+    } catch (error) {
+        console.warn("[loop.mp3] update check failed:", error);
+        return null;
+    }
+}
 
 function getStoredLoopPreferences() {
     const storage = globalThis.chrome?.storage?.local || globalThis.browser?.storage?.local;
@@ -1150,12 +1242,26 @@ document.addEventListener("keydown", (event) => {
     }
 });
 
-function init(playerBar) {
+async function init(playerBar) {
     console.log("[loop.mp3] YTM is ready", playerBar);
     document.title = "loop";
     warnIfNotSignedIn();
+    // Do not make the first GUI render wait for the network update check.
     updateForCurrentTrack(playerBar);
+    checkForUpdates().then((updateConfig) => {
+        if (updateConfig === true || !updateConfig) return;
+
+        const showNoticeWhenReady = () => {
+            if (document.querySelector("#loop-player")) {
+                showUpdateNotice(updateConfig);
+                return;
+            }
+            requestAnimationFrame(showNoticeWhenReady);
+        };
+        showNoticeWhenReady();
+    });
     setInterval(() => {
+        if (loopUpdateBlocked) return;
         updateForCurrentTrack(playerBar);
         watchPlaybackState();
     }, 100);

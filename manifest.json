@@ -13,7 +13,8 @@
     }
   ],
   "host_permissions": [
-    "https://www.youtube.com/*"
+    "https://www.youtube.com/*",
+    "https://loop.mizucode.qzz.io/*"
   ],
   "permissions": [
     "storage",
