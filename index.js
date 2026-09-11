@@ -912,6 +912,7 @@ function watchPlaybackState() {
 }
 
 let lastTrackId;
+let lastTrackKey = "";
 let metadataRequest = 0;
 let emptyScreenDismissed = false;
 let trackSyncTimer;
@@ -934,7 +935,7 @@ function observeMediaTrackChanges(playerBar) {
         // YouTube Music normally reuses the same media element for the next
         // song. These events still fire when the tab is hidden, unlike a
         // background-throttled polling loop.
-        ["loadedmetadata", "durationchange", "canplay", "play", "emptied"].forEach((eventName) => {
+        ["loadedmetadata", "durationchange", "canplay", "play", "emptied", "loadstart"].forEach((eventName) => {
             media.addEventListener(eventName, () => scheduleTrackSync(playerBar));
         });
     }
@@ -954,7 +955,16 @@ function watchTrackChanges(playerBar) {
 
     // Navigation and visibility events cover transitions where YouTube Music
     // changes the URL/player state without changing the DOM immediately.
-    ["yt-navigate-finish", "yt-page-data-updated", "popstate", "hashchange", "pageshow"].forEach((eventName) => {
+    [
+        "yt-navigate-finish",
+        "yt-page-data-updated",
+        "yt-player-state-change",
+        "ytmusic-player-state-change",
+        "ytmusic-song-changed",
+        "popstate",
+        "hashchange",
+        "pageshow",
+    ].forEach((eventName) => {
         document.addEventListener(eventName, () => scheduleTrackSync(playerBar), { passive: true });
     });
     document.addEventListener("visibilitychange", () => {
@@ -965,6 +975,8 @@ function watchTrackChanges(playerBar) {
 async function updateForCurrentTrack(playerBar) {
     const currentPlayerBar = document.querySelector("ytmusic-player-bar") || playerBar;
     const trackId = getCurrentTrackId();
+    const liveTrackInfo = getTrackInfo(currentPlayerBar);
+    const trackKey = [trackId || "", liveTrackInfo.title, liveTrackInfo.artist, liveTrackInfo.album].join("|");
     if (!trackId) {
         const media = getCurrentMedia();
         const loop = document.getElementById("loop");
@@ -988,11 +1000,10 @@ async function updateForCurrentTrack(playerBar) {
         return;
     }
     emptyScreenDismissed = false;
-    if (trackId === lastTrackId) {
-        const liveInfo = getTrackInfo(currentPlayerBar);
+    if (trackId === lastTrackId && trackKey === lastTrackKey) {
         const albumNode = document.querySelector("#loop-track-album");
-        if (albumNode && albumNode.textContent === "Unknown album" && liveInfo.album !== "Unknown album") {
-            albumNode.textContent = liveInfo.album;
+        if (albumNode && albumNode.textContent === "Unknown album" && liveTrackInfo.album !== "Unknown album") {
+            albumNode.textContent = liveTrackInfo.album;
         }
         syncWindowTitle();
 
@@ -1004,8 +1015,9 @@ async function updateForCurrentTrack(playerBar) {
     }
 
     lastTrackId = trackId;
+    lastTrackKey = trackKey;
     const requestId = ++metadataRequest;
-    updateLoop(getVinylArtwork(trackId), getTrackInfo(currentPlayerBar));
+    updateLoop(getVinylArtwork(trackId), liveTrackInfo);
     syncRecordMotion();
     const trackInfo = await getTrackInfoFromTrackId(trackId, currentPlayerBar);
     if (requestId !== metadataRequest || trackId !== getCurrentTrackId()) return;
