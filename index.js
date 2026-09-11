@@ -916,6 +916,7 @@ let metadataRequest = 0;
 let emptyScreenDismissed = false;
 
 async function updateForCurrentTrack(playerBar) {
+    const currentPlayerBar = document.querySelector("ytmusic-player-bar") || playerBar;
     const trackId = getCurrentTrackId();
     if (!trackId) {
         const media = getCurrentMedia();
@@ -924,7 +925,7 @@ async function updateForCurrentTrack(playerBar) {
             if (!loop || loop.classList.contains("loop-empty")) {
                 updateLoop(
                     lastTrackId ? getVinylArtwork(lastTrackId) : getFallbackArtwork(),
-                    getTrackInfo(playerBar)
+                    getTrackInfo(currentPlayerBar)
                 );
             }
             return;
@@ -941,7 +942,7 @@ async function updateForCurrentTrack(playerBar) {
     }
     emptyScreenDismissed = false;
     if (trackId === lastTrackId) {
-        const liveInfo = getTrackInfo(playerBar);
+        const liveInfo = getTrackInfo(currentPlayerBar);
         const albumNode = document.querySelector("#loop-track-album");
         if (albumNode && albumNode.textContent === "Unknown album" && liveInfo.album !== "Unknown album") {
             albumNode.textContent = liveInfo.album;
@@ -957,9 +958,9 @@ async function updateForCurrentTrack(playerBar) {
 
     lastTrackId = trackId;
     const requestId = ++metadataRequest;
-    updateLoop(getVinylArtwork(trackId), getTrackInfo(playerBar));
+    updateLoop(getVinylArtwork(trackId), getTrackInfo(currentPlayerBar));
     syncRecordMotion();
-    const trackInfo = await getTrackInfoFromTrackId(trackId, playerBar);
+    const trackInfo = await getTrackInfoFromTrackId(trackId, currentPlayerBar);
     if (requestId !== metadataRequest || trackId !== getCurrentTrackId()) return;
     updateLoop(getVinylArtwork(trackId), trackInfo);
     syncRecordMotion();
