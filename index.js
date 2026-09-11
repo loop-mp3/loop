@@ -914,6 +914,53 @@ function watchPlaybackState() {
 let lastTrackId;
 let metadataRequest = 0;
 let emptyScreenDismissed = false;
+let trackSyncTimer;
+let trackSyncObserver;
+let observedMedia = new Set();
+
+function scheduleTrackSync(playerBar, delay = 0) {
+    window.clearTimeout(trackSyncTimer);
+    trackSyncTimer = window.setTimeout(() => {
+        trackSyncTimer = undefined;
+        updateForCurrentTrack(playerBar);
+    }, delay);
+}
+
+function observeMediaTrackChanges(playerBar) {
+    const mediaElements = document.querySelectorAll("video, audio");
+    for (const media of mediaElements) {
+        if (observedMedia.has(media)) continue;
+        observedMedia.add(media);
+        // YouTube Music normally reuses the same media element for the next
+        // song. These events still fire when the tab is hidden, unlike a
+        // background-throttled polling loop.
+        ["loadedmetadata", "durationchange", "canplay", "play", "emptied"].forEach((eventName) => {
+            media.addEventListener(eventName, () => scheduleTrackSync(playerBar));
+        });
+    }
+}
+
+function watchTrackChanges(playerBar) {
+    observeMediaTrackChanges(playerBar);
+    trackSyncObserver?.disconnect();
+    trackSyncObserver = new MutationObserver(() => {
+        observeMediaTrackChanges(playerBar);
+        scheduleTrackSync(playerBar);
+    });
+    trackSyncObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+    });
+
+    // Navigation and visibility events cover transitions where YouTube Music
+    // changes the URL/player state without changing the DOM immediately.
+    ["yt-navigate-finish", "yt-page-data-updated", "popstate", "hashchange", "pageshow"].forEach((eventName) => {
+        document.addEventListener(eventName, () => scheduleTrackSync(playerBar), { passive: true });
+    });
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") scheduleTrackSync(playerBar);
+    }, { passive: true });
+}
 
 async function updateForCurrentTrack(playerBar) {
     const currentPlayerBar = document.querySelector("ytmusic-player-bar") || playerBar;
@@ -1361,6 +1408,7 @@ async function init(playerBar) {
     console.log("[loop.mp3] YTM is ready", playerBar);
     document.title = "loop";
     warnIfNotSignedIn();
+    watchTrackChanges(playerBar);
     // Do not make the first GUI render wait for the network update check.
     updateForCurrentTrack(playerBar);
     checkForUpdates().then((updateConfig) => {
