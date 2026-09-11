@@ -658,6 +658,34 @@
     color: var(--loop-sharp-muted);
 }
 
+/* YouTube Music renders the queue inside its own nested renderer. Override
+   its light surfaces so the monochrome theme does not create a white panel. */
+#loop[data-theme="sharp"] #loop-queue-panel {
+    background: #000 !important;
+    color: #fff !important;
+}
+
+#loop[data-theme="sharp"] #loop-queue-panel,
+#loop[data-theme="sharp"] #loop-queue-panel * {
+    color: #fff !important;
+    border-color: #fff !important;
+}
+
+#loop[data-theme="sharp"] #loop-queue-panel > ytmusic-tab-renderer,
+#loop[data-theme="sharp"] #loop-queue-panel ytmusic-section-list-renderer,
+#loop[data-theme="sharp"] #loop-queue-panel ytmusic-player-queue-item-renderer,
+#loop[data-theme="sharp"] #loop-queue-panel #contents,
+#loop[data-theme="sharp"] #loop-queue-panel #header,
+#loop[data-theme="sharp"] #loop-queue-panel #main-content {
+    background-color: #000 !important;
+}
+
+#loop[data-theme="sharp"] #loop-queue-panel button,
+#loop[data-theme="sharp"] #loop-queue-panel [role="button"] {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
 #loop[data-theme="catppuccin"] {
     --ctp-base: #1e1e2e;
     --ctp-mantle: #181825;
