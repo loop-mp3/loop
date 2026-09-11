@@ -222,6 +222,31 @@ function showRequiredUpdateBlocker(config) {
     (document.body || document.documentElement).appendChild(blocker);
 }
 
+function getInstalledVersion() {
+    try {
+        const runtime = globalThis.chrome?.runtime || globalThis.browser?.runtime;
+        return runtime?.getManifest?.().version || "0.0.0";
+    } catch {
+        return "0.0.0";
+    }
+}
+
+function compareVersions(left, right) {
+    const parse = (version) => String(version).split(".").map((part) => {
+        const match = part.match(/^\d+/);
+        return match ? Number(match[0]) : 0;
+    });
+    const leftParts = parse(left);
+    const rightParts = parse(right);
+    const length = Math.max(leftParts.length, rightParts.length);
+
+    for (let index = 0; index < length; index += 1) {
+        const difference = (leftParts[index] || 0) - (rightParts[index] || 0);
+        if (difference !== 0) return difference > 0 ? 1 : -1;
+    }
+    return 0;
+}
+
 async function checkForUpdates() {
     try {
         const response = await fetch("https://loop.mizucode.qzz.io/config.json", {
@@ -232,14 +257,20 @@ async function checkForUpdates() {
         const config = await response.json();
         if (!config || typeof config !== "object") return false;
 
+        // A notice is only meaningful when the server advertises a newer
+        // version. This prevents arbitrary update_notice text from becoming
+        // a false alert while the installed version is already current.
+        if (!config.version || compareVersions(config.version, getInstalledVersion()) <= 0) {
+            return false;
+        }
+
         const updateRequired = Number(config.is_update_required) === 1;
         if (updateRequired) {
             showRequiredUpdateBlocker(config);
             loopUpdateBlocked = true;
             return true;
         }
-        // A flag value of 0 means the extension remains usable and the
-        // server-provided update notice should be shown.
+
         return config;
     } catch (error) {
         console.warn("[loop.mp3] update check failed:", error);
