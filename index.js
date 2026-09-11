@@ -594,7 +594,7 @@ function updateLoop(artworkURL, trackInfo) {
                         <span>Theme</span>
                         <select id="loop-theme-select" aria-label="Choose a Loop theme">
                             <option value="default">Default</option>
-                            <option value="sharp">Sharp &amp; solid</option>
+                            <option value="sharp">Monochrome</option>
                             <option value="catppuccin">Catppuccin</option>
                         </select>
                     </label>
