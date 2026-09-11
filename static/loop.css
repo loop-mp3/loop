@@ -549,3 +549,224 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Theme-specific visual overrides for the injected Loop UI. */
+#loop[data-theme="sharp"] {
+    --loop-sharp-bg: #000;
+    --loop-sharp-panel: #fff;
+    --loop-sharp-panel-alt: #000;
+    --loop-sharp-accent: #fff;
+    --loop-sharp-text: #fff;
+    --loop-sharp-muted: #fff;
+}
+
+#loop[data-theme="sharp"] #loop-player {
+    background: var(--loop-sharp-bg);
+}
+
+#loop[data-theme="sharp"] #loop-kawarp-background {
+    display: none;
+}
+
+#loop[data-theme="sharp"] #loop-player::after {
+    background: var(--loop-sharp-accent);
+}
+
+#loop[data-theme="sharp"] #loop-artwork {
+    border-radius: 0;
+    border-color: var(--loop-sharp-accent);
+}
+
+#loop[data-theme="sharp"] #loop-back-button,
+#loop[data-theme="sharp"] #loop-inline-buttons button,
+#loop[data-theme="sharp"] #loop-shortcuts-button {
+    border: 2px solid var(--loop-sharp-accent);
+    border-radius: 0;
+    background: var(--loop-sharp-panel-alt);
+    color: var(--loop-sharp-text);
+}
+
+#loop[data-theme="sharp"] #loop-play-button {
+    background: var(--loop-sharp-accent) !important;
+    color: #000 !important;
+}
+
+#loop[data-theme="sharp"] #loop-shortcuts-panel,
+#loop[data-theme="sharp"] #loop-action-dock,
+#loop[data-theme="sharp"] #loop-search-results,
+#loop[data-theme="sharp"] #loop-queue-panel,
+#loop[data-theme="sharp"] #loop-update-notice,
+#loop[data-theme="sharp"] #loop-shortcuts-panel kbd,
+#loop[data-theme="sharp"] #loop-empty-state kbd {
+    border: 2px solid var(--loop-sharp-accent);
+    border-radius: 0;
+    background: var(--loop-sharp-panel);
+    box-shadow: 8px 8px 0 #fff;
+    backdrop-filter: none;
+}
+
+#loop[data-theme="sharp"] #loop-action-dock button,
+#loop[data-theme="sharp"] #loop-action-dock button:hover,
+#loop[data-theme="sharp"] #loop-action-dock button.loop-action-active {
+    border-radius: 0;
+    background: var(--loop-sharp-panel-alt);
+    color: var(--loop-sharp-text);
+}
+
+#loop[data-theme="sharp"] #loop-action-dock button.loop-action-active,
+#loop[data-theme="sharp"] #loop-seek {
+    accent-color: var(--loop-sharp-accent);
+    color: var(--loop-sharp-accent);
+}
+
+#loop[data-theme="sharp"] #loop-action-dock button,
+#loop[data-theme="sharp"] #loop-action-dock button:hover,
+#loop[data-theme="sharp"] #loop-action-dock button.loop-action-active {
+    color: #fff;
+}
+
+#loop[data-theme="sharp"] #loop-shortcuts-panel,
+#loop[data-theme="sharp"] #loop-shortcuts-panel kbd,
+#loop[data-theme="sharp"] #loop-shortcuts-panel .loop-navigation-toggle,
+#loop[data-theme="sharp"] #loop-shortcuts-panel span,
+#loop[data-theme="sharp"] .loop-theme-picker,
+#loop[data-theme="sharp"] .loop-theme-picker select {
+    color: #000;
+}
+
+#loop[data-theme="sharp"] #loop-shortcuts-panel kbd,
+#loop[data-theme="sharp"] #loop-theme-select {
+    border-color: #000;
+    background: #fff;
+}
+
+#loop[data-theme="sharp"] #loop-shortcuts-panel .loop-shortcuts-title,
+#loop[data-theme="sharp"] #loop-shortcuts-panel .loop-shortcuts-heading {
+    color: #000;
+}
+
+#loop[data-theme="sharp"] #loop-track-title,
+#loop[data-theme="sharp"] .loop-shortcuts-title,
+#loop[data-theme="sharp"] .loop-shortcuts-heading,
+#loop[data-theme="sharp"] #loop-empty-state {
+    color: var(--loop-sharp-text);
+}
+
+#loop[data-theme="sharp"] #loop-track-artist,
+#loop[data-theme="sharp"] #loop-track-album,
+#loop[data-theme="sharp"] .loop-theme-picker {
+    color: var(--loop-sharp-muted);
+}
+
+#loop[data-theme="catppuccin"] {
+    --ctp-base: #1e1e2e;
+    --ctp-mantle: #181825;
+    --ctp-surface: #313244;
+    --ctp-overlay: #45475a;
+    --ctp-text: #cdd6f4;
+    --ctp-subtext: #a6adc8;
+    --ctp-mauve: #cba6f7;
+    --ctp-blue: #89b4fa;
+}
+
+#loop[data-theme="catppuccin"] #loop-player {
+    background: var(--ctp-base);
+}
+
+#loop[data-theme="catppuccin"] #loop-back-button,
+#loop[data-theme="catppuccin"] #loop-inline-buttons button,
+#loop[data-theme="catppuccin"] #loop-shortcuts-button {
+    border-color: var(--ctp-overlay);
+    background: color-mix(in srgb, var(--ctp-surface) 88%, transparent);
+    color: var(--ctp-text);
+}
+
+#loop[data-theme="catppuccin"] #loop-play-button {
+    background: var(--ctp-mauve) !important;
+    color: var(--ctp-mantle) !important;
+}
+
+#loop[data-theme="catppuccin"] #loop-shortcuts-panel,
+#loop[data-theme="catppuccin"] #loop-action-dock,
+#loop[data-theme="catppuccin"] #loop-search-results,
+#loop[data-theme="catppuccin"] #loop-queue-panel {
+    border-color: var(--ctp-overlay);
+    background: color-mix(in srgb, var(--ctp-mantle) 92%, transparent);
+    box-shadow: 0 16px 40px rgba(17, 17, 27, 0.55);
+}
+
+#loop[data-theme="catppuccin"] #loop-artwork {
+    border-color: var(--ctp-mauve);
+}
+
+#loop[data-theme="catppuccin"] #loop-seek {
+    accent-color: var(--ctp-mauve);
+}
+
+#loop[data-theme="catppuccin"] #loop-track-title,
+#loop[data-theme="catppuccin"] .loop-shortcuts-title,
+#loop[data-theme="catppuccin"] .loop-shortcuts-heading,
+#loop[data-theme="catppuccin"] #loop-empty-state {
+    color: var(--ctp-text);
+}
+
+#loop[data-theme="catppuccin"] #loop-track-artist,
+#loop[data-theme="catppuccin"] #loop-track-album,
+#loop[data-theme="catppuccin"] #loop-shortcuts-panel,
+#loop[data-theme="catppuccin"] .loop-theme-picker {
+    color: var(--ctp-subtext);
+}
+
+#loop[data-theme="catppuccin"] #loop-action-dock button.loop-action-active {
+    background: var(--ctp-surface);
+    color: var(--ctp-blue);
+}
+
+.loop-theme-picker {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin: 8px 0 12px;
+    color: #fff;
+    font-weight: 600;
+}
+
+.loop-theme-picker select {
+    min-width: 132px;
+    padding: 5px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+}
+
+.loop-theme-picker option {
+    background: #151515;
+    color: #fff;
+}
+
+.loop-shortcuts-heading {
+    margin: 8px 0 4px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+#loop[data-theme="sharp"] .loop-theme-picker select {
+    border: 2px solid var(--loop-sharp-accent);
+    border-radius: 0;
+    border-color: #000;
+    background: #fff;
+    color: #000;
+}
+
+#loop[data-theme="catppuccin"] .loop-theme-picker select {
+    border-color: var(--ctp-overlay);
+    background: var(--ctp-surface);
+    color: var(--ctp-text);
+}
