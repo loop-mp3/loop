@@ -686,6 +686,35 @@
     color: #fff !important;
 }
 
+/* Keep the search results panel from inheriting YouTube Music's light theme. */
+#loop[data-theme="sharp"] #loop-search-results {
+    background: #000 !important;
+    color: #fff !important;
+}
+
+#loop[data-theme="sharp"] #loop-search-results,
+#loop[data-theme="sharp"] #loop-search-results * {
+    color: #fff !important;
+    border-color: #fff !important;
+}
+
+#loop[data-theme="sharp"] #loop-search-results > ytmusic-tabbed-search-results-renderer,
+#loop[data-theme="sharp"] #loop-search-results ytmusic-section-list-renderer,
+#loop[data-theme="sharp"] #loop-search-results ytmusic-responsive-list-item-renderer,
+#loop[data-theme="sharp"] #loop-search-results ytmusic-two-row-item-renderer,
+#loop[data-theme="sharp"] #loop-search-results #contents,
+#loop[data-theme="sharp"] #loop-search-results #header,
+#loop[data-theme="sharp"] #loop-search-results #main-content,
+#loop[data-theme="sharp"] #loop-search-results #items {
+    background-color: #000 !important;
+}
+
+#loop[data-theme="sharp"] #loop-search-results button,
+#loop[data-theme="sharp"] #loop-search-results [role="button"] {
+    background-color: transparent !important;
+    color: #fff !important;
+}
+
 #loop[data-theme="catppuccin"] {
     --ctp-base: #1e1e2e;
     --ctp-mantle: #181825;
