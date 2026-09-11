@@ -625,6 +625,13 @@
     color: #fff;
 }
 
+#loop[data-theme="sharp"] #loop-action-dock button.loop-action-active,
+#loop[data-theme="sharp"] #loop-action-dock button[aria-pressed="true"] {
+    border: 2px solid #fff;
+    background: #fff;
+    color: #000;
+}
+
 #loop[data-theme="sharp"] #loop-shortcuts-panel,
 #loop[data-theme="sharp"] #loop-shortcuts-panel kbd,
 #loop[data-theme="sharp"] #loop-shortcuts-panel .loop-navigation-toggle,
