@@ -435,6 +435,18 @@
     font-size: 16px;
 }
 
+#loop-track-artist,
+#loop-track-album {
+    display: block;
+    text-decoration: none;
+}
+
+#loop-track-artist[href]:hover,
+#loop-track-album[href]:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+
 #loop-track-album::before {
     content: "Album: ";
     color: rgba(255, 255, 255, 0.45);

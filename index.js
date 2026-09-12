@@ -532,7 +532,9 @@ function getTrackInfo(playerBar) {
     return {
         title,
         artist: links[0]?.textContent.trim() || "Unknown artist",
+        artistUrl: links[0]?.href || "",
         album: links.length >= 2 ? links[links.length - 1].textContent.trim() : "Unknown album",
+        albumUrl: links.length >= 2 ? links[links.length - 1].href : "",
     };
 }
 
@@ -551,7 +553,9 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
         return {
             title: details.title || liveInfo.title || domInfo.title,
             artist: details.author_name || liveInfo.artist || domInfo.artist,
+            artistUrl: liveInfo.artistUrl || domInfo.artistUrl,
             album: liveInfo.album || domInfo.album,
+            albumUrl: liveInfo.albumUrl || domInfo.albumUrl,
         };
     } catch (error) {
         console.warn("[loop.mp3] Could not fetch track metadata:", error);
@@ -638,8 +642,8 @@ function updateLoop(artworkURL, trackInfo) {
                 <img id="loop-artwork" alt="Album artwork" onerror="this.onerror=null; this.src='${getFallbackArtwork()}';">
                 <div id="loop-track-info">
                     <div id="loop-track-title"></div>
-                    <div id="loop-track-artist"></div>
-                    <div id="loop-track-album"></div>
+                    <a id="loop-track-artist"></a>
+                    <a id="loop-track-album"></a>
                 </div>
                 <div id="loop-controls" aria-label="Playback controls">
                     <div id="loop-seek-row">
@@ -755,7 +759,11 @@ function updateLoop(artworkURL, trackInfo) {
     artwork.src = trackInfo.empty ? getFallbackArtwork() : artworkURL;
     title.textContent = trackInfo.title;
     artist.textContent = trackInfo.artist;
+    artist.toggleAttribute("href", Boolean(trackInfo.artistUrl));
+    if (trackInfo.artistUrl) artist.href = trackInfo.artistUrl;
     album.textContent = trackInfo.album;
+    album.toggleAttribute("href", Boolean(trackInfo.albumUrl));
+    if (trackInfo.albumUrl) album.href = trackInfo.albumUrl;
     loop.classList.toggle("loop-empty", Boolean(trackInfo.empty));
     emptyState.hidden = !trackInfo.empty;
     syncWindowTitle();
