@@ -935,6 +935,30 @@ function scheduleTrackSync(playerBar, delay = 0) {
     }, delay);
 }
 
+function changeMusicLogo() {
+    const logo = document.querySelector("img.ytmusic-logo");
+    if (!logo) return;
+
+    logo.src = "https://loop.mizucode.qzz.io/logo-client.svg";
+}
+
+function initMusicLogo() {
+    changeMusicLogo();
+
+    const observer = new MutationObserver(changeMusicLogo);
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initMusicLogo);
+} else {
+    initMusicLogo();
+}
+
 function observeMediaTrackChanges(playerBar) {
     const mediaElements = document.querySelectorAll("video, audio");
     for (const media of mediaElements) {
