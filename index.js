@@ -941,17 +941,6 @@ function changeMusicLogo() {
 
     logo.src = "https://loop.mizucode.qzz.io/logo-client.svg";
 }
-// yeah we do that here
-// we are rasist to those button
-function ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore() {
-    const buttonsContainer = document.querySelector('ytmusic-guide-section-renderer.style-scope.ytmusic-guide-renderer');
-    if (buttonsContainer) {
-        buttonsContainer.style.display = 'none';
-    }
-}
-
-// Execute the function right away if it didnt i would have been planning my own public execution
-ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore();
 
 function initMusicLogo() {
     changeMusicLogo();
@@ -1484,7 +1473,33 @@ async function init(playerBar) {
         watchPlaybackState();
     }, 100);
 }
+// yeah we do that here
+// we are rasist to those button
+function ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore() {
+    const buttonsContainer = document.querySelector('ytmusic-guide-section-renderer.style-scope.ytmusic-guide-renderer');
+    if (buttonsContainer) {
+        buttonsContainer.style.display = 'none';
+    }
+}
 
+// 1. Run it immediately if the element is already there
+ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore();
+
+// 2. Watch for dynamic content loading (Crucial for YouTube's heavy asynchronous DOM)
+const observer = new MutationObserver(() => {
+    ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore();
+});
+
+observer.observe(document.body || document.documentElement, {
+    childList: true,
+    subtree: true
+});
+
+// 3. Handle YouTube SPA page transitions (When you click tabs/links internally)
+document.addEventListener('yt-navigate-finish', () => {
+    // Execute the function right away if it didnt i would have been planning my own public execution
+    ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore();
+});
 loadFontAwesome();
 loadKawarpRenderer().catch((error) => {
     console.warn("[loop.mp3] Could not load @kawarp/core:", error);
