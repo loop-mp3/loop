@@ -604,8 +604,8 @@ function updateLoop(artworkURL, trackInfo) {
                     </label>
                     <div class="loop-shortcuts-heading">Shortcuts</div>
                     <div><kbd>M</kbd> Mute / unmute</div>
-                    <div><kbd>K</kbd> Previous track</div>
-                    <div><kbd>J</kbd> Next track</div>
+                    <div><kbd>Shift + N</kbd> Previous track</div>
+                    <div><kbd>Shift + P</kbd> Next track</div>
                     <div><kbd>Ctrl + K</kbd> Search</div>
                     <div><kbd>Ctrl + Q</kbd> See queue</div>
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
@@ -846,13 +846,16 @@ function seekTrack(event) {
     updatePlaybackControls(media);
 }
 
-function sendYTMShortcut(key) {
-    const keyCode = key.toUpperCase().charCodeAt(0);
+function sendYTMShortcut(key, shift = false) {
+    const upperKey = key.toUpperCase();
+    const keyCode = upperKey.charCodeAt(0);
+
     const eventOptions = {
-        key,
-        code: `Key${key.toUpperCase()}`,
+        key: upperKey,
+        code: `Key${upperKey}`,
         keyCode,
         which: keyCode,
+        shiftKey: shift,
         bubbles: true,
         cancelable: true,
     };
@@ -878,11 +881,11 @@ function sendLoopShortcut(key, modifiers = {}) {
 }
 
 function playPreviousTrack() {
-    sendYTMShortcut("j");
+    sendYTMShortcut("N", true);
 }
 
 function playNextTrack() {
-    sendYTMShortcut("k");
+    sendYTMShortcut("P", true);
 }
 
 function setTrackNavigationButtonsVisible(visible) {
