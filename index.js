@@ -615,7 +615,7 @@ function updateLoop(artworkURL, trackInfo) {
                     </label>
                     <label class="loop-navigation-toggle">
                         <input id="loop-background-toggle" type="checkbox" checked>
-                        Animated artwork background
+                        Animated artwork background (re-enable)
                     </label>
                     <label class="loop-navigation-toggle">
                         <input id="loop-vinyl-toggle" type="checkbox">
