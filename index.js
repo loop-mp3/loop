@@ -941,6 +941,17 @@ function changeMusicLogo() {
 
     logo.src = "https://loop.mizucode.qzz.io/logo-client.svg";
 }
+// yeah we do that here
+// we are rasist to those button
+function ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore() {
+    const buttonsContainer = document.querySelector('ytmusic-guide-section-renderer.style-scope.ytmusic-guide-renderer');
+    if (buttonsContainer) {
+        buttonsContainer.style.display = 'none';
+    }
+}
+
+// Execute the function right away if it didnt i would have been planning my own public execution
+ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore();
 
 function initMusicLogo() {
     changeMusicLogo();
