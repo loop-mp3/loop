@@ -942,7 +942,17 @@ function changeMusicLogo() {
     const logo = document.querySelector("img.ytmusic-logo");
     if (!logo) return;
 
-    logo.src = "https://loop.mizucode.qzz.io/logo-client.svg";
+    const remoteLogoURL = "https://loop.mizucode.qzz.io/logo-client.svg";
+    const localLogoURL = getExtensionURL("static/logo-client.svg");
+    if (logo.dataset.loopLogoFallback === "true") {
+        logo.src = localLogoURL;
+        return;
+    }
+    logo.onerror = () => {
+        logo.dataset.loopLogoFallback = "true";
+        logo.src = localLogoURL;
+    };
+    logo.src = remoteLogoURL;
 }
 
 function initMusicLogo() {
@@ -1500,22 +1510,40 @@ document.addEventListener('yt-navigate-finish', () => {
     ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore();
 });
 const OBLITERATED_FAVICON_URL = "https://loop.mizucode.qzz.io/favicon.ico";
+const LOCAL_FAVICON_URL = getExtensionURL("static/favicon.ico");
 
 function forceCustomFavicon() {
-    let links = document.querySelectorAll("link[rel*='icon']");
-    
+    const head = document.head;
+
+    if (!head) {
+        requestAnimationFrame(forceCustomFavicon);
+        return;
+    }
+
+    const links = document.querySelectorAll("link[rel*='icon']");
+
     if (links.length > 0) {
         links.forEach(link => {
-            if (link.href !== OBLITERATED_FAVICON_URL) {
-                link.href = OBLITERATED_FAVICON_URL;
+            if (link.dataset.loopFaviconFallback === "true") {
+                link.href = LOCAL_FAVICON_URL;
+                return;
             }
+            link.onerror = () => {
+                link.dataset.loopFaviconFallback = "true";
+                link.href = LOCAL_FAVICON_URL;
+            };
+            if (link.href !== OBLITERATED_FAVICON_URL) link.href = OBLITERATED_FAVICON_URL;
         });
     } else {
-        const newLink = document.createElement('link');
-        newLink.rel = 'icon';
-        newLink.type = 'image/x-icon';
+        const newLink = document.createElement("link");
+        newLink.rel = "icon";
+        newLink.type = "image/x-icon";
         newLink.href = OBLITERATED_FAVICON_URL;
-        document.head.appendChild(newLink);
+        newLink.onerror = () => {
+            newLink.dataset.loopFaviconFallback = "true";
+            newLink.href = LOCAL_FAVICON_URL;
+        };
+        head.appendChild(newLink);
     }
 }
 
