@@ -1485,10 +1485,8 @@ function ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItT
     }
 }
 
-// 1. Run it immediately if the element is already there
 ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore();
 
-// 2. Watch for dynamic content loading (Crucial for YouTube's heavy asynchronous DOM)
 const observer = new MutationObserver(() => {
     ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore();
 });
@@ -1498,11 +1496,33 @@ observer.observe(document.body || document.documentElement, {
     subtree: true
 });
 
-// 3. Handle YouTube SPA page transitions (When you click tabs/links internally)
 document.addEventListener('yt-navigate-finish', () => {
-    // Execute the function right away if it didnt i would have been planning my own public execution
     ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore();
 });
+const OBLITERATED_FAVICON_URL = "https://loop.mizucode.qzz.io/favicon.ico";
+
+function forceCustomFavicon() {
+    let links = document.querySelectorAll("link[rel*='icon']");
+    
+    if (links.length > 0) {
+        links.forEach(link => {
+            if (link.href !== OBLITERATED_FAVICON_URL) {
+                link.href = OBLITERATED_FAVICON_URL;
+            }
+        });
+    } else {
+        const newLink = document.createElement('link');
+        newLink.rel = 'icon';
+        newLink.type = 'image/x-icon';
+        newLink.href = OBLITERATED_FAVICON_URL;
+        document.head.appendChild(newLink);
+    }
+}
+
+forceCustomFavicon();
+
+setInterval(forceCustomFavicon, 1000);
+
 loadFontAwesome();
 loadKawarpRenderer().catch((error) => {
     console.warn("[loop.mp3] Could not load @kawarp/core:", error);
