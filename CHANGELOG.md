@@ -2,6 +2,31 @@
 
 All notable changes to Loop are documented here.
 
+## [1.1.0] - 2026-09-14
+
+### Highlights
+
+- Added selectable visual themes, including Default, Monochrome, and Catppuccin, with persistent theme preferences.
+- Added custom CSS presets and restored the animated artwork background toggle label.
+- Improved track synchronization with media and navigation observers so the player bar, artwork, and metadata update reliably when songs change.
+- Made artist and album metadata clickable links to their corresponding YouTube Music pages.
+- Updated previous/next track shortcuts to `Shift+N` and `Shift+P`.
+- Replaced YouTube Music branding with Loop branding, including a custom logo and favicon.
+- Added local fallback assets for the custom logo and favicon when remote assets are unavailable.
+
+### Fixes
+
+- Fixed artwork and track information updates that could remain stale after a song change.
+- Fixed update-check false positives by comparing the advertised version with the installed version.
+- Fixed the monochrome action bar state so active controls are visually distinguishable.
+- Fixed queue and search panel flashing and improved their theme-aware styling.
+- Hid unnecessary YouTube Music interface buttons and restored the behavior across dynamically rendered content.
+
+### Internal and maintenance changes
+
+- Added dynamic observation for media elements, player state changes, navigation events, and YouTube Music DOM updates.
+- Added bundled fallback artwork, logo, and favicon resources for more resilient extension rendering.
+
 ## [1.0.0] - 2026-09-10
 
 Loop v1 is the first complete release of the keyboard-first YouTube Music player extension.
@@ -46,3 +71,4 @@ Loop v1 is the first complete release of the keyboard-first YouTube Music player
 Load the extension directory as an unpacked Manifest V3 extension, then open YouTube Music. The extension targets `https://music.youtube.com/*`.
 
 [1.0.0]: https://github.com/loop-mp3/loop/releases/tag/v1.0.0
+[1.1.0]: https://github.com/loop-mp3/loop/releases/tag/v1.1.0
