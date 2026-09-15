@@ -2,6 +2,14 @@
 
 All notable changes to Loop are documented here.
 
+## [1.1.1] - 2026-9-15
+
+### Fixes
+
+
+- Fixed the google account authentication status checks
+- Fixed manifest version mismatches which caused update popups in updated clients
+
 ## [1.1.0] - 2026-09-14
 
 ### Highlights
@@ -72,3 +80,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 
 [1.0.0]: https://github.com/loop-mp3/loop/releases/tag/v1.0.0
 [1.1.0]: https://github.com/loop-mp3/loop/releases/tag/v1.1.0
+[1.1.1]: https://github.com/loop-mp3/loop/releases/tag/v1.1.1
