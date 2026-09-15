@@ -83,15 +83,8 @@ function loadFontAwesome() {
 }
 
 function isUserSignedIn() {
-    if (typeof ytcfg !== 'undefined' && typeof ytcfg.get === 'function') {
-        return ytcfg.get('LOGGED_IN') === true;
-    }
-
-    if (window.yt && window.yt.config_) {
-        return window.yt.config_.LOGGED_IN === true;
-    }
-
-    return null;
+    const signInButton = document.querySelector('button[aria-label="Sign in"]');
+    return signInButton ? false : true;
 }
 
 async function checkYTMusicAuth() {
