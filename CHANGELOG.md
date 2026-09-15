@@ -9,6 +9,7 @@ All notable changes to Loop are documented here.
 
 - Fixed the google account authentication status checks
 - Fixed manifest version mismatches which caused update popups in updated clients
+- Fixed inverted shortcuts for track navigation
 
 ## [1.1.0] - 2026-09-14
 
