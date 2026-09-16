@@ -332,7 +332,7 @@ function showAuthWarningPopup() {
     popup.innerHTML = `
         <div class="loop-auth-warning-card">
             <div class="loop-auth-warning-title">Sign in to YouTube Music</div>
-            <p>You are not signed in with Google. Sign in for the best Loop experience.</p>
+            <p>You are not signed in with Google. Sign in for the AD blocker to work</p>
             <div class="loop-auth-warning-actions">
                 <a
                     class="loop-auth-warning-signin"
