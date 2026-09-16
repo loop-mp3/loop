@@ -1421,7 +1421,7 @@ document.addEventListener("keydown", (event) => {
         return;
     }
 
-    if (event.ctrlKey && event.key === "k") {
+    if (event.ctrlKey && event.altKey && event.key === "l") {
         console.log("[loop.mp3] triggered screen disable")
         DisableScreen()
     }
