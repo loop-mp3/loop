@@ -1421,6 +1421,11 @@ document.addEventListener("keydown", (event) => {
         return;
     }
 
+    if (event.ctrlKey && event.key === "k") {
+        console.log("[loop.mp3] triggered screen disable")
+        DisableScreen()
+    }
+
     if (event.ctrlKey && event.key.toLowerCase() === "q") {
         event.preventDefault();
         showLoopQueue();
