@@ -605,8 +605,10 @@ function updateLoop(artworkURL, trackInfo) {
                     </label>
                     <div class="loop-shortcuts-heading">Shortcuts</div>
                     <div><kbd>M</kbd> Mute / unmute</div>
-                    <div><kbd>Shift + P</kbd> Previous track</div>
-                    <div><kbd>Shift + N</kbd> Next track</div>
+                    <div><kbd>Shift + P / K</kbd> Previous track</div>
+                    <div><kbd>Shift + N / J</kbd> Next track</div>
+                    <div><kbd>H / Shift + ←</kbd> 10 Second backward</div>
+                    <div><kbd>L / Shift + →</kbd> 10 Second forward</div>
                     <div><kbd>Ctrl + K</kbd> Search</div>
                     <div><kbd>Ctrl + Q</kbd> See queue</div>
                     <div><kbd>Alt + L</kbd> Turn off screen <span>(with loop running)</span></div>
