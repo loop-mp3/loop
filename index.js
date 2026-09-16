@@ -613,7 +613,7 @@ function updateLoop(artworkURL, trackInfo) {
                     <div><kbd>Shift + N</kbd> Next track</div>
                     <div><kbd>Ctrl + K</kbd> Search</div>
                     <div><kbd>Ctrl + Q</kbd> See queue</div>
-                    <div><kbd>Ctrl + Alt + L</kbd> Turn off screen (with loop running)</div>
+                    <div><kbd>Ctrl + Alt + L</kbd> Turn off screen <span>(with loop running)</span></div>
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
                     <label class="loop-navigation-toggle">
                         <input id="loop-navigation-toggle" type="checkbox">
@@ -621,7 +621,7 @@ function updateLoop(artworkURL, trackInfo) {
                     </label>
                     <label class="loop-navigation-toggle">
                         <input id="loop-background-toggle" type="checkbox" checked>
-                        Animated artwork background (re-enable)
+                        Animated artwork background <span>(re-enable)</span>
                     </label>
                     <label class="loop-navigation-toggle">
                         <input id="loop-vinyl-toggle" type="checkbox">
