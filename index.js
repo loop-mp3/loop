@@ -662,6 +662,8 @@ function updateLoop(artworkURL, trackInfo) {
                         <i class="fa-solid fa-thumbs-down" aria-hidden="true"></i>
                     </button>
                     <button id="loop-screen-disable" type="button" aria-label="power off the screen while music playing" title="Turn off screen">
+                    <i class="fa-solid fa-power-off" aria-hidden="true"></i>
+                    </button>
                 </div>
             </div>`;
         document.body.appendChild(loop);
