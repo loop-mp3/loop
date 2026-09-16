@@ -363,10 +363,7 @@ function findYTMActionButton(action) {
 }
 
 function DisableScreen() {
-    if (!window.loopElectron?.isElectron) {
-        console.warn("[loop.mp3] No Electron IPC bridge found. Screen disable is unavailable.");        return;
-    }
-
+    console.warn("[loop.mp3] Screen request send if not acknowledged then the ipc bridge is not avilable meaning you are not using the app")
     window.postMessage({
         source: "loop.mp3",
         type: "loop:screen-off",
