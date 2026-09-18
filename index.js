@@ -134,8 +134,10 @@ let kawarpEnabled = true;
 let loopPreferences = {
     animatedBackground: true,
     hideVinyl: true,
+    hideArtwork: false,
     theme: "default",
 };
+let currentArtworkURL = "";
 let kawarpRendererClass;
 let kawarpRendererPromise;
 let authWarningShown = false;
@@ -307,6 +309,27 @@ function applyLoopPreferences() {
     loop.classList.toggle("loop-no-vinyl", loopPreferences.hideVinyl);
     const vinylToggle = loop.querySelector("#loop-vinyl-toggle");
     if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
+    applyArtworkPreference();
+}
+
+function applyArtworkPreference() {
+    const loop = document.querySelector("#loop");
+    const artwork = loop?.querySelector("#loop-artwork");
+    if (!artwork) return;
+
+    const displayedArtwork = loopPreferences.hideArtwork || loop.classList.contains("loop-empty")
+        ? getFallbackArtwork()
+        : currentArtworkURL || getFallbackArtwork();
+    artwork.src = displayedArtwork;
+    updateKawarpArtwork(displayedArtwork);
+
+    const artworkToggle = loop.querySelector("#loop-artwork-toggle");
+    if (artworkToggle) {
+        artworkToggle.setAttribute("aria-pressed", String(loopPreferences.hideArtwork));
+        artworkToggle.setAttribute("aria-label", loopPreferences.hideArtwork ? "Show artwork" : "Hide artwork");
+        artworkToggle.title = loopPreferences.hideArtwork ? "Show artwork" : "Hide artwork";
+        artworkToggle.classList.toggle("loop-action-active", loopPreferences.hideArtwork);
+    }
 }
 
 function applyLoopTheme() {
@@ -663,6 +686,9 @@ function updateLoop(artworkURL, trackInfo) {
                     <button id="loop-dislike-button" type="button" aria-label="Dislike current track" title="Dislike current track">
                         <i class="fa-solid fa-thumbs-down" aria-hidden="true"></i>
                     </button>
+                    <button id="loop-artwork-toggle" type="button" aria-label="Hide artwork" aria-pressed="false" title="Hide artwork">
+                        <i class="fa-solid fa-image" aria-hidden="true"></i>
+                    </button>
                     <button id="loop-screen-disable" type="button" aria-label="power off the screen while music playing" title="Turn off screen">
                     <i class="fa-solid fa-power-off" aria-hidden="true"></i>
                     </button>
@@ -678,6 +704,11 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-seek").addEventListener("input", seekTrack);
         loop.querySelector("#loop-like-button").addEventListener("click", () => triggerYTMAction("like"));
         loop.querySelector("#loop-dislike-button").addEventListener("click", () => triggerYTMAction("dislike"));
+        loop.querySelector("#loop-artwork-toggle").addEventListener("click", () => {
+            loopPreferences.hideArtwork = !loopPreferences.hideArtwork;
+            saveLoopPreferences();
+            applyLoopPreferences();
+        });
         loop.querySelector("#loop-screen-disable").addEventListener("click", () => DisableScreen())
         loop.querySelector("#loop-navigation-toggle").addEventListener("change", (event) => {
             setTrackNavigationButtonsVisible(event.target.checked);
@@ -764,7 +795,10 @@ function updateLoop(artworkURL, trackInfo) {
         return updateLoop(artworkURL, trackInfo);
     }
 
-    artwork.src = trackInfo.empty ? getFallbackArtwork() : artworkURL;
+    if (!trackInfo.empty && artworkURL) currentArtworkURL = artworkURL;
+    artwork.src = trackInfo.empty || loopPreferences.hideArtwork
+        ? getFallbackArtwork()
+        : currentArtworkURL || getFallbackArtwork();
     title.textContent = trackInfo.title;
     artist.textContent = trackInfo.artist;
     artist.toggleAttribute("href", Boolean(trackInfo.artistUrl));
