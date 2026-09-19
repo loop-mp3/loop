@@ -635,6 +635,8 @@ function updateLoop(artworkURL, trackInfo) {
                     <div><kbd>Ctrl + K</kbd> Search</div>
                     <div><kbd>Ctrl + Q</kbd> See queue</div>
                     <div><kbd>Alt + L</kbd> Turn off screen <span>(with loop running)</span></div>
+                    <div><kbd>Ctrl + F5</kbd> Reload Loop</div>
+                    <div><kbd>F5</kbd> Reload Resources</div>
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
                     <label class="loop-navigation-toggle">
                         <input id="loop-navigation-toggle" type="checkbox">
@@ -1470,6 +1472,14 @@ document.addEventListener("keydown", (event) => {
         return;
     }
 
+    // replace the fucking thing without keeping anything that is freaking playing currently
+    if (event.ctrlKey && (
+        event.key.toLowerCase() === "5" ||
+        /^F([1-9]|1[0-2])$/.test(event.key)
+    )) {
+        window.location.replace("https://music.youtube.com");
+    }
+
     // Ignore the synthetic J/K events generated for YouTube Music itself.
     if (!event.isTrusted) return;
 
@@ -1485,6 +1495,11 @@ document.addEventListener("keydown", (event) => {
         !event.repeat &&
         !isTyping
     ) {
+        // reload the currentpage
+    if (event.key === "F5") {
+        window.location.reload();
+    }
+
         if (event.key.toLowerCase() === "m") {
             toggleMute();
             return;
