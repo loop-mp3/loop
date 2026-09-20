@@ -989,6 +989,15 @@ function getCurrentMedia() {
     return media.find((element) => !element.paused && !element.ended) || media[0];
 }
 
+window.addEventListener("beforeunload", (event) => {
+    const media = getCurrentMedia();
+    if (!media || media.paused || media.ended) return;
+
+    showLoopNotification("To close the app, first pause the music.");
+    event.preventDefault();
+    event.returnValue = "";
+});
+
 function formatTime(seconds) {
     if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
     const minutes = Math.floor(seconds / 60);
