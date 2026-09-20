@@ -160,6 +160,7 @@ let loopPreferences = {
     animatedBackground: true,
     hideVinyl: true,
     hideArtwork: false,
+    showNavigationButtons: false,
     theme: "default",
 };
 let currentArtworkURL = "";
@@ -339,6 +340,9 @@ function applyLoopPreferences() {
     loop.classList.toggle("loop-no-vinyl", loopPreferences.hideVinyl);
     const vinylToggle = loop.querySelector("#loop-vinyl-toggle");
     if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
+    const navigationToggle = loop.querySelector("#loop-navigation-toggle");
+    if (navigationToggle) navigationToggle.checked = Boolean(loopPreferences.showNavigationButtons);
+    setTrackNavigationButtonsVisible(Boolean(loopPreferences.showNavigationButtons));
     applyArtworkPreference();
 }
 
@@ -877,6 +881,8 @@ function updateLoop(artworkURL, trackInfo) {
         });
         loop.querySelector("#loop-screen-disable").addEventListener("click", () => DisableScreen())
         loop.querySelector("#loop-navigation-toggle").addEventListener("change", (event) => {
+            loopPreferences.showNavigationButtons = event.target.checked;
+            saveLoopPreferences();
             setTrackNavigationButtonsVisible(event.target.checked);
         });
         loop.querySelector("#loop-background-toggle").addEventListener("change", (event) => {
