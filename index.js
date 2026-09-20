@@ -646,7 +646,7 @@ function updateLoop(artworkURL, trackInfo) {
                     <div><kbd>Ctrl + K</kbd> Search</div>
                     <div><kbd>Ctrl + Q</kbd> See queue</div>
                     <div><kbd>Alt + L</kbd> Turn off screen <span>(with loop running)</span></div>
-                    <div><kbd>Ctrl + F5</kbd> Reload Loop</div>
+                    <div><kbd>Ctrl + F5</kbd> Reload Loop Session</div>
                     <div><kbd>F5</kbd> Reload Resources</div>
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
                     <label class="loop-navigation-toggle">
