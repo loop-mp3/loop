@@ -564,16 +564,12 @@ function getTrackInfo(playerBar) {
         playerBar.querySelector(".subtitle.ytmusic-player-bar yt-formatted-string.byline") ||
         playerBar.querySelector(".byline");
     const links = byline?.querySelectorAll("a") || [];
-    const artwork = [...playerBar.querySelectorAll("img")]
-        .map((image) => image.currentSrc || image.src || image.dataset.src || "")
-        .find(Boolean) || "";
     return {
         title,
         artist: links[0]?.textContent.trim() || "Unknown artist",
         artistUrl: links[0]?.href || "",
         album: links.length >= 2 ? links[links.length - 1].textContent.trim() : "Unknown album",
         albumUrl: links.length >= 2 ? links[links.length - 1].href : "",
-        artwork,
     };
 }
 
@@ -595,7 +591,6 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             artistUrl: liveInfo.artistUrl || domInfo.artistUrl,
             album: liveInfo.album || domInfo.album,
             albumUrl: liveInfo.albumUrl || domInfo.albumUrl,
-            artwork: liveInfo.artwork || domInfo.artwork,
         };
     } catch (error) {
         console.warn("[loop.mp3] Could not fetch track metadata:", error);
@@ -1097,12 +1092,13 @@ async function updateForCurrentTrack(playerBar) {
     const currentPlayerBar = document.querySelector("ytmusic-player-bar") || playerBar;
     const trackId = getCurrentTrackId(currentPlayerBar);
     const liveTrackInfo = getTrackInfo(currentPlayerBar);
+    const artworkURL = getVinylArtwork(trackId);
     const trackSignature = [
         trackId || "",
         liveTrackInfo.title,
         liveTrackInfo.artist,
         liveTrackInfo.album,
-        liveTrackInfo.artwork,
+        artworkURL,
     ].join("|");
     if (!trackId && !getCurrentMedia()) {
         const loop = document.getElementById("loop");
@@ -1134,7 +1130,7 @@ async function updateForCurrentTrack(playerBar) {
     lastTrackId = trackId;
     lastTrackKey = trackSignature;
     const requestId = ++metadataRequest;
-    updateLoop(liveTrackInfo.artwork || getVinylArtwork(trackId), liveTrackInfo);
+    updateLoop(artworkURL, liveTrackInfo);
     syncRecordMotion();
     const trackInfo = await getTrackInfoFromTrackId(trackId, currentPlayerBar);
     const activePlayerBar = document.querySelector("ytmusic-player-bar") || playerBar;
@@ -1144,10 +1140,10 @@ async function updateForCurrentTrack(playerBar) {
         currentInfo.title,
         currentInfo.artist,
         currentInfo.album,
-        currentInfo.artwork,
+        getVinylArtwork(getCurrentTrackId(activePlayerBar)),
     ].join("|");
     if (requestId !== metadataRequest || trackSignature !== currentSignature) return;
-    updateLoop(trackInfo.artwork || getVinylArtwork(trackId), trackInfo);
+    updateLoop(getVinylArtwork(trackId), trackInfo);
     syncRecordMotion();
     console.log("[loop.mp3] Current track metadata:", trackInfo);
 }
