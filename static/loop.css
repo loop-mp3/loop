@@ -954,6 +954,17 @@
     background: rgba(255, 255, 255, 0.18);
 }
 
+#loop[data-theme="sharp"] .loop-menu-action {
+    border: 2px solid #000;
+    border-radius: 0;
+    background: #fff;
+    color: #000;
+}
+
+#loop[data-theme="sharp"] .loop-menu-action:hover {
+    background: #e5e5e5;
+}
+
 #loop[data-theme="sharp"] .loop-theme-picker select {
     border: 2px solid var(--loop-sharp-accent);
     border-radius: 0;
