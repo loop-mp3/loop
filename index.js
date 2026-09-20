@@ -621,8 +621,8 @@ function showKawarpConfigEditor() {
         <div class="loop-kawarp-config-card">
             <div class="loop-kawarp-config-header">
                 <div>
-                    <h2 id="loop-kawarp-config-title">Kawarp shader config</h2>
-                    <p>Load one JSON file to replace the current shader config.</p>
+                    <h2 id="loop-kawarp-config-title">Kawarp config editor</h2>
+                    <p>Load any kawarp json config to customise the look of your kwarp baground</p>
                 </div>
                 <button type="button" class="loop-kawarp-config-close" aria-label="Close config editor">&#215;</button>
             </div>
