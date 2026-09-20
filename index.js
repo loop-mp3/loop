@@ -448,7 +448,7 @@ function getExtensionURL(path) {
 
 function loadKawarpRenderer() {
     if (!kawarpRendererPromise) {
-        kawarpRendererPromise = import(getExtensionURL("static/kawarp.js"))
+        kawarpRendererPromise = import(getExtensionURL("modules/kawarp.js"))
             .then(({ Kawarp }) => {
                 kawarpRendererClass = Kawarp;
                 return Kawarp;
