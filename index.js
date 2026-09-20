@@ -157,6 +157,7 @@ let notificationAnimationTimer;
 let notificationAnimationFrame;
 let authWarningShown = false;
 let loopUpdateBlocked = false;
+let loopVisible = false;
 
 const loopPreferencesKey = "loop.mp3.preferences";
 const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
@@ -738,6 +739,7 @@ function syncWindowTitle() {
 }
 
 function goBackToNormal() {
+    loopVisible = false;
     if (!getCurrentTrackId()) emptyScreenDismissed = true;
     restoreYTMSearch();
     document.title = "loop";
@@ -745,6 +747,7 @@ function goBackToNormal() {
 }
 
 function updateLoop(artworkURL, trackInfo) {
+    loopVisible = true;
     let loop = document.getElementById("loop");
     if (!loop) {
         loop = document.createElement("div");
@@ -778,6 +781,7 @@ function updateLoop(artworkURL, trackInfo) {
                     <div><kbd>Ctrl + K</kbd> Search</div>
                     <div><kbd>Ctrl + Q</kbd> See queue</div>
                     <div><kbd>Alt + L</kbd> Turn off screen <span>(with loop running)</span></div>
+                    <div><kbd>~</kbd> Toggle Loop</div>
                     <div><kbd>Ctrl + F5</kbd> Reload Loop Session</div>
                     <div><kbd>F5</kbd> Reload Resources</div>
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
@@ -1650,6 +1654,16 @@ document.addEventListener("keydown", (event) => {
 
     // Ignore the synthetic J/K events generated for YouTube Music itself.
     if (!event.isTrusted) return;
+
+    if (event.key === "~" || (event.code === "Backquote" && event.shiftKey)) {
+        event.preventDefault();
+        if (loopVisible && document.getElementById("loop")) {
+            goBackToNormal();
+        } else {
+            returnToLoopUI(event);
+        }
+        return;
+    }
 
     const target = event.target;
     const isTyping = target instanceof HTMLInputElement ||
