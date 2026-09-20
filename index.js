@@ -400,6 +400,75 @@ function findYTMActionButton(action) {
     });
 }
 
+function returnToLoopUI(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    const playerBar = document.querySelector("ytmusic-player-bar");
+    const trackId = getCurrentTrackId(playerBar);
+    console.log("[loop.mp3] Open Loop button activated", {
+        hasPlayerBar: Boolean(playerBar),
+        trackId: trackId || null,
+    });
+    const trackInfo = playerBar ? getTrackInfo(playerBar) : {
+        title: "Nothing is playing",
+        artist: "Search something to play",
+        album: "",
+        empty: true,
+    };
+    hideLoopSearch();
+    updateLoop(getVinylArtwork(trackId), trackInfo);
+    syncRecordMotion();
+}
+
+let loopRecordEventsBound = false;
+
+function bindLoopRecordEvents() {
+    if (loopRecordEventsBound) return;
+    loopRecordEventsBound = true;
+
+    document.addEventListener("pointerdown", (event) => {
+        if (!(event.target instanceof Element)) return;
+        const button = event.target.closest("#loop-record-button");
+        if (!button) return;
+        button.dataset.loopPointerActivated = "true";
+        returnToLoopUI(event);
+    }, true);
+
+    document.addEventListener("click", (event) => {
+        if (!(event.target instanceof Element)) return;
+        const button = event.target.closest("#loop-record-button");
+        if (!button) return;
+        if (button.dataset.loopPointerActivated === "true") {
+            delete button.dataset.loopPointerActivated;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return;
+        }
+        returnToLoopUI(event);
+    }, true);
+}
+
+function ensureLoopRecordButton() {
+    const castButton = [...document.querySelectorAll("ytmusic-cast-button")].find((button) => {
+        const bounds = button.getBoundingClientRect();
+        return button.offsetParent !== null && bounds.width > 0 && bounds.height > 0;
+    });
+    if (!castButton) return;
+
+    let recordButton = document.getElementById("loop-record-button");
+    if (!recordButton) {
+        recordButton = document.createElement("button");
+        recordButton.id = "loop-record-button";
+        recordButton.type = "button";
+        recordButton.setAttribute("aria-label", "Open Loop");
+        recordButton.title = "Open Loop";
+        recordButton.innerHTML = '<i class="fa-solid fa-record-vinyl" aria-hidden="true"></i>';
+    }
+    castButton.insertAdjacentElement("beforebegin", recordButton);
+}
+
 function DisableScreen() {
     console.warn("[loop.mp3] Screen request send if not acknowledged then the ipc bridge is not avilable meaning you are not using the app")
     window.postMessage({
@@ -1626,6 +1695,8 @@ async function init(playerBar) {
     console.log("[loop.mp3] YTM is ready", playerBar);
     document.title = "loop";
     warnIfNotSignedIn();
+    bindLoopRecordEvents();
+    ensureLoopRecordButton();
     watchTrackChanges(playerBar);
     // Do not make the first GUI render wait for the network update check.
     updateForCurrentTrack(playerBar);
@@ -1643,6 +1714,7 @@ async function init(playerBar) {
     });
     setInterval(() => {
         if (loopUpdateBlocked) return;
+        ensureLoopRecordButton();
         updateForCurrentTrack(playerBar);
         watchPlaybackState();
     }, 100);

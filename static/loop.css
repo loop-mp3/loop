@@ -204,6 +204,39 @@
     background: rgba(255, 255, 255, 0.24);
 }
 
+#loop-record-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    flex: 0 0 36px;
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    margin: 0 8px 0 0;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+    border-radius: 50%;
+    appearance: none;
+    color: var(--yt-spec-text-primary, #fff);
+    background: rgba(255, 255, 255, 0.12) !important;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+}
+
+#loop-record-button i {
+    display: block;
+    width: 1em;
+    height: 1em;
+    line-height: 1;
+}
+
+#loop-record-button:hover {
+    background: rgba(255, 255, 255, 0.22) !important;
+}
+
 #loop-artwork {
     width: 400px;
     height: 400px;
