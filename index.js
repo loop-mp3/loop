@@ -151,6 +151,10 @@ let loopPreferences = {
 let currentArtworkURL = "";
 let kawarpRendererClass;
 let kawarpRendererPromise;
+let kawarpWarningTimer;
+let notificationTimer;
+let notificationAnimationTimer;
+let notificationAnimationFrame;
 let authWarningShown = false;
 let loopUpdateBlocked = false;
 
@@ -516,6 +520,60 @@ function setKawarpEnabled(enabled) {
     loopPreferences.animatedBackground = enabled;
     saveLoopPreferences();
     setKawarpCanvasVisibility(enabled);
+    if (enabled) showKawarpWarning();
+}
+
+function showKawarpWarning() {
+    const warning = document.querySelector("#loop-kawarp-warning");
+    if (!warning) return;
+
+    window.clearTimeout(kawarpWarningTimer);
+    warning.hidden = false;
+    kawarpWarningTimer = window.setTimeout(() => {
+        warning.hidden = true;
+    }, 6000);
+    showLoopNotification(
+        "Kawarp enabled: higher GPU usage may reduce battery life.",
+        6000
+    );
+}
+
+function showLoopNotification(message, duration = 6000) {
+    const toast = document.querySelector("#loop-kawarp-toast");
+    const messageNode = toast?.querySelector(".loop-notification-message");
+    const progress = toast?.querySelector(".loop-notification-progress");
+    const closeButton = toast?.querySelector(".loop-notification-close");
+    if (!toast || !messageNode || !progress || !closeButton) return;
+
+    window.clearTimeout(notificationTimer);
+    window.clearTimeout(notificationAnimationTimer);
+    window.cancelAnimationFrame(notificationAnimationFrame);
+    messageNode.textContent = message;
+    toast.style.setProperty("--loop-notification-duration", `${duration}ms`);
+    toast.hidden = false;
+    toast.classList.remove("loop-notification-visible");
+    progress.style.animation = "none";
+    closeButton.onclick = () => dismissLoopNotification();
+
+    notificationAnimationFrame = requestAnimationFrame(() => {
+        notificationAnimationFrame = undefined;
+        toast.classList.add("loop-notification-visible");
+        progress.style.animation = "loop-notification-timer var(--loop-notification-duration) linear forwards";
+    });
+    notificationTimer = window.setTimeout(dismissLoopNotification, duration);
+}
+
+function dismissLoopNotification() {
+    const toast = document.querySelector("#loop-kawarp-toast");
+    if (!toast) return;
+
+    window.clearTimeout(notificationTimer);
+    window.cancelAnimationFrame(notificationAnimationFrame);
+    notificationAnimationFrame = undefined;
+    toast.classList.remove("loop-notification-visible");
+    notificationAnimationTimer = window.setTimeout(() => {
+        toast.hidden = true;
+    }, 220);
 }
 
 function disposeKawarpBackground() {
@@ -627,6 +685,11 @@ function updateLoop(artworkURL, trackInfo) {
                 <button id="loop-back-button" type="button" aria-label="Return to YouTube Music">&#215;</button>
                 <button id="loop-shortcuts-button" type="button" aria-label="Open Loop menu" title="Loop menu">?</button>
                 <canvas id="loop-kawarp-background" aria-hidden="true"></canvas>
+                <div id="loop-kawarp-toast" role="status" hidden>
+                    <span class="loop-notification-message"></span>
+                    <button class="loop-notification-close" type="button" aria-label="Dismiss notification">&#215;</button>
+                    <div class="loop-notification-progress" aria-hidden="true"></div>
+                </div>
                 <div id="loop-shortcuts-panel" hidden>
                     <div class="loop-shortcuts-title">Loop menu</div>
                     <label class="loop-theme-picker">
@@ -657,6 +720,9 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-background-toggle" type="checkbox" checked>
                         Animated artwork background <span>(re-enable)</span>
                     </label>
+                    <div id="loop-kawarp-warning" class="loop-kawarp-warning" role="status" hidden>
+                        Kawarp may increase GPU usage and battery drain.
+                    </div>
                     <label class="loop-navigation-toggle">
                         <input id="loop-vinyl-toggle" type="checkbox">
                         Don’t show vinyl
