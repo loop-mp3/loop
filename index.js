@@ -175,6 +175,7 @@ let loopUpdateBlocked = false;
 let loopVisible = false;
 
 const loopPreferencesKey = "loop.mp3.preferences";
+const kawarpConfigKey = "loop.mp3.kawarp-config";
 const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
 
 function getUpdateURL() {
@@ -591,10 +592,94 @@ async function loadKawarpSettings() {
         const response = await fetch(getExtensionURL("config/shader.json"));
         if (!response.ok) throw new Error(`shader.json returned ${response.status}`);
         const config = await response.json();
-        applyKawarpSettings(config.settings || config);
+        const savedConfig = getStoredKawarpConfig();
+        applyKawarpSettings((savedConfig || config).settings || savedConfig || config);
     } catch (error) {
         console.warn("[loop.mp3] Could not load Kawarp settings:", error);
     }
+}
+
+function getStoredKawarpConfig() {
+    try {
+        const storedConfig = JSON.parse(localStorage.getItem(kawarpConfigKey) || "null");
+        return storedConfig && typeof storedConfig === "object" ? storedConfig : null;
+    } catch {
+        return null;
+    }
+}
+
+function showKawarpConfigEditor() {
+    const existingModal = document.getElementById("loop-kawarp-config-modal");
+    if (existingModal) return;
+
+    const modal = document.createElement("div");
+    modal.id = "loop-kawarp-config-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "loop-kawarp-config-title");
+    modal.innerHTML = `
+        <div class="loop-kawarp-config-card">
+            <div class="loop-kawarp-config-header">
+                <div>
+                    <h2 id="loop-kawarp-config-title">Kawarp shader config</h2>
+                    <p>Load one JSON file to replace the current shader config.</p>
+                </div>
+                <button type="button" class="loop-kawarp-config-close" aria-label="Close config editor">&#215;</button>
+            </div>
+            <input class="loop-kawarp-config-file" type="file" accept=".json,application/json" hidden>
+            <div class="loop-kawarp-config-status" role="status" aria-live="polite"></div>
+            <div class="loop-kawarp-config-actions">
+                <a href="https://github.com/loop-mp3/loop/blob/main/config/shader.json" target="_blank" rel="noopener noreferrer">Reference shader.json</a>
+                <span class="loop-kawarp-config-spacer"></span>
+                <button type="button" class="loop-kawarp-config-reset">Reset</button>
+                <button type="button" class="loop-kawarp-config-upload">Upload file</button>
+                <button type="button" class="loop-kawarp-config-cancel">Cancel</button>
+            </div>
+        </div>`;
+    (document.getElementById("loop") || document.body).appendChild(modal);
+
+    const status = modal.querySelector(".loop-kawarp-config-status");
+    const fileInput = modal.querySelector(".loop-kawarp-config-file");
+
+    const close = () => modal.remove();
+    modal.querySelector(".loop-kawarp-config-close").addEventListener("click", close);
+    modal.querySelector(".loop-kawarp-config-cancel").addEventListener("click", close);
+    modal.querySelector(".loop-kawarp-config-reset").addEventListener("click", () => {
+        applyKawarpSettings({ ...defaultKawarpSettings });
+        localStorage.removeItem(kawarpConfigKey);
+        status.textContent = "Default config restored.";
+    });
+    modal.querySelector(".loop-kawarp-config-upload").addEventListener("click", () => fileInput.click());
+    modal.addEventListener("click", (event) => {
+        if (event.target === modal) close();
+    });
+    modal.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") close();
+    });
+    fileInput.addEventListener("change", async () => {
+        const file = fileInput.files?.[0];
+        if (!file) return;
+        try {
+            const config = JSON.parse(await file.text());
+            if (!config || typeof config !== "object" || Array.isArray(config)) {
+                throw new Error("The config must be a JSON object.");
+            }
+            const settings = config.settings && typeof config.settings === "object"
+                ? config.settings
+                : config;
+            applyKawarpSettings(settings);
+            localStorage.setItem(kawarpConfigKey, JSON.stringify({
+                version: config.version || "2.0",
+                settings,
+            }));
+            status.textContent = `${file.name} loaded and applied. (you might need to re-enable kwarp if the settings the changes didnt popogated)`;
+        } catch (error) {
+            status.textContent = error instanceof SyntaxError
+                ? "Invalid JSON. Check the selected file."
+                : error.message;
+        }
+    });
+    modal.querySelector(".loop-kawarp-config-upload").focus();
 }
 
 async function loadLoopPreferences() {
@@ -818,6 +903,9 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-vinyl-toggle" type="checkbox">
                         Don’t show vinyl
                     </label>
+                    <button id="loop-kawarp-config-button" class="loop-menu-action" type="button">
+                        Edit Kawarp shader config
+                    </button>
                 </div>
                 <div id="loop-empty-state" hidden>
                     <div class="loop-empty-title">Nothing is playing</div>
@@ -904,6 +992,7 @@ function updateLoop(artworkURL, trackInfo) {
             saveLoopPreferences();
             applyLoopTheme();
         });
+        loop.querySelector("#loop-kawarp-config-button").addEventListener("click", showKawarpConfigEditor);
         loop.querySelector("#loop-shortcuts-button").addEventListener("click", (event) => {
             event.stopPropagation();
             const panel = loop.querySelector("#loop-shortcuts-panel");

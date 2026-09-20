@@ -937,6 +937,23 @@
     text-transform: uppercase;
 }
 
+.loop-menu-action {
+    width: 100%;
+    margin-top: 12px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+
+.loop-menu-action:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
 #loop[data-theme="sharp"] .loop-theme-picker select {
     border: 2px solid var(--loop-sharp-accent);
     border-radius: 0;
@@ -949,4 +966,151 @@
     border-color: var(--ctp-overlay);
     background: var(--ctp-surface);
     color: var(--ctp-text);
+}
+
+#loop-kawarp-config-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483646;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.68);
+    color: #fff;
+    font: 14px system-ui, sans-serif;
+}
+
+.loop-kawarp-config-card {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: min(720px, 100%);
+    max-height: min(760px, 100%);
+    padding: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    background: #101010;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
+}
+
+.loop-kawarp-config-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.loop-kawarp-config-header h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.loop-kawarp-config-header p {
+    margin: 6px 0 16px;
+    color: rgba(255, 255, 255, 0.62);
+}
+
+.loop-kawarp-config-close {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    cursor: pointer;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.loop-kawarp-config-status {
+    min-height: 20px;
+    margin-top: 8px;
+    color: #f0c674;
+}
+
+.loop-kawarp-config-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.loop-kawarp-config-actions a {
+    color: #9dc5ff;
+    font-weight: 600;
+}
+
+.loop-kawarp-config-spacer {
+    flex: 1;
+}
+
+.loop-kawarp-config-actions button {
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+}
+
+.loop-kawarp-config-actions button:hover,
+.loop-kawarp-config-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.loop-kawarp-config-actions .loop-kawarp-config-apply {
+    background: #fff;
+    color: #000;
+    font-weight: 700;
+}
+
+#loop[data-theme="sharp"] #loop-kawarp-config-modal,
+#loop[data-theme="sharp"] .loop-kawarp-config-card {
+    border-radius: 0;
+}
+
+#loop[data-theme="sharp"] .loop-kawarp-config-card {
+    border: 2px solid #fff;
+    background: #000;
+    box-shadow: 8px 8px 0 #fff;
+}
+
+#loop[data-theme="sharp"] .loop-kawarp-config-actions button,
+#loop[data-theme="sharp"] .loop-kawarp-config-close {
+    border: 2px solid #fff;
+    border-radius: 0;
+    background: #000;
+}
+
+#loop[data-theme="sharp"] .loop-kawarp-config-actions .loop-kawarp-config-apply {
+    background: #fff;
+    color: #000;
+}
+
+#loop[data-theme="catppuccin"] .loop-kawarp-config-card {
+    border-color: var(--ctp-overlay);
+    background: var(--ctp-mantle);
+}
+
+@media (max-width: 600px) {
+    #loop-kawarp-config-modal {
+        padding: 12px;
+    }
+
+    .loop-kawarp-config-card {
+        max-height: 100%;
+        padding: 16px;
+    }
+
+    .loop-kawarp-config-actions {
+        flex-wrap: wrap;
+    }
+
+    .loop-kawarp-config-spacer {
+        display: none;
+    }
 }
