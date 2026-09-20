@@ -30,6 +30,20 @@ function getVinylArtwork(trackId) {
     return trackId ? `https://img.youtube.com/vi/${trackId}/maxresdefault.jpg` : getFallbackArtwork();
 }
 
+function getPlayerBarArtwork(playerBar) {
+    const artwork = [...(playerBar?.querySelectorAll("img") || [])].find((image) => {
+        const source = image.currentSrc || image.src || "";
+        return source && !source.includes("ytmusic-logo") && !source.includes("favicon");
+    });
+    return artwork?.currentSrc || artwork?.src || "";
+}
+
+function getCurrentArtwork(playerBar, trackId) {
+    return trackId
+        ? getVinylArtwork(trackId)
+        : getPlayerBarArtwork(playerBar) || currentArtworkURL || getFallbackArtwork();
+}
+
 let lastDiscordUpdate = 0;
 let lastDiscordSignature = "";
 
@@ -407,7 +421,7 @@ function returnToLoopUI(event) {
     event.stopImmediatePropagation();
 
     const playerBar = document.querySelector("ytmusic-player-bar");
-    const trackId = getCurrentTrackId(playerBar);
+    const trackId = getCurrentTrackId(playerBar) || lastTrackId;
     console.log("[loop.mp3] Open Loop button activated", {
         hasPlayerBar: Boolean(playerBar),
         trackId: trackId || null,
@@ -419,7 +433,7 @@ function returnToLoopUI(event) {
         empty: true,
     };
     hideLoopSearch();
-    updateLoop(getVinylArtwork(trackId), trackInfo);
+    updateLoop(getCurrentArtwork(playerBar, trackId), trackInfo);
     syncRecordMotion();
 }
 
@@ -1229,9 +1243,9 @@ function watchTrackChanges(playerBar) {
 
 async function updateForCurrentTrack(playerBar) {
     const currentPlayerBar = document.querySelector("ytmusic-player-bar") || playerBar;
-    const trackId = getCurrentTrackId(currentPlayerBar);
+    const trackId = getCurrentTrackId(currentPlayerBar) || lastTrackId;
     const liveTrackInfo = getTrackInfo(currentPlayerBar);
-    const artworkURL = getVinylArtwork(trackId);
+    const artworkURL = getCurrentArtwork(currentPlayerBar, trackId);
     const trackSignature = [
         trackId || "",
         liveTrackInfo.title,
@@ -1273,16 +1287,17 @@ async function updateForCurrentTrack(playerBar) {
     syncRecordMotion();
     const trackInfo = await getTrackInfoFromTrackId(trackId, currentPlayerBar);
     const activePlayerBar = document.querySelector("ytmusic-player-bar") || playerBar;
+    const activeTrackId = getCurrentTrackId(activePlayerBar) || lastTrackId;
     const currentInfo = getTrackInfo(activePlayerBar);
     const currentSignature = [
-        getCurrentTrackId(activePlayerBar) || "",
+        activeTrackId || "",
         currentInfo.title,
         currentInfo.artist,
         currentInfo.album,
-        getVinylArtwork(getCurrentTrackId(activePlayerBar)),
+        getCurrentArtwork(activePlayerBar, activeTrackId),
     ].join("|");
     if (requestId !== metadataRequest || trackSignature !== currentSignature) return;
-    updateLoop(getVinylArtwork(trackId), trackInfo);
+    updateLoop(artworkURL, trackInfo);
     syncRecordMotion();
     console.log("[loop.mp3] Current track metadata:", trackInfo);
 }
