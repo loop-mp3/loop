@@ -92,6 +92,8 @@ These settings are used by the shader/artwork effects when the corresponding sha
 2. Put the settings inside a `settings` object.
 3. Add its display name and filename to `config/presets/manifest.json`.
 
+Users can also add a preset through **Add Custom Config File**. Loop asks for the preset name and author, applies the config immediately, and stores it in a local manifest so it appears in the preset list later. Installed extensions cannot rewrite the packaged `config/presets/manifest.json`, so uploaded presets are stored in browser `localStorage` instead.
+
 Example preset entry:
 
 ```json
@@ -119,7 +121,7 @@ The manifest key is the name displayed in the config modal. The filename must ma
 
 ## Loading and persistence
 
-- The config modal loads the bundled presets from the manifest.
+- The config modal loads bundled presets from the manifest and user presets from the local manifest.
 - Selecting a preset applies it immediately.
 - Uploaded custom configs are applied immediately as well.
 - The active configuration is saved in browser `localStorage` under `loop.mp3.kawarp-config`.
@@ -128,5 +130,5 @@ The manifest key is the name displayed in the config modal. The filename must ma
 
 Keep JSON valid and use numbers instead of numeric strings. Invalid files are rejected by the config loader.
 
-> [!NOTE]  
-> For more information of kwarp visit https://kwarp.betterlyrics.org
+> [!NOTE]
+> For more information about Kawarp, visit [kwarp.betterlyrics.org](https://kwarp.betterlyrics.org).

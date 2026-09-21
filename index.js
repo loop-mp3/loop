@@ -176,6 +176,7 @@ let loopVisible = false;
 
 const loopPreferencesKey = "loop.mp3.preferences";
 const kawarpConfigKey = "loop.mp3.kawarp-config";
+const kawarpCustomPresetsKey = "loop.mp3.kawarp-custom-presets";
 const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
 
 function getUpdateURL() {
@@ -608,11 +609,94 @@ function getStoredKawarpConfig() {
     }
 }
 
+function getStoredKawarpPresets() {
+    try {
+        const storedPresets = JSON.parse(localStorage.getItem(kawarpCustomPresetsKey) || "{}");
+        return storedPresets && typeof storedPresets === "object" && !Array.isArray(storedPresets)
+            ? storedPresets
+            : {};
+    } catch {
+        return {};
+    }
+}
+
+function saveStoredKawarpPresets(presets) {
+    localStorage.setItem(kawarpCustomPresetsKey, JSON.stringify(presets));
+}
+
+function requestKawarpPresetDetails(defaultName) {
+    return new Promise((resolve) => {
+        const modal = document.createElement("div");
+        modal.className = "loop-kawarp-preset-details-modal";
+        modal.setAttribute("role", "dialog");
+        modal.setAttribute("aria-modal", "true");
+        modal.setAttribute("aria-labelledby", "loop-kawarp-preset-details-title");
+        modal.innerHTML = `
+            <form class="loop-kawarp-preset-details-card">
+                <div class="loop-kawarp-preset-details-header">
+                    <div>
+                        <h2 id="loop-kawarp-preset-details-title">Save custom preset</h2>
+                        <p>Give this config a name and credit its author.</p>
+                    </div>
+                    <button type="button" class="loop-kawarp-preset-details-close" aria-label="Close">&#215;</button>
+                </div>
+                <label class="loop-kawarp-preset-details-field">
+                    <span>Preset name</span>
+                    <input class="loop-kawarp-preset-name" type="text" maxlength="80" required>
+                </label>
+                <label class="loop-kawarp-preset-details-field">
+                    <span>Author</span>
+                    <input class="loop-kawarp-preset-author" type="text" maxlength="80" value="Custom" required>
+                </label>
+                <div class="loop-kawarp-preset-details-error" role="alert" aria-live="polite"></div>
+                <div class="loop-kawarp-preset-details-actions">
+                    <button type="button" class="loop-kawarp-preset-details-cancel">Cancel</button>
+                    <button type="submit" class="loop-kawarp-preset-details-save">Save and apply</button>
+                </div>
+            </form>`;
+        (document.getElementById("loop") || document.body).appendChild(modal);
+
+        const form = modal.querySelector(".loop-kawarp-preset-details-card");
+        const nameInput = modal.querySelector(".loop-kawarp-preset-name");
+        const authorInput = modal.querySelector(".loop-kawarp-preset-author");
+        const error = modal.querySelector(".loop-kawarp-preset-details-error");
+        nameInput.value = defaultName;
+
+        const close = (details = null) => {
+            modal.remove();
+            resolve(details);
+        };
+        modal.querySelector(".loop-kawarp-preset-details-close").addEventListener("click", () => close());
+        modal.querySelector(".loop-kawarp-preset-details-cancel").addEventListener("click", () => close());
+        modal.addEventListener("click", (event) => {
+            if (event.target === modal) close();
+        });
+        modal.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") close();
+        });
+        form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const name = nameInput.value.trim();
+            const author = authorInput.value.trim();
+            if (!name || !author) {
+                error.textContent = "Enter both a preset name and an author.";
+                return;
+            }
+            close({ name, author });
+        });
+        nameInput.focus();
+        nameInput.select();
+    });
+}
+
 async function loadKawarpPreset(presetName, presetPath, status) {
     try {
-        const response = await fetch(getExtensionURL(`config/presets/${presetPath}`));
-        if (!response.ok) throw new Error(`${presetPath} returned ${response.status}`);
-        const config = await response.json();
+        let config = presetPath;
+        if (typeof presetPath === "string") {
+            const response = await fetch(getExtensionURL(`config/presets/${presetPath}`));
+            if (!response.ok) throw new Error(`${presetPath} returned ${response.status}`);
+            config = await response.json();
+        }
         const settings = config.settings && typeof config.settings === "object"
             ? config.settings
             : config;
@@ -639,8 +723,9 @@ async function loadKawarpPresets(modal, status) {
         if (!presets || typeof presets !== "object" || Array.isArray(presets)) {
             throw new Error("The preset manifest must be an object.");
         }
+        const allPresets = { ...presets, ...getStoredKawarpPresets() };
 
-        presetList.replaceChildren(...Object.entries(presets).map(([name, path]) => {
+        presetList.replaceChildren(...Object.entries(allPresets).map(([name, path]) => {
             const button = document.createElement("button");
             button.type = "button";
             button.textContent = name;
@@ -713,15 +798,33 @@ function showKawarpConfigEditor() {
             if (!config || typeof config !== "object" || Array.isArray(config)) {
                 throw new Error("The config must be a JSON object.");
             }
+            const details = await requestKawarpPresetDetails(
+                file.name.replace(/\.json$/i, "").trim()
+            );
+            if (!details) {
+                status.textContent = "Upload cancelled.";
+                return;
+            }
             const settings = config.settings && typeof config.settings === "object"
                 ? config.settings
                 : config;
+            if (!settings || Array.isArray(settings)) {
+                throw new Error("The config must contain a settings object.");
+            }
+            const displayName = `${details.name} by ${details.author}`;
+            const customPresets = getStoredKawarpPresets();
+            customPresets[displayName] = {
+                version: config.version || "2.0",
+                settings,
+            };
+            saveStoredKawarpPresets(customPresets);
             applyKawarpSettings(settings);
             localStorage.setItem(kawarpConfigKey, JSON.stringify({
                 version: config.version || "2.0",
                 settings,
             }));
-            status.textContent = `${file.name} loaded and applied. (you might need to re-enable kwarp if the settings the changes didnt popogated)`;
+            status.textContent = `${displayName} saved and applied.`;
+            await loadKawarpPresets(modal, status);
         } catch (error) {
             status.textContent = error instanceof SyntaxError
                 ? "Invalid JSON. Check the selected file."
