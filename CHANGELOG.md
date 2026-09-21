@@ -2,6 +2,31 @@
 
 All notable changes to Loop are documented here.
 
+## [1.1.2] - 2026-09-21
+
+### Highlights
+
+- Added a Kawarp configuration editor with bundled shader presets, custom config uploads, persistent settings, and reset support.
+- Added custom preset naming and author attribution, local persistence, deletion controls, and theme-aware preset styling.
+- Added screen power controls and a Loop visibility toggle with updated keyboard shortcuts.
+- Added shortcuts for reloading Loop and its resources, plus persisted previous/next navigation preferences.
+- Added a warning notification when Kawarp is enabled and a confirmation notification before closing while music is playing.
+- Added a configuration guide and Kawarp source references.
+
+### Fixes
+
+- Fixed Kawarp module loading after moving the renderer from `static/` to `modules/`.
+- Fixed artwork fallback behavior when a playing track's artwork URL changes without a video ID.
+- Fixed track synchronization edge cases and corrected inverted track-navigation shortcuts.
+- Fixed screen-disable shortcut bindings and improved feedback in Electron environments.
+- Styled toast notifications for the Default, Monochrome, and Catppuccin themes.
+
+### Internal and maintenance changes
+
+- Bumped the extension version to `1.1.2`.
+- Updated the config editor reference link to the new configuration guide.
+- Added bundled Kawarp preset manifests and configuration documentation.
+
 ## [1.1.1] - 2026-9-15
 
 ### Fixes
@@ -82,3 +107,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [1.0.0]: https://github.com/loop-mp3/loop/releases/tag/v1.0.0
 [1.1.0]: https://github.com/loop-mp3/loop/releases/tag/v1.1.0
 [1.1.1]: https://github.com/loop-mp3/loop/releases/tag/v1.1.1
+[1.1.2]: https://github.com/loop-mp3/loop/releases/tag/v1.1.2
