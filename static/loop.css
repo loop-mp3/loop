@@ -1013,6 +1013,33 @@
     gap: 20px;
 }
 
+.loop-kawarp-config-presets {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 20px 0 12px;
+}
+
+.loop-kawarp-config-presets-loading {
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 13px;
+}
+
+.loop-kawarp-config-presets button {
+    width: 100%;
+    padding: 8px 12px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.loop-kawarp-config-presets button:hover {
+    background: rgba(255, 255, 255, 0.22);
+}
+
 .loop-kawarp-config-header h2 {
     margin: 0;
     font-size: 20px;

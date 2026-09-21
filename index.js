@@ -608,6 +608,50 @@ function getStoredKawarpConfig() {
     }
 }
 
+async function loadKawarpPreset(presetName, presetPath, status) {
+    try {
+        const response = await fetch(getExtensionURL(`config/presets/${presetPath}`));
+        if (!response.ok) throw new Error(`${presetPath} returned ${response.status}`);
+        const config = await response.json();
+        const settings = config.settings && typeof config.settings === "object"
+            ? config.settings
+            : config;
+        if (!settings || Array.isArray(settings)) {
+            throw new Error("The preset must contain a settings object.");
+        }
+        applyKawarpSettings(settings);
+        localStorage.setItem(kawarpConfigKey, JSON.stringify({
+            version: config.version || "2.0",
+            settings,
+        }));
+        status.textContent = `${presetName} preset loaded and applied.`;
+    } catch (error) {
+        status.textContent = `Could not load ${presetName}: ${error.message}`;
+    }
+}
+
+async function loadKawarpPresets(modal, status) {
+    const presetList = modal.querySelector(".loop-kawarp-config-presets");
+    try {
+        const response = await fetch(getExtensionURL("config/presets/manifest.json"));
+        if (!response.ok) throw new Error(`manifest.json returned ${response.status}`);
+        const presets = await response.json();
+        if (!presets || typeof presets !== "object" || Array.isArray(presets)) {
+            throw new Error("The preset manifest must be an object.");
+        }
+
+        presetList.replaceChildren(...Object.entries(presets).map(([name, path]) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = name;
+            button.addEventListener("click", () => loadKawarpPreset(name, path, status));
+            return button;
+        }));
+    } catch (error) {
+        presetList.textContent = `Could not load presets: ${error.message}`;
+    }
+}
+
 function showKawarpConfigEditor() {
     const existingModal = document.getElementById("loop-kawarp-config-modal");
     if (existingModal) return;
@@ -627,12 +671,15 @@ function showKawarpConfigEditor() {
                 <button type="button" class="loop-kawarp-config-close" aria-label="Close config editor">&#215;</button>
             </div>
             <input class="loop-kawarp-config-file" type="file" accept=".json,application/json" hidden>
+            <div class="loop-kawarp-config-presets" aria-label="Kawarp presets">
+                <span class="loop-kawarp-config-presets-loading">Loading presets...</span>
+            </div>
             <div class="loop-kawarp-config-status" role="status" aria-live="polite"></div>
             <div class="loop-kawarp-config-actions">
                 <a href="https://github.com/loop-mp3/loop/blob/main/config/shader.json" target="_blank" rel="noopener noreferrer">Reference shader.json</a>
                 <span class="loop-kawarp-config-spacer"></span>
                 <button type="button" class="loop-kawarp-config-reset">Reset</button>
-                <button type="button" class="loop-kawarp-config-upload">Upload file</button>
+                <button type="button" class="loop-kawarp-config-upload">Add Custom Config File</button>
                 <button type="button" class="loop-kawarp-config-cancel">Cancel</button>
             </div>
         </div>`;
@@ -640,6 +687,7 @@ function showKawarpConfigEditor() {
 
     const status = modal.querySelector(".loop-kawarp-config-status");
     const fileInput = modal.querySelector(".loop-kawarp-config-file");
+    loadKawarpPresets(modal, status);
 
     const close = () => modal.remove();
     modal.querySelector(".loop-kawarp-config-close").addEventListener("click", close);
