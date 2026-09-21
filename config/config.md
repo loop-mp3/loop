@@ -1,6 +1,6 @@
 # Kawarp Configuration Guide
 
-Loop loads its default Kawarp configuration from `config/shader.json`. Presets are stored in `config/presets/` and are listed in `config/presets/manifest.json`.
+This is a configuration guide on how you can create your own custom kwarp config and save it in a json file and add it into loop 
 
 ## Configuration format
 
