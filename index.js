@@ -1266,7 +1266,9 @@ window.addEventListener("beforeunload", (event) => {
     const media = getCurrentMedia();
     if (!media || media.paused || media.ended) return;
 
-    showLoopNotification("To close the app, first pause the music.");
+    media.muted = true;
+    updatePlaybackControls(media);
+    showLoopNotification("Music muted. Pause playback to close Loop.");
     event.preventDefault();
     event.returnValue = "";
 });
@@ -1288,7 +1290,7 @@ function updatePlaybackControls(media = getCurrentMedia()) {
     if (playButton && muteButton && seek && currentTime && duration && !media) {
         playButton.textContent = "▶";
         playButton.setAttribute("aria-label", "Play");
-        muteButton.textContent = "🔊";
+        muteButton.textContent = "♪";
         muteButton.setAttribute("aria-label", "Mute");
         seek.value = "0";
         seek.max = "0";
