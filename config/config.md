@@ -127,3 +127,6 @@ The manifest key is the name displayed in the config modal. The filename must ma
 - Changes may require re-enabling Kawarp if a renderer setting does not update immediately.
 
 Keep JSON valid and use numbers instead of numeric strings. Invalid files are rejected by the config loader.
+
+> [!NOTE]  
+> For more information of kwarp visit https://kwarp.betterlyrics.org
