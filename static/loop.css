@@ -688,6 +688,28 @@
     background: var(--loop-sharp-accent);
 }
 
+#loop[data-theme="sharp"] #loop-kawarp-toast {
+    border: 2px solid #fff;
+    border-radius: 0;
+    color: #fff;
+    background: #000;
+    box-shadow: 8px 8px 0 #fff;
+}
+
+#loop[data-theme="sharp"] #loop-kawarp-toast .loop-notification-close {
+    color: #fff;
+}
+
+#loop[data-theme="sharp"] #loop-kawarp-toast .loop-notification-close:hover {
+    color: #000;
+    background: #fff;
+}
+
+#loop[data-theme="sharp"] #loop-kawarp-toast .loop-notification-progress {
+    border-radius: 0;
+    background: #fff;
+}
+
 #loop[data-theme="sharp"] #loop-artwork {
     border-radius: 0;
     border-color: var(--loop-sharp-accent);
@@ -864,6 +886,28 @@
 #loop[data-theme="catppuccin"] #loop-play-button {
     background: var(--ctp-mauve) !important;
     color: var(--ctp-mantle) !important;
+}
+
+#loop[data-theme="catppuccin"] #loop-kawarp-toast {
+    border-color: var(--ctp-mauve);
+    border-radius: 10px;
+    color: var(--ctp-text);
+    background: color-mix(in srgb, var(--ctp-mantle) 94%, transparent);
+    box-shadow: 0 12px 32px rgba(17, 17, 27, 0.6);
+}
+
+#loop[data-theme="catppuccin"] #loop-kawarp-toast .loop-notification-close {
+    color: var(--ctp-subtext);
+}
+
+#loop[data-theme="catppuccin"] #loop-kawarp-toast .loop-notification-close:hover {
+    color: var(--ctp-mauve);
+    background: var(--ctp-surface);
+}
+
+#loop[data-theme="catppuccin"] #loop-kawarp-toast .loop-notification-progress {
+    border-radius: 0 0 10px 10px;
+    background: var(--ctp-blue);
 }
 
 #loop[data-theme="catppuccin"] #loop-shortcuts-panel,
