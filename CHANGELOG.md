@@ -10,7 +10,8 @@ All notable changes to Loop are documented here.
 - Added custom preset naming and author attribution, local persistence, deletion controls, and theme-aware preset styling.
 - Added screen power controls and a Loop visibility toggle with updated keyboard shortcuts.
 - Added shortcuts for reloading Loop and its resources, plus persisted previous/next navigation preferences.
-- Added a warning notification when Kawarp is enabled and a confirmation notification before closing while music is playing.
+- Added a warning notification when Kawarp is enabled and close protection when music is playing to help prevent accidental app closure.
+- Implemented muting of active playback when a close is attempted, with a notification asking the user to pause before closing Loop.
 - Added a configuration guide and Kawarp source references.
 
 ### Fixes
