@@ -2,7 +2,7 @@
 
 All notable changes to Loop are documented here.
 
-## [1.1.2] - 2026-09-21
+## [1.2.0] - 2026-09-21
 
 ### Highlights
 
@@ -108,4 +108,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [1.0.0]: https://github.com/loop-mp3/loop/releases/tag/v1.0.0
 [1.1.0]: https://github.com/loop-mp3/loop/releases/tag/v1.1.0
 [1.1.1]: https://github.com/loop-mp3/loop/releases/tag/v1.1.1
-[1.1.2]: https://github.com/loop-mp3/loop/releases/tag/v1.1.2
+[1.1.2]: https://github.com/loop-mp3/loop/releases/tag/v1.2.0
