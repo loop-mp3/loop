@@ -677,7 +677,7 @@ function showKawarpConfigEditor() {
             </div>
             <div class="loop-kawarp-config-status" role="status" aria-live="polite"></div>
             <div class="loop-kawarp-config-actions">
-                <a href="https://github.com/loop-mp3/loop/blob/main/config/shader.json" target="_blank" rel="noopener noreferrer">Reference shader.json</a>
+                <a href="https://github.com/loop-mp3/loop/blob/main/config/config.md" target="_blank" rel="noopener noreferrer">How do i make my own config?</a>
                 <span class="loop-kawarp-config-spacer"></span>
                 <button type="button" class="loop-kawarp-config-reset">Reset</button>
                 <button type="button" class="loop-kawarp-config-upload">Add Custom Config File</button>
