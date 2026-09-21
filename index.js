@@ -624,6 +624,15 @@ function saveStoredKawarpPresets(presets) {
     localStorage.setItem(kawarpCustomPresetsKey, JSON.stringify(presets));
 }
 
+async function deleteKawarpPreset(presetName, modal, status) {
+    const customPresets = getStoredKawarpPresets();
+    if (!Object.prototype.hasOwnProperty.call(customPresets, presetName)) return;
+    delete customPresets[presetName];
+    saveStoredKawarpPresets(customPresets);
+    status.textContent = `${presetName} deleted.`;
+    await loadKawarpPresets(modal, status);
+}
+
 function requestKawarpPresetDetails(defaultName) {
     return new Promise((resolve) => {
         const modal = document.createElement("div");
@@ -723,14 +732,31 @@ async function loadKawarpPresets(modal, status) {
         if (!presets || typeof presets !== "object" || Array.isArray(presets)) {
             throw new Error("The preset manifest must be an object.");
         }
-        const allPresets = { ...presets, ...getStoredKawarpPresets() };
+        const customPresets = getStoredKawarpPresets();
+        const allPresets = { ...presets, ...customPresets };
 
         presetList.replaceChildren(...Object.entries(allPresets).map(([name, path]) => {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.textContent = name;
-            button.addEventListener("click", () => loadKawarpPreset(name, path, status));
-            return button;
+            const row = document.createElement("div");
+            row.className = "loop-kawarp-config-preset-row";
+
+            const loadButton = document.createElement("button");
+            loadButton.type = "button";
+            loadButton.className = "loop-kawarp-config-preset-load";
+            loadButton.textContent = name;
+            loadButton.addEventListener("click", () => loadKawarpPreset(name, path, status));
+            row.appendChild(loadButton);
+
+            if (Object.prototype.hasOwnProperty.call(customPresets, name)) {
+                const deleteButton = document.createElement("button");
+                deleteButton.type = "button";
+                deleteButton.className = "loop-kawarp-config-preset-delete";
+                deleteButton.setAttribute("aria-label", `Delete ${name}`);
+                deleteButton.title = "Delete preset";
+                deleteButton.textContent = "Delete";
+                deleteButton.addEventListener("click", () => deleteKawarpPreset(name, modal, status));
+                row.appendChild(deleteButton);
+            }
+            return row;
         }));
     } catch (error) {
         presetList.textContent = `Could not load presets: ${error.message}`;
