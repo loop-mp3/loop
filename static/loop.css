@@ -1013,11 +1013,20 @@
     gap: 20px;
 }
 
+.loop-kawarp-config-presets-heading {
+    margin-top: 2px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
 .loop-kawarp-config-presets {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 8px;
-    margin: 20px 0 12px;
+    gap: 6px;
+    margin: 8px 0 14px;
 }
 
 .loop-kawarp-config-presets-loading {
@@ -1026,18 +1035,45 @@
 }
 
 .loop-kawarp-config-presets button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 44px;
     width: 100%;
-    padding: 8px 12px;
+    padding: 10px 42px 10px 14px;
     color: #fff;
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.055);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
     cursor: pointer;
+    font: inherit;
     text-align: left;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
 .loop-kawarp-config-presets button:hover {
-    background: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.32);
+    transform: translateX(2px);
+}
+
+.loop-kawarp-config-presets button:focus-visible {
+    outline: 2px solid #9dc5ff;
+    outline-offset: 2px;
+}
+
+.loop-kawarp-config-presets button::after {
+    position: absolute;
+    right: 15px;
+    color: rgba(255, 255, 255, 0.45);
+    content: "->";
+    font-size: 16px;
+    transition: color 120ms ease, transform 120ms ease;
+}
+
+.loop-kawarp-config-presets button:hover::after {
+    color: #fff;
+    transform: translateX(2px);
 }
 
 .loop-kawarp-config-header h2 {
@@ -1127,6 +1163,35 @@
 #loop[data-theme="sharp"] .loop-kawarp-config-actions .loop-kawarp-config-apply {
     background: #fff;
     color: #000;
+}
+
+#loop[data-theme="sharp"] .loop-kawarp-config-presets-heading {
+    color: #fff;
+}
+
+#loop[data-theme="sharp"] .loop-kawarp-config-presets button {
+    border: 2px solid #fff;
+    border-radius: 0;
+    background: #000;
+    color: #fff;
+    transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+#loop[data-theme="sharp"] .loop-kawarp-config-presets button:hover {
+    background: #000;
+    color: #fff;
+    box-shadow: 6px 6px 0 #fff;
+    transform: translate(-3px, -3px);
+}
+
+#loop[data-theme="sharp"] .loop-kawarp-config-presets button::after,
+#loop[data-theme="sharp"] .loop-kawarp-config-presets button:hover::after {
+    color: inherit;
+}
+
+#loop[data-theme="sharp"] .loop-kawarp-config-presets button:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
 }
 
 #loop[data-theme="catppuccin"] .loop-kawarp-config-card {

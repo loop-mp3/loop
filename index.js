@@ -665,12 +665,13 @@ function showKawarpConfigEditor() {
         <div class="loop-kawarp-config-card">
             <div class="loop-kawarp-config-header">
                 <div>
-                    <h2 id="loop-kawarp-config-title">Kawarp config editor</h2>
+                    <h2 id="loop-kawarp-config-title">Kawarp config Settings</h2>
                     <p>Load any kawarp json config to customise the look of your kwarp baground</p>
                 </div>
                 <button type="button" class="loop-kawarp-config-close" aria-label="Close config editor">&#215;</button>
             </div>
             <input class="loop-kawarp-config-file" type="file" accept=".json,application/json" hidden>
+            <div class="loop-kawarp-config-presets-heading">Presets</div>
             <div class="loop-kawarp-config-presets" aria-label="Kawarp presets">
                 <span class="loop-kawarp-config-presets-loading">Loading presets...</span>
             </div>
