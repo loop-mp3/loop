@@ -2153,10 +2153,12 @@ loadKawarpRenderer().catch((error) => {
 loadKawarpSettings();
 loadLoopPreferences();
 waitForYTM(init);
-const isSleep = await isSleepSupported();
+function checkIsSleepSupported {
+    const isSleep = await isSleepSupported();
 
-if (isSleep) {
-    console.log("[loop.mp3] Screen sleep supported");
-} else {
-    console.warn("[loop.mp3] Screen sleep not supported");
+    if (isSleep) {
+        console.log("[loop.mp3] Screen sleep supported");
+    } else {
+        console.warn("[loop.mp3] Screen sleep not supported");
+    }
 }
