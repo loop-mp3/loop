@@ -2,6 +2,28 @@
 
 All notable changes to Loop are documented here.
 
+## [1.3.0] - 2026-09-24
+
+### Highlights
+
+- Cross-platformed the Loop desktop app to macOS and Linux, with new CI build files for each platform.
+- Added screen sleep support with platform capability checks that verify sleep support before toggling the screen off and notify the user when it is unavailable.
+- Added platform exposure to the Loop client, including platform retrieval via preload message events, so the extension can detect the host platform.
+- Added a new configuration preset.
+
+### Fixes
+
+- Fixed a missing semi-colon that obstructed the execution of the sleep support check.
+- Fixed an invalid top-level async statement by wrapping the sleep check into a function.
+- Fixed missing author information in `package.json`.
+
+### Internal and maintenance changes
+
+- Streamlined the screen sleep support check and tooltip handling with improved user feedback.
+- Refactored the sleep capability check and simplified the `isSleepSupported` function and its IPC handler.
+- Enhanced message handling in the preload script.
+- Updated the configuration documentation.
+
 ## [1.2.0] - 2026-09-21
 
 ### Highlights
@@ -109,3 +131,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [1.1.0]: https://github.com/loop-mp3/loop/releases/tag/v1.1.0
 [1.1.1]: https://github.com/loop-mp3/loop/releases/tag/v1.1.1
 [1.1.2]: https://github.com/loop-mp3/loop/releases/tag/v1.2.0
+[1.3.0]: https://github.com/loop-mp3/loop/releases/tag/v1.3.0
