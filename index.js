@@ -2133,54 +2133,24 @@ waitForYTM(init);
 async function checkIsSleepSupported() {
     const isSleep = await isSleepSupported();
     const screenOffButton = document.querySelector("#loop-screen-disable");
+
     if (isSleep) {
         console.log("[loop.mp3] Screen sleep supported");
         return;
     }
+
     console.warn("[loop.mp3] Screen sleep not supported");
+
     if (screenOffButton) {
         screenOffButton.disabled = true;
         screenOffButton.style.opacity = "0.5";
         screenOffButton.style.cursor = "not-allowed";
-
-        const tooltip = document.createElement("div");
-        tooltip.textContent =
-            "Screen disable isn't supported by your platform";
-
-        tooltip.style.position = "absolute";
-        tooltip.style.background = "rgba(0, 0, 0, 0.9)";
-        tooltip.style.color = "#fff";
-        tooltip.style.padding = "5px 8px";
-        tooltip.style.borderRadius = "5px";
-        tooltip.style.fontSize = "12px";
-        tooltip.style.whiteSpace = "nowrap";
-        tooltip.style.pointerEvents = "none";
-        tooltip.style.opacity = "0";
-        tooltip.style.transition = "opacity 0.15s ease";
-        tooltip.style.zIndex = "999999";
-        tooltip.style.transform = "translateX(-50%)";
-
-        document.body.appendChild(tooltip);
-
-        const updateTooltip = () => {
-            const rect = screenOffButton.getBoundingClientRect();
-            tooltip.style.left =
-                `${rect.left + rect.width / 2 + window.scrollX}px`;
-            tooltip.style.top =
-                `${rect.bottom + window.scrollY + 8}px`;
-        };
-        screenOffButton.addEventListener("mouseenter", () => {
-            updateTooltip();
-            tooltip.style.opacity = "1";
-        });
-        screenOffButton.addEventListener("mouseleave", () => {
-            tooltip.style.opacity = "0";
-        });
-        showLoopNotification(
-            "Screen disable isn't supported by your platform",
-            6000
-        );
     }
+
+    showLoopNotification(
+        "Screen disable isn't supported by your platform",
+        6000
+    );
 }
 
 checkIsSleepSupported();
