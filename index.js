@@ -490,12 +490,28 @@ function ensureLoopRecordButton() {
     castButton.insertAdjacentElement("beforebegin", recordButton);
 }
 
-function DisableScreen() {
-    console.warn("[loop.mp3] Screen request send if not acknowledged then the ipc bridge is not avilable meaning you are not using the app")
+async function DisableScreen() {
+    const supported = await Promise.race([
+        isSleepSupported(),
+        new Promise((resolve) => window.setTimeout(() => resolve(false), 1000)),
+    ]);
+
+    if (!supported) {
+        showLoopNotification(
+            "Sleep not supported on your platform",
+            3000
+        );
+        return;
+    }
+
     window.postMessage({
         source: "loop.mp3",
         type: "loop:screen-off",
     }, "*");
+    showLoopNotification(
+        "Screen put to sleep",
+        3000
+    );
 }
 
 function isSleepSupported() {
