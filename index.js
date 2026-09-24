@@ -498,6 +498,30 @@ function DisableScreen() {
     }, "*");
 }
 
+function isSleepSupported() {
+    return new Promise((resolve) => {
+        function handler(event) {
+            if (
+                event.source !== window ||
+                event.data?.source !== "loop.mp3" ||
+                event.data?.type !== "loop:is-screen-off-supported-response"
+            ) {
+                return;
+            }
+
+            window.removeEventListener("message", handler);
+            resolve(event.data.supported);
+        }
+
+        window.addEventListener("message", handler);
+
+        window.postMessage({
+            source: "loop.mp3",
+            type: "loop:is-screen-off-supported"
+        }, "*");
+    });
+}
+
 function triggerYTMAction(action) {
     const button = findYTMActionButton(action);
     if (button) {
@@ -2129,3 +2153,10 @@ loadKawarpRenderer().catch((error) => {
 loadKawarpSettings();
 loadLoopPreferences();
 waitForYTM(init);
+const isSleep = await isSleepSupported();
+
+if (isSleep) {
+    console.log("[loop.mp3] Screen sleep supported");
+} else {
+    console.warn("[loop.mp3] Screen sleep not supported");
+}
