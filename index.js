@@ -2015,15 +2015,19 @@ async function getCapabilities() {
     return await window.loop.getCapabilities();
 }
 
-const capabilities = await getCapabilities();
-// WORK IN PROGRES SAHAHAH
-if (capabilities.screenOff) {
-    console.log("[loop.mp3] Screen sleep is available");
-    // keeping sleep button
-} else {
-    console.warn("[loop.mp3] Screen sleep is not available");
-    //disabling sleep button
+async function checkCapabilities() {
+    const capabilities = await getCapabilities();
+
+    if (capabilities.screenOff) {
+        console.log("[loop.mp3] Screen sleep is available");
+        // Show sleep button
+    } else {
+        console.warn("[loop.mp3] Screen sleep is not available");
+        // Hide/disable sleep button
+    }
 }
+
+checkCapabilities();
 
 async function init(playerBar) {
     console.log("[loop.mp3] YTM is ready", playerBar);
