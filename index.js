@@ -2140,4 +2140,4 @@ async function checkIsSleepSupported() {
     }
 }
 
-checkIsSleepSupported()
+checkIsSleepSupported();
