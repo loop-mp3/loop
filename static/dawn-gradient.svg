@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="92" height="28" viewBox="0 0 92 28">
+  <defs>
+    <linearGradient id="rainbow" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="red"/>
+      <stop offset="14%" stop-color="orange"/>
+      <stop offset="28%" stop-color="yellow"/>
+      <stop offset="42%" stop-color="lime"/>
+      <stop offset="56%" stop-color="cyan"/>
+      <stop offset="70%" stop-color="blue"/>
+      <stop offset="84%" stop-color="violet"/>
+      <stop offset="100%" stop-color="red"/>
+      <animateTransform attributeName="gradientTransform" type="translate" from="-1 0" to="1 0" dur="3s" repeatCount="indefinite"/>
+    </linearGradient>
+  </defs>
+  <text x="0" y="21" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" fill="url(#rainbow)">DAWN</text>
+</svg>
