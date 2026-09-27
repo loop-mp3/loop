@@ -23,7 +23,9 @@ function getCurrentTrackId(playerBar) {
 }
 
 function getFallbackArtwork() {
-    return getExtensionURL("static/fallback-artwork.png");
+    return getExtensionURL(loopPreferences.useLegacyFallbackArtwork
+        ? "static/fallback-legacy.png"
+        : "static/fallback-artwork.png");
 }
 
 function getVinylArtwork(trackId) {
@@ -161,6 +163,7 @@ let loopPreferences = {
     hideVinyl: true,
     hideArtwork: false,
     showNavigationButtons: false,
+    useLegacyFallbackArtwork: false,
     theme: "default",
 };
 let currentArtworkURL = "";
@@ -344,6 +347,8 @@ function applyLoopPreferences() {
     if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
     const navigationToggle = loop.querySelector("#loop-navigation-toggle");
     if (navigationToggle) navigationToggle.checked = Boolean(loopPreferences.showNavigationButtons);
+    const legacyFallbackToggle = loop.querySelector("#loop-legacy-fallback-toggle");
+    if (legacyFallbackToggle) legacyFallbackToggle.checked = Boolean(loopPreferences.useLegacyFallbackArtwork);
     setTrackNavigationButtonsVisible(Boolean(loopPreferences.showNavigationButtons));
     applyArtworkPreference();
 }
@@ -353,10 +358,12 @@ function applyArtworkPreference() {
     const artwork = loop?.querySelector("#loop-artwork");
     if (!artwork) return;
 
+    const fallback = getFallbackArtwork();
     const displayedArtwork = loopPreferences.hideArtwork || loop.classList.contains("loop-empty")
-        ? getFallbackArtwork()
-        : currentArtworkURL || getFallbackArtwork();
+        ? fallback
+        : currentArtworkURL || fallback;
     artwork.src = displayedArtwork;
+    artwork.setAttribute("onerror", `this.onerror=null; this.src='${fallback}';`);
     updateKawarpArtwork(displayedArtwork);
 
     const artworkToggle = loop.querySelector("#loop-artwork-toggle");
@@ -1121,6 +1128,10 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-vinyl-toggle" type="checkbox">
                         Don’t show vinyl
                     </label>
+                    <label class="loop-navigation-toggle">
+                        <input id="loop-legacy-fallback-toggle" type="checkbox">
+                        Use legacy fallback artwork
+                    </label>
                     <button id="loop-kawarp-config-button" class="loop-menu-action" type="button">
                         Edit Kawarp shader config
                     </button>
@@ -1202,6 +1213,11 @@ function updateLoop(artworkURL, trackInfo) {
         });
         loop.querySelector("#loop-vinyl-toggle").addEventListener("change", (event) => {
             loopPreferences.hideVinyl = event.target.checked;
+            saveLoopPreferences();
+            applyLoopPreferences();
+        });
+        loop.querySelector("#loop-legacy-fallback-toggle").addEventListener("change", (event) => {
+            loopPreferences.useLegacyFallbackArtwork = event.target.checked;
             saveLoopPreferences();
             applyLoopPreferences();
         });
