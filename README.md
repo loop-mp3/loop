@@ -1,5 +1,5 @@
 # Loop
-## The <code>DAWN</code> of music players.
+## The <img src="./static/dawn-gradient.svg" alt="DAWN" height="24"> of music players.
 
 A minimal, keyboard-first music player built around the music instead of everything surrounding it.
 
