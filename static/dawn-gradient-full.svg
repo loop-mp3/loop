@@ -12,7 +12,7 @@
       <animateTransform attributeName="gradientTransform" type="translate" from="-1 0" to="1 0" dur="3s" repeatCount="indefinite"/>
     </linearGradient>
   </defs>
-  <text x="0" y="52" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="400" fill="#f0f6fc">
+  <text x="0" y="52" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="400" fill="#f0f6fc">
     <tspan>The </tspan><tspan fill="url(#rainbow)" font-weight="700">DAWN</tspan><tspan> of music players.</tspan>
   </text>
 </svg>
