@@ -1,5 +1,5 @@
 # Loop
-## The <img src="./static/dawn-gradient.svg" alt="DAWN" height="24"> of music players.
+<p><img src="./static/dawn-gradient-full.svg" alt="The DAWN of music players."></p>
 
 A minimal, keyboard-first music player built around the music instead of everything surrounding it.
 

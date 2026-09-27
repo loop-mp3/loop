@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="92" height="28" viewBox="0 0 92 28">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="72" viewBox="0 0 900 72">
   <defs>
     <linearGradient id="rainbow" x1="0%" y1="50%" x2="100%" y2="50%">
       <stop offset="0%" stop-color="red"/>
@@ -12,5 +12,7 @@
       <animateTransform attributeName="gradientTransform" type="translate" from="-1 0" to="1 0" dur="3s" repeatCount="indefinite"/>
     </linearGradient>
   </defs>
-  <text x="0" y="21" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" fill="url(#rainbow)">DAWN</text>
+  <text x="0" y="52" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="400" fill="#f0f6fc">
+    <tspan>The </tspan><tspan fill="url(#rainbow)" font-weight="700">DAWN</tspan><tspan> of music players.</tspan>
+  </text>
 </svg>
