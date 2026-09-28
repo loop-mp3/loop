@@ -2424,6 +2424,26 @@ function forceCustomFavicon() {
 }
 
 window.addEventListener("message", (event) => {
+    if (event.source !== window) return;
+    const { source, type, state } = event.data || {};
+    if (source !== "loop.mp3" || !window.electronAPI) return;
+
+    switch (type) {
+        case "loop:electron-open-mini-player":
+            window.electronAPI.openMiniPlayer();
+            break;
+        case "loop:electron-close-mini-player":
+            window.electronAPI.closeMiniPlayer();
+            break;
+        case "loop:electron-mini-player-state":
+            window.electronAPI.updateMiniPlayer(state);
+            break;
+        default:
+            break;
+    }
+});
+
+window.addEventListener("message", (event) => {
     if (event.source !== window || event.data?.source !== "loop.mp3") return;
     const { type, value } = event.data;
     if (type !== "loop:electron-mini-player-command") return;
