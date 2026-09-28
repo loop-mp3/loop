@@ -48,6 +48,34 @@ function getCurrentArtwork(playerBar, trackId) {
 
 let lastDiscordUpdate = 0;
 let lastDiscordSignature = "";
+let lastElectronMiniPlayerSignature = "";
+
+function publishElectronMiniPlayerState({ force = false } = {}) {
+    const loop = document.getElementById("loop");
+    const media = getCurrentMedia();
+    const state = {
+        title: loop?.querySelector("#loop-track-title")?.textContent.trim() || "Nothing playing",
+        artist: loop?.querySelector("#loop-track-artist")?.textContent.trim() || "Search something to play",
+        album: loop?.querySelector("#loop-track-album")?.textContent.trim() || "",
+        artwork: loop?.querySelector("#loop-artwork")?.src || getFallbackArtwork(),
+        currentTime: media && Number.isFinite(media.currentTime) ? media.currentTime : 0,
+        duration: media && Number.isFinite(media.duration) ? media.duration : 0,
+        paused: !media || media.paused,
+        theme: loop?.dataset.theme || loopPreferences.theme || "default",
+    };
+    const signature = JSON.stringify({ ...state, currentTime: Math.floor(state.currentTime) });
+    if (!force && signature === lastElectronMiniPlayerSignature) return;
+    lastElectronMiniPlayerSignature = signature;
+    window.postMessage({
+        source: "loop.mp3",
+        type: "loop:electron-mini-player-state",
+        state,
+    }, "*");
+}
+
+function publishElectronMiniPlayerCommand(type) {
+    window.postMessage({ source: "loop.mp3", type }, "*");
+}
 
 function publishDiscordActivity({ force = false } = {}) {
     const loop = document.getElementById("loop");
@@ -1605,6 +1633,7 @@ function updatePlaybackControls(media = getCurrentMedia()) {
         duration.textContent = formatTime(media.duration);
     }
     miniPlayerBridge?.sync(media);
+    publishElectronMiniPlayerState();
     publishDiscordActivity();
 }
 
@@ -2394,13 +2423,47 @@ function forceCustomFavicon() {
     }
 }
 
+window.addEventListener("message", (event) => {
+    if (event.source !== window || event.data?.source !== "loop.mp3") return;
+    const { type, value } = event.data;
+    if (type !== "loop:electron-mini-player-command") return;
+
+    switch (value?.command) {
+        case "play-pause":
+            togglePlayback();
+            break;
+        case "previous":
+            playPreviousTrack();
+            break;
+        case "next":
+            playNextTrack();
+            break;
+        case "seek": {
+            const media = getCurrentMedia();
+            const nextTime = Number(value.position);
+            if (media && Number.isFinite(nextTime)) media.currentTime = nextTime;
+            updatePlaybackControls(media);
+            break;
+        }
+        case "close":
+            documentPictureInPicture.window?.close();
+            break;
+        default:
+            return;
+    }
+    publishElectronMiniPlayerState({ force: true });
+});
+
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") {
     console.log("[loop.mp3] The application window minimized");
+    publishElectronMiniPlayerCommand("loop:electron-open-mini-player");
+    publishElectronMiniPlayerState({ force: true });
   } else {
     console.log("[loop.mp3] The application window maximised");
-    showLoopNotification(`Miniplayer Closed`)
-    console.log(`[loop.mp3] closed miniplayer`)
+    publishElectronMiniPlayerCommand("loop:electron-close-mini-player");
+    showLoopNotification("Miniplayer Closed");
+    console.log("[loop.mp3] closed miniplayer");
     documentPictureInPicture.window?.close();
   }
 });
