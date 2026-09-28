@@ -342,6 +342,7 @@ function applyLoopPreferences() {
     const loop = document.querySelector("#loop");
     if (!loop) return;
     applyLoopTheme();
+    miniPlayerBridge?.setTheme(loopPreferences.theme);
     loop.classList.toggle("loop-no-vinyl", loopPreferences.hideVinyl);
     const vinylToggle = loop.querySelector("#loop-vinyl-toggle");
     if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
@@ -618,6 +619,8 @@ async function openMiniPlayer() {
         height: 210,
         disallowReturnToOpener: true,
     });
+    const theme = loopPreferences.theme || "default";
+    pipWindow.document.documentElement.dataset.theme = theme;
     pipWindow.document.body.innerHTML = `
         <div id="mini-player">
             <img id="artwork" src="${getFallbackArtwork()}" alt="Track artwork">
@@ -638,24 +641,35 @@ async function openMiniPlayer() {
             </div>
         </div>`;
 
+    const loopStylesheet = pipWindow.document.createElement("link");
+    loopStylesheet.rel = "stylesheet";
+    loopStylesheet.href = getExtensionURL("static/loop.css");
+    loopStylesheet.dataset.loopStylesheet = "true";
+    pipWindow.document.head.appendChild(loopStylesheet);
+
     const style = pipWindow.document.createElement("style");
     style.textContent = `
-        :root { color-scheme: dark; }
-        html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #111318; color: white; font-family: system-ui, sans-serif; }
+        :root { color-scheme: dark; --mini-bg: #000; --mini-text: #fff; --mini-muted: rgba(255,255,255,.6); --mini-control: rgba(255,255,255,.12); --mini-accent: #fff; --mini-border: rgba(255,255,255,.18); }
+        html[data-theme="sharp"] { color-scheme: light; --mini-bg: #000; --mini-text: #fff; --mini-muted: #fff; --mini-control: #000; --mini-accent: #fff; --mini-border: #fff; }
+        html[data-theme="catppuccin"] { --mini-bg: #1e1e2e; --mini-text: #cdd6f4; --mini-muted: #a6adc8; --mini-control: #313244; --mini-accent: #cba6f7; --mini-border: #45475a; }
+        html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: var(--mini-bg); color: var(--mini-text); font-family: system-ui, sans-serif; }
         #mini-player { box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; gap: 14px; padding: 12px 14px; }
-        #artwork { flex: 0 0 136px; width: 136px; height: 136px; object-fit: cover; border-radius: 10px; background: #252832; }
+        #artwork { flex: 0 0 136px; width: 136px; height: 136px; object-fit: cover; border: 1px solid var(--mini-border); border-radius: 10px; background: var(--mini-control); }
         #info { flex: 1; min-width: 0; }
         #title, #artist, #album { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #title { font-size: 17px; font-weight: 600; }
-        #artist, #album { margin-top: 4px; opacity: .6; font-size: 13px; }
+        #artist, #album { margin-top: 4px; color: var(--mini-muted); font-size: 13px; }
         #album:empty { display: none; }
-        #timeline { display: flex; align-items: center; gap: 7px; margin-top: 11px; color: #aeb3c0; font-size: 11px; }
-        #seek { flex: 1; min-width: 80px; accent-color: #d9a7ff; }
+        #timeline { display: flex; align-items: center; gap: 7px; margin-top: 11px; color: var(--mini-muted); font-size: 11px; }
+        #seek { flex: 1; min-width: 80px; accent-color: var(--mini-accent); }
         #controls { display: flex; align-items: center; gap: 12px; margin-top: 5px; }
-        button { width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: white; font-size: 20px; cursor: pointer; }
-        button:hover:not(:disabled) { background: #2d303a; }
+        button { width: 32px; height: 32px; border: 1px solid var(--mini-border); border-radius: 50%; background: var(--mini-control); color: var(--mini-text); font-size: 20px; cursor: pointer; }
+        button:hover:not(:disabled) { background: var(--mini-accent); color: var(--mini-bg); }
         button:disabled { opacity: .35; cursor: default; }
-        #play-pause { background: #f2eaff; color: #17131e; font-size: 16px; }
+        #play-pause { background: var(--mini-accent); color: var(--mini-bg); font-size: 16px; }
+        html[data-theme="sharp"] button { border-radius: 0; border-width: 2px; }
+        html[data-theme="sharp"] #play-pause { background: #fff; color: #000; }
+        html[data-theme="catppuccin"] button { border-radius: 10px; }
         @media (max-width: 390px) { #artwork { flex-basis: 104px; width: 104px; height: 104px; } #mini-player { gap: 10px; padding: 10px; } }
     `;
     pipWindow.document.head.appendChild(style);
@@ -701,6 +715,7 @@ async function openMiniPlayer() {
     };
     miniPlayerBridge = {
         sync(media) { connectMedia(media); sync(media); },
+        setTheme(nextTheme) { pipWindow.document.documentElement.dataset.theme = nextTheme || "default"; },
         destroy() { connectMedia(null); miniPlayerBridge = undefined; },
     };
     nodes.play.addEventListener("click", () => { togglePlayback(); sync(); });
