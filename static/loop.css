@@ -7,6 +7,24 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    animation: loop-fade-in 220ms ease-out both;
+}
+
+@keyframes loop-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px) scale(0.99);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #loop {
+        animation: none;
+    }
 }
 
 #loop-player {
