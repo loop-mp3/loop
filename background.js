@@ -57,3 +57,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 */
+chrome.runtime.onMessage.addListener((message, sender) => {
+    if (message.type === "open-mini-player" && sender.tab?.id) {
+        chrome.scripting.executeScript({
+            target: {
+                tabId: sender.tab.id
+            },
+            func: () => {
+                const video = document.querySelector("video");
+
+                if (video) {
+                    video.requestPictureInPicture();
+                }
+            }
+        });
+    }
+});

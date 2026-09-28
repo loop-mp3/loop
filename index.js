@@ -491,10 +491,228 @@ function ensureLoopRecordButton() {
         recordButton.id = "loop-record-button";
         recordButton.type = "button";
         recordButton.setAttribute("aria-label", "Open Loop");
-        recordButton.title = "Open Loop";
         recordButton.innerHTML = '<i class="fa-solid fa-record-vinyl" aria-hidden="true"></i>';
     }
     castButton.insertAdjacentElement("beforebegin", recordButton);
+}
+
+async function openMiniPlayerLegacy() {
+    if (!("documentPictureInPicture" in window)) {
+        console.error("[loop.mp3] miniplayer not supported");
+        return;
+    }
+
+    if (documentPictureInPicture.window) {
+        documentPictureInPicture.window.focus();
+        return;
+    }
+
+    const pipWindow = await documentPictureInPicture.requestWindow({
+        width: 520,
+        height: 180,
+        disallowReturnToOpener: true
+    });
+
+    // Basic HTML
+    pipWindow.document.body.innerHTML = `
+        <div id="mini-player">
+            <img id="artwork" src="" />
+
+            <div id="info">
+                <div id="title">Loop</div>
+                <div id="artist">Nothing playing</div>
+            </div>
+
+            <div id="controls">
+                <button id="previous">⏮</button>
+                <button id="play-pause">▶</button>
+                <button id="next">⏭</button>
+            </div>
+        </div>
+    `;
+
+    // CSS
+    const style = pipWindow.document.createElement("style");
+
+    style.textContent = `
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        #mini-player {
+            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+        }
+
+        #artwork {
+            width: 140px;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 12px;
+        }
+
+        #info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        #title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        #artist {
+            margin-top: 6px;
+            opacity: 0.6;
+        }
+
+        #controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        button {
+            border: 0;
+            background: transparent;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+    `;
+
+    pipWindow.document.head.appendChild(style);
+
+    // Detect when Chrome closes the PiP window
+    pipWindow.addEventListener("pagehide", () => {
+        console.log("[loop.mp3] closed pip");
+        showLoopNotification(`Closed miniplayer`)
+    });
+}
+
+
+let miniPlayerBridge;
+
+async function openMiniPlayer() {
+    if (!("documentPictureInPicture" in window)) {
+        console.error("[loop.mp3] miniplayer not supported");
+        return;
+    }
+    if (documentPictureInPicture.window) {
+        documentPictureInPicture.window.focus();
+        return;
+    }
+
+    const pipWindow = await documentPictureInPicture.requestWindow({
+        width: 520,
+        height: 210,
+        disallowReturnToOpener: true,
+    });
+    pipWindow.document.body.innerHTML = `
+        <div id="mini-player">
+            <img id="artwork" src="${getFallbackArtwork()}" alt="Track artwork">
+            <div id="info">
+                <div id="title">Nothing playing</div>
+                <div id="artist">Search something to play</div>
+                <div id="album"></div>
+                <div id="timeline">
+                    <span id="current-time">0:00</span>
+                    <input id="seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="Seek through track" disabled>
+                    <span id="duration">0:00</span>
+                </div>
+                <div id="controls">
+                    <button id="previous" type="button" aria-label="Previous track" title="Previous track">&#9198;</button>
+                    <button id="play-pause" type="button" aria-label="Play" title="Play">&#9654;</button>
+                    <button id="next" type="button" aria-label="Next track" title="Next track">&#9197;</button>
+                </div>
+            </div>
+        </div>`;
+
+    const style = pipWindow.document.createElement("style");
+    style.textContent = `
+        :root { color-scheme: dark; }
+        html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #111318; color: white; font-family: system-ui, sans-serif; }
+        #mini-player { box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; gap: 14px; padding: 12px 14px; }
+        #artwork { flex: 0 0 136px; width: 136px; height: 136px; object-fit: cover; border-radius: 10px; background: #252832; }
+        #info { flex: 1; min-width: 0; }
+        #title, #artist, #album { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #title { font-size: 17px; font-weight: 600; }
+        #artist, #album { margin-top: 4px; opacity: .6; font-size: 13px; }
+        #album:empty { display: none; }
+        #timeline { display: flex; align-items: center; gap: 7px; margin-top: 11px; color: #aeb3c0; font-size: 11px; }
+        #seek { flex: 1; min-width: 80px; accent-color: #d9a7ff; }
+        #controls { display: flex; align-items: center; gap: 12px; margin-top: 5px; }
+        button { width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: white; font-size: 20px; cursor: pointer; }
+        button:hover:not(:disabled) { background: #2d303a; }
+        button:disabled { opacity: .35; cursor: default; }
+        #play-pause { background: #f2eaff; color: #17131e; font-size: 16px; }
+        @media (max-width: 390px) { #artwork { flex-basis: 104px; width: 104px; height: 104px; } #mini-player { gap: 10px; padding: 10px; } }
+    `;
+    pipWindow.document.head.appendChild(style);
+
+    const doc = pipWindow.document;
+    const nodes = {
+        artwork: doc.getElementById("artwork"), title: doc.getElementById("title"),
+        artist: doc.getElementById("artist"), album: doc.getElementById("album"),
+        seek: doc.getElementById("seek"), currentTime: doc.getElementById("current-time"),
+        duration: doc.getElementById("duration"), play: doc.getElementById("play-pause"),
+        previous: doc.getElementById("previous"), next: doc.getElementById("next"),
+    };
+    const mediaListeners = new Map();
+    let connectedMedia;
+    const sync = (media = getCurrentMedia()) => {
+        const loop = document.querySelector("#loop");
+        const empty = !loop || loop.classList.contains("loop-empty");
+        nodes.artwork.src = loop?.querySelector("#loop-artwork")?.src || getFallbackArtwork();
+        nodes.title.textContent = empty ? "Nothing playing" : loop.querySelector("#loop-track-title")?.textContent.trim() || "Unknown title";
+        nodes.artist.textContent = empty ? "Search something to play" : loop.querySelector("#loop-track-artist")?.textContent.trim() || "Unknown artist";
+        nodes.album.textContent = empty ? "" : loop.querySelector("#loop-track-album")?.textContent.trim() || "";
+        nodes.play.disabled = !media;
+        nodes.seek.disabled = !media;
+        nodes.play.innerHTML = media && !media.paused ? "&#9208;" : "&#9654;";
+        nodes.play.setAttribute("aria-label", media && !media.paused ? "Pause" : "Play");
+        nodes.play.title = media && !media.paused ? "Pause" : "Play";
+        nodes.seek.max = media && Number.isFinite(media.duration) ? String(media.duration) : "0";
+        nodes.seek.value = media && Number.isFinite(media.currentTime) ? String(media.currentTime) : "0";
+        nodes.currentTime.textContent = formatTime(media?.currentTime);
+        nodes.duration.textContent = formatTime(media?.duration);
+    };
+    const connectMedia = (media) => {
+        if (connectedMedia === media) return;
+        if (connectedMedia) (mediaListeners.get(connectedMedia) || []).forEach(([name, fn]) => connectedMedia.removeEventListener(name, fn));
+        connectedMedia = media;
+        if (!media) return;
+        const fn = () => sync(media);
+        const listeners = ["timeupdate", "durationchange", "loadedmetadata", "play", "pause", "ended"].map((name) => {
+            media.addEventListener(name, fn);
+            return [name, fn];
+        });
+        mediaListeners.set(media, listeners);
+    };
+    miniPlayerBridge = {
+        sync(media) { connectMedia(media); sync(media); },
+        destroy() { connectMedia(null); miniPlayerBridge = undefined; },
+    };
+    nodes.play.addEventListener("click", () => { togglePlayback(); sync(); });
+    nodes.previous.addEventListener("click", () => { playPreviousTrack(); window.setTimeout(sync, 150); });
+    nodes.next.addEventListener("click", () => { playNextTrack(); window.setTimeout(sync, 150); });
+    nodes.seek.addEventListener("input", seekTrack);
+    sync();
+    pipWindow.addEventListener("pagehide", () => {
+        miniPlayerBridge?.destroy();
+        console.log("[loop.mp3] closed pip");
+        showLoopNotification("Closed miniplayer");
+    });
 }
 
 async function DisableScreen() {
@@ -1362,6 +1580,7 @@ function updatePlaybackControls(media = getCurrentMedia()) {
         currentTime.textContent = formatTime(media.currentTime);
         duration.textContent = formatTime(media.duration);
     }
+    miniPlayerBridge?.sync(media);
     publishDiscordActivity();
 }
 
@@ -1429,11 +1648,11 @@ function sendLoopShortcut(key, modifiers = {}) {
 }
 
 function playPreviousTrack() {
-    sendYTMShortcut("N", true);
+    sendYTMShortcut("P", true);
 }
 
 function playNextTrack() {
-    sendYTMShortcut("P", true);
+    sendYTMShortcut("N", true);
 }
 
 function setTrackNavigationButtonsVisible(visible) {
@@ -2154,6 +2373,7 @@ function forceCustomFavicon() {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") {
     console.log("[loop.mp3] The application window minimized");
+    openMiniPlayer();
   } else {
     console.log("[loop.mp3] The application window maximised");
   }
