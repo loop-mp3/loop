@@ -1353,6 +1353,9 @@ function updateLoop(artworkURL, trackInfo) {
                     <button id="loop-kawarp-config-button" class="loop-menu-action" type="button">
                         Edit Kawarp shader config
                     </button>
+                    <button id="loop-mini-player-button" class="loop-menu-action" type="button">
+                        Open mini player
+                    </button>
                 </div>
                 <div id="loop-empty-state" hidden>
                     <div class="loop-empty-title">Nothing is playing</div>
@@ -1409,6 +1412,12 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-seek").addEventListener("input", seekTrack);
         loop.querySelector("#loop-like-button").addEventListener("click", () => triggerYTMAction("like"));
         loop.querySelector("#loop-dislike-button").addEventListener("click", () => triggerYTMAction("dislike"));
+        loop.querySelector("#loop-mini-player-button").addEventListener("click", () => {
+            openMiniPlayer().catch((error) => {
+                console.warn("[loop.mp3] Could not open miniplayer:", error);
+                showLoopNotification("Could not open miniplayer");
+            });
+        });
         loop.querySelector("#loop-artwork-toggle").addEventListener("click", () => {
             loopPreferences.hideArtwork = !loopPreferences.hideArtwork;
             saveLoopPreferences();
@@ -2373,9 +2382,11 @@ function forceCustomFavicon() {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") {
     console.log("[loop.mp3] The application window minimized");
-    openMiniPlayer();
   } else {
     console.log("[loop.mp3] The application window maximised");
+    showLoopNotification(`Miniplayer Closed`)
+    console.log(`[loop.mp3] closed miniplayer`)
+    documentPictureInPicture.window?.close();
   }
 });
 
