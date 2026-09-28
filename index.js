@@ -2151,6 +2151,14 @@ function forceCustomFavicon() {
     }
 }
 
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    console.log("[loop.mp3] The application window minimized");
+  } else {
+    console.log("[loop.mp3] The application window maximised");
+  }
+});
+
 forceCustomFavicon();
 
 setInterval(forceCustomFavicon, 1000);
