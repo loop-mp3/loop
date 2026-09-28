@@ -191,6 +191,7 @@ let loopPreferences = {
     hideVinyl: true,
     hideArtwork: false,
     showNavigationButtons: false,
+    autoOpenMiniPlayer: true,
     useLegacyFallbackArtwork: false,
     theme: "default",
 };
@@ -376,6 +377,8 @@ function applyLoopPreferences() {
     if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
     const navigationToggle = loop.querySelector("#loop-navigation-toggle");
     if (navigationToggle) navigationToggle.checked = Boolean(loopPreferences.showNavigationButtons);
+    const miniPlayerToggle = loop.querySelector("#loop-mini-player-toggle");
+    if (miniPlayerToggle) miniPlayerToggle.checked = loopPreferences.autoOpenMiniPlayer !== false;
     const legacyFallbackToggle = loop.querySelector("#loop-legacy-fallback-toggle");
     if (legacyFallbackToggle) legacyFallbackToggle.checked = Boolean(loopPreferences.useLegacyFallbackArtwork);
     setTrackNavigationButtonsVisible(Boolean(loopPreferences.showNavigationButtons));
@@ -1399,6 +1402,10 @@ function updateLoop(artworkURL, trackInfo) {
                     <button id="loop-mini-player-button" class="loop-menu-action" type="button">
                         Open mini player
                     </button>
+                    <label class="loop-navigation-toggle">
+                        <input id="loop-mini-player-toggle" type="checkbox" checked>
+                        Open mini player when minimized
+                    </label>
                 </div>
                 <div id="loop-empty-state" hidden>
                     <div class="loop-empty-title">Nothing is playing</div>
@@ -1460,6 +1467,10 @@ function updateLoop(artworkURL, trackInfo) {
                 console.warn("[loop.mp3] Could not open miniplayer:", error);
                 showLoopNotification("Could not open miniplayer");
             });
+        });
+        loop.querySelector("#loop-mini-player-toggle").addEventListener("change", (event) => {
+            loopPreferences.autoOpenMiniPlayer = event.target.checked;
+            saveLoopPreferences();
         });
         loop.querySelector("#loop-artwork-toggle").addEventListener("click", () => {
             loopPreferences.hideArtwork = !loopPreferences.hideArtwork;
@@ -2477,8 +2488,10 @@ window.addEventListener("message", (event) => {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") {
     console.log("[loop.mp3] The application window minimized");
-    publishElectronMiniPlayerCommand("loop:electron-open-mini-player");
-    publishElectronMiniPlayerState({ force: true });
+    if (loopPreferences.autoOpenMiniPlayer !== false) {
+        publishElectronMiniPlayerCommand("loop:electron-open-mini-player");
+        publishElectronMiniPlayerState({ force: true });
+    }
   } else {
     console.log("[loop.mp3] The application window maximised");
     publishElectronMiniPlayerCommand("loop:electron-close-mini-player");
