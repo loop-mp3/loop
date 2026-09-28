@@ -654,6 +654,7 @@ async function openMiniPlayer() {
     pipWindow.document.documentElement.dataset.theme = theme;
     pipWindow.document.body.innerHTML = `
         <div id="mini-player">
+            <canvas id="mini-kawarp-background" aria-hidden="true"></canvas>
             <img id="artwork" src="${getFallbackArtwork()}" alt="Track artwork">
             <div id="info">
                 <div id="title">Nothing playing</div>
@@ -684,7 +685,9 @@ async function openMiniPlayer() {
         html[data-theme="sharp"] { color-scheme: light; --mini-bg: #000; --mini-text: #fff; --mini-muted: #fff; --mini-control: #000; --mini-accent: #fff; --mini-border: #fff; }
         html[data-theme="catppuccin"] { --mini-bg: #1e1e2e; --mini-text: #cdd6f4; --mini-muted: #a6adc8; --mini-control: #313244; --mini-accent: #cba6f7; --mini-border: #45475a; }
         html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: var(--mini-bg); color: var(--mini-text); font-family: system-ui, sans-serif; }
-        #mini-player { box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; gap: 14px; padding: 12px 14px; animation: mini-player-fade-in 220ms ease-out both; }
+        #mini-player { position: relative; box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; gap: 14px; padding: 12px 14px; animation: mini-player-fade-in 220ms ease-out both; }
+        #mini-kawarp-background { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; opacity: .57; pointer-events: none; }
+        #mini-player > :not(#mini-kawarp-background) { position: relative; z-index: 1; }
         @keyframes mini-player-fade-in { from { opacity: 0; transform: translateY(6px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
         @media (prefers-reduced-motion: reduce) { #mini-player { animation: none; } }
         #artwork { flex: 0 0 136px; width: 136px; height: 136px; object-fit: cover; border: 1px solid var(--mini-border); border-radius: 10px; background: var(--mini-control); }
@@ -715,12 +718,59 @@ async function openMiniPlayer() {
         duration: doc.getElementById("duration"), play: doc.getElementById("play-pause"),
         previous: doc.getElementById("previous"), next: doc.getElementById("next"),
     };
+    const miniKawarpCanvas = doc.getElementById("mini-kawarp-background");
+    let miniKawarpBackground;
+    let miniKawarpArtwork = "";
+    const updateMiniKawarp = async (artworkURL) => {
+        const shouldRun = kawarpEnabled && theme !== "sharp" && loopPreferences.animatedBackground;
+        if (!shouldRun) {
+            miniKawarpCanvas.style.display = "none";
+            miniKawarpBackground?.dispose();
+            miniKawarpBackground = undefined;
+            return;
+        }
+        miniKawarpCanvas.style.display = "block";
+        try {
+            const Renderer = await loadKawarpRenderer();
+            if (!miniKawarpBackground) {
+                miniKawarpBackground = new Renderer(miniKawarpCanvas, {
+                    warpIntensity: kawarpSettings.kawarpWarpIntensity,
+                    blurPasses: kawarpSettings.kawarpBlurPasses,
+                    animationSpeed: kawarpSettings.kawarpAnimationSpeed,
+                    transitionDuration: kawarpSettings.kawarpTransitionDuration,
+                    saturation: kawarpSettings.kawarpSaturation,
+                    dithering: kawarpSettings.kawarpDithering,
+                    scale: kawarpSettings.scale,
+                });
+                miniKawarpBackground.start();
+            } else {
+                miniKawarpBackground.setOptions({
+                    warpIntensity: kawarpSettings.kawarpWarpIntensity,
+                    blurPasses: kawarpSettings.kawarpBlurPasses,
+                    animationSpeed: kawarpSettings.kawarpAnimationSpeed,
+                    transitionDuration: kawarpSettings.kawarpTransitionDuration,
+                    saturation: kawarpSettings.kawarpSaturation,
+                    dithering: kawarpSettings.kawarpDithering,
+                    scale: kawarpSettings.scale,
+                });
+            }
+            if (artworkURL && artworkURL !== miniKawarpArtwork) {
+                miniKawarpArtwork = artworkURL;
+                await miniKawarpBackground.loadImage(artworkURL);
+            }
+        } catch (error) {
+            console.warn("[loop.mp3] Could not initialize PiP Kawarp:", error);
+            miniKawarpCanvas.style.display = "none";
+        }
+    };
     const mediaListeners = new Map();
     let connectedMedia;
     const sync = (media = getCurrentMedia()) => {
         const loop = document.querySelector("#loop");
         const empty = !loop || loop.classList.contains("loop-empty");
-        nodes.artwork.src = loop?.querySelector("#loop-artwork")?.src || getFallbackArtwork();
+        const artworkURL = loop?.querySelector("#loop-artwork")?.src || getFallbackArtwork();
+        nodes.artwork.src = artworkURL;
+        updateMiniKawarp(artworkURL);
         nodes.title.textContent = empty ? "Nothing playing" : loop.querySelector("#loop-track-title")?.textContent.trim() || "Unknown title";
         nodes.artist.textContent = empty ? "Search something to play" : loop.querySelector("#loop-track-artist")?.textContent.trim() || "Unknown artist";
         nodes.album.textContent = empty ? "" : loop.querySelector("#loop-track-album")?.textContent.trim() || "";
@@ -749,7 +799,13 @@ async function openMiniPlayer() {
     miniPlayerBridge = {
         sync(media) { connectMedia(media); sync(media); },
         setTheme(nextTheme) { pipWindow.document.documentElement.dataset.theme = nextTheme || "default"; },
-        destroy() { connectMedia(null); miniPlayerBridge = undefined; },
+        syncEffects() { updateMiniKawarp(miniKawarpArtwork); },
+        destroy() {
+            connectMedia(null);
+            miniKawarpBackground?.dispose();
+            miniKawarpBackground = undefined;
+            miniPlayerBridge = undefined;
+        },
     };
     nodes.play.addEventListener("click", () => { togglePlayback(); sync(); });
     nodes.previous.addEventListener("click", () => { playPreviousTrack(); window.setTimeout(sync, 150); });
@@ -899,6 +955,7 @@ function applyKawarpSettings(settings) {
     }
     const backgroundToggle = document.querySelector("#loop-background-toggle");
     if (backgroundToggle) backgroundToggle.checked = kawarpEnabled;
+    miniPlayerBridge?.syncEffects();
 }
 
 async function loadKawarpSettings() {
