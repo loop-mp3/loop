@@ -791,7 +791,7 @@ async function openMiniPlayer() {
     let miniKawarpBackground;
     let miniKawarpArtwork = "";
     const updateMiniKawarp = async (artworkURL) => {
-        const shouldRun = kawarpEnabled && theme !== "sharp" && loopPreferences.animatedBackground;
+        const shouldRun = kawarpEnabled && loopPreferences.animatedBackground;
         if (!shouldRun) {
             miniKawarpCanvas.style.display = "none";
             miniKawarpBackground?.dispose();
