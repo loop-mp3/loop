@@ -847,7 +847,7 @@ async function openMiniPlayer() {
         const artworkURL = loop?.querySelector("#loop-artwork")?.src || getFallbackArtwork();
         nodes.artwork.src = artworkURL;
         updateMiniKawarp(artworkURL);
-        nodes.title.textContent = empty ? "Nothing playing" : loop.querySelector("#loop-track-title")?.textContent.trim() || "Unknown title";
+        nodes.title.textContent = empty ? "Nothing playing" : loop.querySelector("#loop-track-title")?.textContent.trim() || "Unknown track";
         nodes.artist.textContent = empty ? "Search something to play" : loop.querySelector("#loop-track-artist")?.textContent.trim() || "Unknown artist";
         nodes.album.textContent = empty ? "" : loop.querySelector("#loop-track-album")?.textContent.trim() || "";
         nodes.play.disabled = !media;
@@ -1422,7 +1422,7 @@ function updateKawarpArtwork(artworkURL) {
 function getTrackInfo(playerBar) {
     const root = playerBar || getYTMPlayerRoot();
     if (!root) {
-        return { title: "Unknown title", artist: "Unknown artist", album: "Unknown album" };
+        return { title: "Unknown track", artist: "Unknown artist", album: "Unknown album" };
     }
 
     // ytmusic-player-page also contains the queue/context UI. Its first
@@ -1438,7 +1438,7 @@ function getTrackInfo(playerBar) {
             "span.ytAttributedStringHost, .title, #title, yt-formatted-string.title, [class~='title']"
         )])
         .map((node) => node.textContent.trim())
-        .find((text) => text && !["playing from", "autoplay"].includes(text.toLowerCase())) || "Unknown title";
+        .find((text) => text && !/^(playing from|auto-?play)(?:\s*[•·-].*)?$/i.test(text)) || "Unknown track";
     const byline = dataRoot.querySelector("yt-formatted-string.byline.ytmusic-player-bar") ||
         dataRoot.querySelector(".subtitle.ytmusic-player-bar yt-formatted-string.byline") ||
         dataRoot.querySelector(".byline, .subtitle, [class*='byline'], [class*='subtitle']");
@@ -1480,7 +1480,9 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
         return {
             // The player page contains context labels such as "Playing from"
             // and "Autoplay". oEmbed is the source of truth for track metadata.
-            title: details.title || domInfo.title,
+            title: details.title && !/^auto-?play$/i.test(details.title.trim())
+                ? details.title
+                : domInfo.title,
             artist: details.author_name || domInfo.artist,
             artistUrl: liveInfo.artistUrl || domInfo.artistUrl,
             album: details.album || liveInfo.album || domInfo.album,
