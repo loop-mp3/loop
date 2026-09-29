@@ -1,10 +1,18 @@
 function waitForYTM(callback) {
     const check = () => {
-        const playerBar = document.querySelector("ytmusic-player-bar");
+        const playerPage = document.querySelector("ytmusic-player-page");
+        const playerBar = playerPage || document.querySelector("ytmusic-player-bar");
         if (playerBar) return callback(playerBar);
         requestAnimationFrame(check);
     };
     check();
+}
+
+// YouTube Music moved the live player data under ytmusic-player-page. Keep the
+// old bar as a fallback because older clients still expose it directly.
+function getYTMPlayerRoot() {
+    return document.querySelector("ytmusic-player-page") ||
+        document.querySelector("ytmusic-player-bar");
 }
 
 function getCurrentTrackId(playerBar) {
@@ -19,7 +27,9 @@ function getCurrentTrackId(playerBar) {
         } catch {
         }
     }
-    return new URL(location.href).searchParams.get("v");
+    return new URL(location.href).searchParams.get("v") ||
+        document.querySelector("ytmusic-player-page")?.getAttribute("video-id") ||
+        document.querySelector("ytmusic-player-page")?.dataset.videoId;
 }
 
 function getFallbackArtwork() {
@@ -33,7 +43,10 @@ function getVinylArtwork(trackId) {
 }
 
 function getPlayerBarArtwork(playerBar) {
-    const artwork = [...(playerBar?.querySelectorAll("img") || [])].find((image) => {
+    const nestedPlayerBar = playerBar?.querySelector("ytmusic-player-bar");
+    const roots = [nestedPlayerBar, playerBar, document.querySelector("ytmusic-player-bar")]
+        .filter((root, index, all) => root && all.indexOf(root) === index);
+    const artwork = roots.flatMap((root) => [...root.querySelectorAll("img")]).find((image) => {
         const source = image.currentSrc || image.src || "";
         return source && !source.includes("ytmusic-logo") && !source.includes("favicon");
     });
@@ -464,7 +477,7 @@ function showAuthWarningPopup() {
 }
 
 function findYTMActionButton(action) {
-    const playerBar = document.querySelector("ytmusic-player-bar");
+    const playerBar = getYTMPlayerRoot();
     if (!playerBar) return null;
 
     const candidates = [...playerBar.querySelectorAll("button, [role=button]")];
@@ -485,7 +498,7 @@ function returnToLoopUI(event) {
     event.stopPropagation();
     event.stopImmediatePropagation();
 
-    const playerBar = document.querySelector("ytmusic-player-bar");
+    const playerBar = getYTMPlayerRoot();
     const trackId = getCurrentTrackId(playerBar) || lastTrackId;
     console.log("[loop.mp3] Open Loop button activated", {
         hasPlayerBar: Boolean(playerBar),
@@ -1360,16 +1373,26 @@ function updateKawarpArtwork(artworkURL) {
 }
 
 function getTrackInfo(playerBar) {
-    const title = playerBar.querySelector(".title")?.textContent.trim() || "Unknown title";
-    const byline = playerBar.querySelector("yt-formatted-string.byline.ytmusic-player-bar") ||
-        playerBar.querySelector(".subtitle.ytmusic-player-bar yt-formatted-string.byline") ||
-        playerBar.querySelector(".byline");
+    const root = playerBar || getYTMPlayerRoot();
+    if (!root) {
+        return { title: "Unknown title", artist: "Unknown artist", album: "Unknown album" };
+    }
+
+    const title = root.querySelector(
+        ".title, #title, yt-formatted-string.title, [class~='title']"
+    )?.textContent.trim() || "Unknown title";
+    const byline = root.querySelector("yt-formatted-string.byline.ytmusic-player-bar") ||
+        root.querySelector(".subtitle.ytmusic-player-bar yt-formatted-string.byline") ||
+        root.querySelector(".byline, .subtitle");
     const links = byline?.querySelectorAll("a") || [];
+    const bylineText = byline?.textContent.split("•").map((part) => part.trim()).filter(Boolean) || [];
     return {
         title,
-        artist: links[0]?.textContent.trim() || "Unknown artist",
+        artist: links[0]?.textContent.trim() || bylineText[0] || "Unknown artist",
         artistUrl: links[0]?.href || "",
-        album: links.length >= 2 ? links[links.length - 1].textContent.trim() : "Unknown album",
+        album: links.length >= 2
+            ? links[links.length - 1].textContent.trim()
+            : bylineText[1] || "Unknown album",
         albumUrl: links.length >= 2 ? links[links.length - 1].href : "",
     };
 }
@@ -1918,7 +1941,7 @@ function watchTrackChanges(playerBar) {
 
     trackSyncHostObserver?.disconnect();
     trackSyncHostObserver = new MutationObserver(() => {
-        const currentPlayerBar = document.querySelector("ytmusic-player-bar");
+        const currentPlayerBar = getYTMPlayerRoot();
         if (currentPlayerBar && currentPlayerBar !== playerBar) {
             watchTrackChanges(currentPlayerBar);
             scheduleTrackSync(currentPlayerBar);
@@ -1946,7 +1969,7 @@ function watchTrackChanges(playerBar) {
 }
 
 async function updateForCurrentTrack(playerBar) {
-    const currentPlayerBar = document.querySelector("ytmusic-player-bar") || playerBar;
+    const currentPlayerBar = getYTMPlayerRoot() || playerBar;
     const trackId = getCurrentTrackId(currentPlayerBar) || lastTrackId;
     const liveTrackInfo = getTrackInfo(currentPlayerBar);
     const artworkURL = getCurrentArtwork(currentPlayerBar, trackId);
@@ -1990,7 +2013,7 @@ async function updateForCurrentTrack(playerBar) {
     updateLoop(artworkURL, liveTrackInfo);
     syncRecordMotion();
     const trackInfo = await getTrackInfoFromTrackId(trackId, currentPlayerBar);
-    const activePlayerBar = document.querySelector("ytmusic-player-bar") || playerBar;
+    const activePlayerBar = getYTMPlayerRoot() || playerBar;
     const activeTrackId = getCurrentTrackId(activePlayerBar) || lastTrackId;
     const currentInfo = getTrackInfo(activePlayerBar);
     const currentSignature = [
