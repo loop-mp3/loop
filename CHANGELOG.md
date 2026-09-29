@@ -1,6 +1,50 @@
+
+All notable changes to Loop are documented here.
+
 # Changelog
 
 All notable changes to Loop are documented here.
+
+## [1.4.0] - 2026-09-29
+
+### Highlights
+
+* Added a native Electron mini-player with playback controls, track metadata, artwork, seeking, window controls, and theme support.
+* Added automatic mini-player window handling when the Loop application is minimized or restored.
+* Added mini-player state publishing and command handling between the Loop extension and Electron application.
+* Added configurable mini-player behavior and a dedicated mini-player event bridge.
+* Added Kawarp support to the Electron mini-player with an independent renderer instance and synchronized Kawarp state.
+* Added support for retrieving the Kawarp module source from Electron so the mini-player can initialize Kawarp outside the extension page.
+* Added support for YouTube Music's new player bar while preserving compatibility with the existing player bar.
+* Added oEmbed-based metadata extraction for the new YouTube Music player bar.
+* Added album metadata extraction from the correct player element for the new player bar.
+* Updated like/dislike handling for the new player bar while restoring like/dislike support for the existing player bar.
+* Added new fallback artwork assets and registered them for extension use.
+* Added new Dawn gradient text assets.
+* Added a browser-use warning to the extension.
+
+### Fixes
+
+* Fixed mini-player positioning so it opens in the bottom-right corner of the appropriate display.
+* Fixed mini-player fallback artwork handling by retrieving extension fallback assets through the Electron side when direct extension-resource loading is unavailable.
+* Fixed metadata handling for the new YouTube Music player bar.
+* Fixed album metadata being read from an incorrect element.
+* Fixed like/dislike functionality compatibility between the new and existing YouTube Music player bars.
+* Preserved existing player-bar functionality while adding support for the new player-bar implementation.
+* Added the required application-side IPC handling for mini-player commands and state updates.
+
+### Internal and maintenance changes
+
+* Added a dedicated mini-player HTML renderer and preload bridge.
+* Added Electron IPC channels for opening, closing, updating, and controlling the mini-player.
+* Added Electron-side Kawarp state retrieval and module-source retrieval.
+* Added an independent mini-player Kawarp lifecycle so its renderer can be controlled separately from the main Loop instance.
+* Added cached fallback-artwork resolution and Blob URL handling in the mini-player renderer.
+* Added additional fallback artwork resources and manifest entries.
+* Added Dawn gradient SVG assets.
+* Updated README documentation and corrected README wording.
+* Bumped the Loop extension and application versions to `1.4.0`.
+
 
 ## [1.3.0] - 2026-09-24
 
@@ -132,3 +176,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [1.1.1]: https://github.com/loop-mp3/loop/releases/tag/v1.1.1
 [1.1.2]: https://github.com/loop-mp3/loop/releases/tag/v1.2.0
 [1.3.0]: https://github.com/loop-mp3/loop/releases/tag/v1.3.0
+[1.4.0]: https://github.com/loop-mp3/loop/releases/tag/v1.4.0
