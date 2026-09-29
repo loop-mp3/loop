@@ -961,7 +961,7 @@ let feedbackSyncTimers = [];
 
 function scheduleTrackFeedbackSync() {
     feedbackSyncTimers.forEach((timer) => window.clearTimeout(timer));
-    feedbackSyncTimers = [100, 300, 800].map((delay) =>
+    feedbackSyncTimers = [100, 300, 800, 1500, 2500].map((delay) =>
         window.setTimeout(syncTrackFeedbackState, delay)
     );
 }
@@ -979,7 +979,9 @@ function syncTrackFeedbackState() {
             ytmButton?.getAttribute("aria-label"),
             ytmButton?.getAttribute("title"),
         ].filter(Boolean).join(" ").toLowerCase();
+        const rendererPressed = likeRenderer?.getAttribute("aria-pressed") === "true";
         const isActive = rendererStatus === action ||
+            (rendererPressed && rendererStatus === action) ||
             ytmButton?.getAttribute("aria-pressed") === "true" ||
             label.includes(`un${action}`) ||
             label.includes(`remove ${action}`);
@@ -2089,6 +2091,7 @@ async function updateForCurrentTrack(playerBar) {
         // track change. Keep retrying while the track is current so the dock
         // does not remain stuck with the previous track's liked state.
         syncTrackFeedbackState();
+        scheduleTrackFeedbackSync();
         return;
     }
 
