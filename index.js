@@ -2712,5 +2712,20 @@ async function checkIsSleepSupported() {
         6000
     );
 }
+function isElectron() {
+  if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
+    return true;
+  }
+  
+  if (typeof navigator === 'object' && typeof navigator.userAgent === 'string' && navigator.userAgent.indexOf('Electron') >= 0) {
+    return true;
+  }
+  
+  return false;
+}
+
+if(!isElectron) {
+    showLoopNotification("No application shell detected some function might not work");
+}
 
 checkIsSleepSupported();
