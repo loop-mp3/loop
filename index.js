@@ -488,13 +488,33 @@ function findYTMActionButton(action) {
         getYTMPlayerRoot(),
         document,
     ].filter((root, index, all) => root && all.indexOf(root) === index);
+
+    // The current player bar groups both feedback controls in this renderer.
+    // Prefer its action-specific button so a Like control elsewhere in the
+    // page cannot be mistaken for the current track's feedback button.
+    const rendererButtonSelector = action === "like"
+        ? "#button-shape-like button, .like button"
+        : "#button-shape-dislike button, .dislike button";
+    const rendererButton = roots
+        .flatMap((root) => [...root.querySelectorAll("ytmusic-like-button-renderer")])
+        .map((renderer) => renderer.querySelector(rendererButtonSelector))
+        .find((button) => button && !button.closest("#loop") && (
+            button.offsetParent !== null || button.getClientRects().length > 0
+        ));
+    if (rendererButton) return rendererButton;
+
+    // The newer player bar uses native buttons, but the legacy bar uses
+    // `tp-yt-paper-icon-button`/`yt-icon-button` custom elements. Search by
+    // label as well as tag name so both versions remain actionable.
     const exactSelector = action === "like"
-        ? 'button[aria-label^="like this video" i]'
-        : 'button[aria-label^="dislike this video" i]';
+        ? '[aria-label^="like this video" i]'
+        : '[aria-label^="dislike this video" i]';
     const exactCandidates = roots.flatMap((root) => [...root.querySelectorAll(exactSelector)]);
     const candidates = [
         ...exactCandidates,
-        ...roots.flatMap((root) => [...root.querySelectorAll("button, [role=button]")]),
+        ...roots.flatMap((root) => [...root.querySelectorAll(
+            "button, [role=button], tp-yt-paper-icon-button, yt-icon-button, [aria-label], [title]"
+        )]),
     ].filter((button, index, all) => all.indexOf(button) === index);
     return candidates.find((button) => {
         if (button.closest("#loop")) return false;
@@ -933,11 +953,15 @@ function syncTrackFeedbackState() {
 
     for (const [action, dockButton] of [["like", likeButton], ["dislike", dislikeButton]]) {
         const ytmButton = findYTMActionButton(action);
+        const likeRenderer = ytmButton?.closest("ytmusic-like-button-renderer") ||
+            document.querySelector("ytmusic-like-button-renderer");
+        const rendererStatus = likeRenderer?.getAttribute("like-status")?.toLowerCase();
         const label = [
             ytmButton?.getAttribute("aria-label"),
             ytmButton?.getAttribute("title"),
         ].filter(Boolean).join(" ").toLowerCase();
-        const isActive = ytmButton?.getAttribute("aria-pressed") === "true" ||
+        const isActive = rendererStatus === action ||
+            ytmButton?.getAttribute("aria-pressed") === "true" ||
             label.includes(`un${action}`) ||
             label.includes(`remove ${action}`);
         dockButton.classList.toggle("loop-action-active", Boolean(isActive));
