@@ -482,10 +482,13 @@ function showAuthWarningPopup() {
 }
 
 function findYTMActionButton(action) {
+    const actionBar = document.querySelector("yt-video-action-bar-view-model.ytMusicMiniPlayerActionBar") ||
+        document.querySelector("yt-video-action-bar-view-model");
     const playerPage = document.querySelector("ytmusic-player-page");
     const playerBar = playerPage?.querySelector("ytmusic-player-bar") ||
         document.querySelector("ytmusic-player-bar");
     const roots = [
+        actionBar,
         document.querySelector("ytmusic-miniplayer-slot#player-bar"),
         playerBar,
         document.querySelector("ytmusic-track-info"),
@@ -497,10 +500,12 @@ function findYTMActionButton(action) {
     // Prefer its action-specific button so a Like control elsewhere in the
     // page cannot be mistaken for the current track's feedback button.
     const rendererButtonSelector = action === "like"
-        ? "#button-shape-like button, #button-shape-like, .like button, .like"
-        : "#button-shape-dislike button, #button-shape-dislike, .dislike button, .dislike";
+        ? "like-button-view-model button, #button-shape-like button, #button-shape-like, .like button, .like"
+        : "dislike-button-view-model button, #button-shape-dislike button, #button-shape-dislike, .dislike button, .dislike";
     const rendererButton = roots
-        .flatMap((root) => [...root.querySelectorAll("ytmusic-like-button-renderer")])
+        .flatMap((root) => [...root.querySelectorAll(
+            "ytmusic-like-button-renderer, segmented-like-dislike-button-view-model"
+        )])
         .map((renderer) => renderer.querySelector(rendererButtonSelector))
         .find((button) => button && !button.closest("#loop") && (
             button.offsetParent !== null || button.getClientRects().length > 0
@@ -974,15 +979,26 @@ function syncTrackFeedbackState() {
     for (const [action, dockButton] of [["like", likeButton], ["dislike", dislikeButton]]) {
         const ytmButton = findYTMActionButton(action);
         const likeRenderer = ytmButton?.closest("ytmusic-like-button-renderer");
-        const rendererStatus = likeRenderer?.getAttribute("like-status")?.toLowerCase();
+        const playerPage = document.querySelector("ytmusic-player-page");
+        const playerBar = playerPage?.querySelector("ytmusic-player-bar") ||
+            document.querySelector("ytmusic-player-bar");
+        const statusSources = [likeRenderer, playerBar, playerPage, ytmButton].filter(Boolean);
+        const rendererStatus = statusSources
+            .map((source) => source.getAttribute("like-status") ||
+                source.getAttribute("data-like-status") ||
+                source.getAttribute("data-status"))
+            .find(Boolean)?.toLowerCase();
+        const actionContainer = ytmButton?.closest(
+            "#button-shape-like, #button-shape-dislike, .like, .dislike"
+        );
+        const buttonPressed = [ytmButton, actionContainer, likeRenderer]
+            .some((source) => source?.getAttribute("aria-pressed") === "true");
         const label = [
             ytmButton?.getAttribute("aria-label"),
             ytmButton?.getAttribute("title"),
         ].filter(Boolean).join(" ").toLowerCase();
-        const rendererPressed = likeRenderer?.getAttribute("aria-pressed") === "true";
         const isActive = rendererStatus === action ||
-            (rendererPressed && rendererStatus === action) ||
-            ytmButton?.getAttribute("aria-pressed") === "true" ||
+            buttonPressed ||
             label.includes(`un${action}`) ||
             label.includes(`remove ${action}`);
         dockButton.classList.toggle("loop-action-active", Boolean(isActive));
