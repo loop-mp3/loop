@@ -16,7 +16,13 @@ function getYTMPlayerRoot() {
 }
 
 function getCurrentTrackId(playerBar) {
-    const playerTrackLink = playerBar?.querySelector(
+    const urlTrackId = new URL(location.href).searchParams.get("v");
+    if (urlTrackId) return urlTrackId;
+
+    const dataRoot = playerBar?.matches?.("ytmusic-player-page")
+        ? playerBar.querySelector("ytmusic-player-bar") || playerBar
+        : playerBar;
+    const playerTrackLink = dataRoot?.querySelector(
         'a[href*="watch?v="], a[href*="youtu.be/"]'
     );
     if (playerTrackLink) {
@@ -27,8 +33,7 @@ function getCurrentTrackId(playerBar) {
         } catch {
         }
     }
-    return new URL(location.href).searchParams.get("v") ||
-        document.querySelector("ytmusic-player-page")?.getAttribute("video-id") ||
+    return document.querySelector("ytmusic-player-page")?.getAttribute("video-id") ||
         document.querySelector("ytmusic-player-page")?.dataset.videoId;
 }
 
@@ -1378,22 +1383,40 @@ function getTrackInfo(playerBar) {
         return { title: "Unknown title", artist: "Unknown artist", album: "Unknown album" };
     }
 
-    const title = root.querySelector(
-        ".title, #title, yt-formatted-string.title, [class~='title']"
-    )?.textContent.trim() || "Unknown title";
-    const byline = root.querySelector("yt-formatted-string.byline.ytmusic-player-bar") ||
-        root.querySelector(".subtitle.ytmusic-player-bar yt-formatted-string.byline") ||
-        root.querySelector(".byline, .subtitle");
+    // ytmusic-player-page also contains the queue/context UI. Its first
+    // `.title` can be labels such as "Playing from", so prefer the actual
+    // nested player bar whenever YouTube still exposes one.
+    const dataRoot = root.matches?.("ytmusic-player-page")
+        ? root.querySelector("ytmusic-player-bar") || root
+        : root;
+
+    const titleRoots = [dataRoot, root, document].filter((node, index, all) => node && all.indexOf(node) === index);
+    const title = titleRoots
+        .flatMap((node) => [...node.querySelectorAll(
+            "span.ytAttributedStringHost, .title, #title, yt-formatted-string.title, [class~='title']"
+        )])
+        .map((node) => node.textContent.trim())
+        .find((text) => text && !["playing from", "autoplay"].includes(text.toLowerCase())) || "Unknown title";
+    const byline = dataRoot.querySelector("yt-formatted-string.byline.ytmusic-player-bar") ||
+        dataRoot.querySelector(".subtitle.ytmusic-player-bar yt-formatted-string.byline") ||
+        dataRoot.querySelector(".byline, .subtitle, [class*='byline'], [class*='subtitle']");
     const links = byline?.querySelectorAll("a") || [];
+    const albumLink = dataRoot.querySelector(
+        "a.ytAttributedStringLink.ytAttributedStringLinkCallToActionColor"
+    ) || dataRoot.querySelector("a.ytAttributedStringLink");
+    const parsedByline = byline?.textContent
+        ?.split(/\s*[\u2022\u00b7]\s*/)
+        .map((part) => part.trim())
+        .filter(Boolean) || [];
     const bylineText = byline?.textContent.split("•").map((part) => part.trim()).filter(Boolean) || [];
     return {
         title,
-        artist: links[0]?.textContent.trim() || bylineText[0] || "Unknown artist",
+        artist: links[0]?.textContent.trim() || parsedByline[0] || bylineText[0] || "Unknown artist",
         artistUrl: links[0]?.href || "",
-        album: links.length >= 2
+        album: albumLink?.textContent.trim() || (links.length >= 2
             ? links[links.length - 1].textContent.trim()
-            : bylineText[1] || "Unknown album",
-        albumUrl: links.length >= 2 ? links[links.length - 1].href : "",
+            : parsedByline[1] || bylineText[1] || "Unknown album"),
+        albumUrl: albumLink?.href || (links.length >= 2 ? links[links.length - 1].href : ""),
     };
 }
 
@@ -1410,11 +1433,13 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
         const details = await response.json();
         const liveInfo = getTrackInfo(playerBar);
         return {
-            title: liveInfo.title !== "Unknown title" ? liveInfo.title : details.title || domInfo.title,
-            artist: liveInfo.artist !== "Unknown artist" ? liveInfo.artist : details.author_name || domInfo.artist,
+            // The player page contains context labels such as "Playing from"
+            // and "Autoplay". oEmbed is the source of truth for track metadata.
+            title: details.title || domInfo.title,
+            artist: details.author_name || domInfo.artist,
             artistUrl: liveInfo.artistUrl || domInfo.artistUrl,
-            album: liveInfo.album || domInfo.album,
-            albumUrl: liveInfo.albumUrl || domInfo.albumUrl,
+            album: details.album || liveInfo.album || domInfo.album,
+            albumUrl: details.album_url || liveInfo.albumUrl || domInfo.albumUrl,
         };
     } catch (error) {
         console.warn("[loop.mp3] Could not fetch track metadata:", error);
