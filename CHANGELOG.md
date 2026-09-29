@@ -1,10 +1,6 @@
 
 All notable changes to Loop are documented here.
 
-# Changelog
-
-All notable changes to Loop are documented here.
-
 ## [1.4.0] - 2026-09-29
 
 ### Highlights
