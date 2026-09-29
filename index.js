@@ -548,6 +548,13 @@ function returnToLoopUI(event) {
     };
     hideLoopSearch();
     updateLoop(getCurrentArtwork(playerBar, trackId), trackInfo);
+    // The player page can briefly expose its queue/context labels ("Autoplay")
+    // instead of the live track metadata after returning from normal YTM.
+    // Force the normal sync path to run again so oEmbed/live player metadata
+    // replaces that transient placeholder instead of being skipped by the
+    // previous track signature.
+    lastTrackKey = "";
+    updateForCurrentTrack(playerBar);
     syncRecordMotion();
 }
 
