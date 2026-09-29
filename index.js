@@ -482,10 +482,14 @@ function showAuthWarningPopup() {
 }
 
 function findYTMActionButton(action) {
+    const playerPage = document.querySelector("ytmusic-player-page");
+    const playerBar = playerPage?.querySelector("ytmusic-player-bar") ||
+        document.querySelector("ytmusic-player-bar");
     const roots = [
         document.querySelector("ytmusic-miniplayer-slot#player-bar"),
+        playerBar,
         document.querySelector("ytmusic-track-info"),
-        getYTMPlayerRoot(),
+        playerPage || getYTMPlayerRoot(),
         document,
     ].filter((root, index, all) => root && all.indexOf(root) === index);
 
@@ -493,8 +497,8 @@ function findYTMActionButton(action) {
     // Prefer its action-specific button so a Like control elsewhere in the
     // page cannot be mistaken for the current track's feedback button.
     const rendererButtonSelector = action === "like"
-        ? "#button-shape-like button, .like button"
-        : "#button-shape-dislike button, .dislike button";
+        ? "#button-shape-like button, #button-shape-like, .like button, .like"
+        : "#button-shape-dislike button, #button-shape-dislike, .dislike button, .dislike";
     const rendererButton = roots
         .flatMap((root) => [...root.querySelectorAll("ytmusic-like-button-renderer")])
         .map((renderer) => renderer.querySelector(rendererButtonSelector))
@@ -947,10 +951,19 @@ function triggerYTMAction(action) {
     const button = findYTMActionButton(action);
     if (button) {
         button.click();
-        setTimeout(syncTrackFeedbackState, 100);
+        scheduleTrackFeedbackSync();
         return;
     }
     console.warn(`[loop.mp3] Could not find YouTube Music ${action} button.`);
+}
+
+let feedbackSyncTimers = [];
+
+function scheduleTrackFeedbackSync() {
+    feedbackSyncTimers.forEach((timer) => window.clearTimeout(timer));
+    feedbackSyncTimers = [100, 300, 800].map((delay) =>
+        window.setTimeout(syncTrackFeedbackState, delay)
+    );
 }
 
 function syncTrackFeedbackState() {
@@ -960,8 +973,7 @@ function syncTrackFeedbackState() {
 
     for (const [action, dockButton] of [["like", likeButton], ["dislike", dislikeButton]]) {
         const ytmButton = findYTMActionButton(action);
-        const likeRenderer = ytmButton?.closest("ytmusic-like-button-renderer") ||
-            document.querySelector("ytmusic-like-button-renderer");
+        const likeRenderer = ytmButton?.closest("ytmusic-like-button-renderer");
         const rendererStatus = likeRenderer?.getAttribute("like-status")?.toLowerCase();
         const label = [
             ytmButton?.getAttribute("aria-label"),
@@ -1762,6 +1774,7 @@ function updateLoop(artworkURL, trackInfo) {
     emptyState.hidden = !trackInfo.empty;
     syncWindowTitle();
     syncTrackFeedbackState();
+    scheduleTrackFeedbackSync();
     updateKawarpArtwork(artwork.src);
     updatePlaybackControls(getCurrentMedia());
     publishDiscordActivity({ force: true });
