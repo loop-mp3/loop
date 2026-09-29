@@ -50,6 +50,26 @@ let lastDiscordUpdate = 0;
 let lastDiscordSignature = "";
 let lastElectronMiniPlayerSignature = "";
 
+function getKawarpState() {
+    return {
+        // `enabled` is the effective state: it also includes the Loop animated
+        // background preference, not just the value in the Kawarp config.
+        enabled: kawarpEnabled,
+        settings: { ...kawarpSettings },
+        preferences: {
+            animatedBackground: loopPreferences.animatedBackground,
+        },
+    };
+}
+
+function publishElectronKawarpState() {
+    window.postMessage({
+        source: "loop.mp3",
+        type: "loop:electron-kawarp-state",
+        state: getKawarpState(),
+    }, "*");
+}
+
 function publishElectronMiniPlayerState({ force = false } = {}) {
     const loop = document.getElementById("loop");
     const media = getCurrentMedia();
@@ -956,6 +976,7 @@ function applyKawarpSettings(settings) {
     const backgroundToggle = document.querySelector("#loop-background-toggle");
     if (backgroundToggle) backgroundToggle.checked = kawarpEnabled;
     miniPlayerBridge?.syncEffects();
+    publishElectronKawarpState();
 }
 
 async function loadKawarpSettings() {
@@ -1242,6 +1263,7 @@ function setKawarpEnabled(enabled) {
     saveLoopPreferences();
     setKawarpCanvasVisibility(enabled);
     if (enabled) showKawarpWarning();
+    publishElectronKawarpState();
 }
 
 function showKawarpWarning() {
@@ -2495,7 +2517,18 @@ function forceCustomFavicon() {
 
 window.addEventListener("message", (event) => {
     if (event.source !== window) return;
-    const { source, type, state } = event.data || {};
+    const { source, type, requestId } = event.data || {};
+    if (source === "loop.electron" && type === "loop:electron-get-kawarp-state") {
+        window.postMessage({
+            source: "loop.mp3",
+            type: "loop:electron-kawarp-state",
+            requestId,
+            state: getKawarpState(),
+        }, "*");
+        return;
+    }
+
+    const state = event.data?.state;
     if (source !== "loop.mp3" || !window.electronAPI) return;
 
     switch (type) {
