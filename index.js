@@ -1401,7 +1401,10 @@ function getTrackInfo(playerBar) {
         dataRoot.querySelector(".subtitle.ytmusic-player-bar yt-formatted-string.byline") ||
         dataRoot.querySelector(".byline, .subtitle, [class*='byline'], [class*='subtitle']");
     const links = byline?.querySelectorAll("a") || [];
-    const albumLink = dataRoot.querySelector(
+    const playerInfoLinks = [...document.querySelectorAll(
+        "ytmusic-track-info .ytmusicTrackInfoByline a.ytAttributedStringLink.ytAttributedStringLinkCallToActionColor"
+    )];
+    const albumLink = playerInfoLinks[1] || dataRoot.querySelector(
         "a.ytAttributedStringLink.ytAttributedStringLinkCallToActionColor"
     ) || dataRoot.querySelector("a.ytAttributedStringLink");
     const parsedByline = byline?.textContent
