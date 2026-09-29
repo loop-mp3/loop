@@ -482,11 +482,22 @@ function showAuthWarningPopup() {
 }
 
 function findYTMActionButton(action) {
-    const playerBar = getYTMPlayerRoot();
-    if (!playerBar) return null;
-
-    const candidates = [...playerBar.querySelectorAll("button, [role=button]")];
+    const roots = [
+        document.querySelector("ytmusic-miniplayer-slot#player-bar"),
+        document.querySelector("ytmusic-track-info"),
+        getYTMPlayerRoot(),
+        document,
+    ].filter((root, index, all) => root && all.indexOf(root) === index);
+    const exactSelector = action === "like"
+        ? 'button[aria-label^="like this video" i]'
+        : 'button[aria-label^="dislike this video" i]';
+    const exactCandidates = roots.flatMap((root) => [...root.querySelectorAll(exactSelector)]);
+    const candidates = [
+        ...exactCandidates,
+        ...roots.flatMap((root) => [...root.querySelectorAll("button, [role=button]")]),
+    ].filter((button, index, all) => all.indexOf(button) === index);
     return candidates.find((button) => {
+        if (button.closest("#loop")) return false;
         const label = [
             button.getAttribute("aria-label"),
             button.getAttribute("title"),
@@ -494,7 +505,7 @@ function findYTMActionButton(action) {
         ].filter(Boolean).join(" ").toLowerCase();
         if (!label || !label.includes(action)) return false;
         if (action === "like" && label.includes("dislike")) return false;
-        return button.offsetParent !== null;
+        return button.offsetParent !== null || button.getClientRects().length > 0;
     });
 }
 
