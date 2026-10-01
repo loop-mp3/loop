@@ -1511,7 +1511,8 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
         if (!response.ok) throw new Error(`YouTube oEmbed returned ${response.status}`);
         const details = await response.json();
         const liveInfo = getTrackInfo(playerBar);
-        return {
+        const AuthorNameComposed =
+            details.author_name.replace(/\s*[-–—]\s*Topic$/i, '').trim();        return {
             // The player page contains context labels such as "Playing from"
             // and "Autoplay". oEmbed is the source of truth for track metadata.
             //title: details.title && !/^auto-?play$/i.test(details.title.trim())
@@ -1519,7 +1520,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             //    : domInfo.title,
             title: details.title,
             // these fallbacks are here so incase something explodes we still get the data
-            artist: details.author_name || domInfo.artist,
+            artist: AuthorNameComposed || domInfo.artist,
             artistUrl: details.author_url || liveInfo.artistUrl || domInfo.artistUrl,
             album: details.album || liveInfo.album || domInfo.album,
             albumUrl: details.album_url || liveInfo.albumUrl || domInfo.albumUrl,
