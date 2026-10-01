@@ -7,7 +7,9 @@ All notable changes to Loop are documented here.
 
 * Improved Like/Dislike compatibility with YouTube Music's new player bar.
 * Preserved Like/Dislike support for naturally changed tracks and existing player-bar implementations.
-* Removed Anchor links on the loop ui for the album due not them not being exposed on the dom
+* Removed Anchor links on the loop ui for the album due to them not being exposed on the DOM.
+* Implemented artist URL parsing from oEmbed.
+* Implemented title loading from oEmbed to prevent UI artifacts being parsed.
 
 ### Fixes
 
@@ -15,13 +17,15 @@ All notable changes to Loop are documented here.
 * Fixed track liked status detection for the new YouTube Music player bar.
 * Fixed track metadata failing to restore when returning to the Loop UI.
 * Fixed invalid YouTube Music metadata artifacts being interpreted as track metadata.
+* Fixed random strings being injected into the track title by hardcoding `Unknown track` until oEmbed metadata is available.
 
 ### Internal and maintenance changes
 
 * Refactored Like/Dislike state parsing to support the new player bar action view model.
 * Added additional delayed feedback-state synchronization attempts for asynchronously updated YouTube Music controls.
 * Removed the legacy monochrome-theme exclusion from mini-player Kawarp.
-
+* Added a warning notification when oEmbed fails to fetch track metadata.
+* Updated the changelog for the `1.4.1` release.
 
 ## [1.4.0] - 2026-09-29
 
