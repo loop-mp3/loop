@@ -1,7 +1,7 @@
 
 All notable changes to Loop are documented here.
 
-## [1.4.1] - Unreleased
+## [1.4.1] - Unreleased (needs updating)
 
 ### Highlights
 
