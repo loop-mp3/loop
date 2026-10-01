@@ -1525,6 +1525,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             albumUrl: details.album_url || liveInfo.albumUrl || domInfo.albumUrl,
         };
     } catch (error) {
+        showLoopNotification("Could not fetch track metadata. Information might not load correctly press F5 to try again", 4000);
         console.warn("[loop.mp3] Could not fetch track metadata:", error);
         return domInfo;
     }
