@@ -1,6 +1,28 @@
 
 All notable changes to Loop are documented here.
 
+## [1.4.1] - Unreleased
+
+### Highlights
+
+* Improved Like/Dislike compatibility with YouTube Music's new player bar.
+* Preserved Like/Dislike support for naturally changed tracks and existing player-bar implementations.
+* Removed Anchor links on the loop ui for the album due not them not being exposed on the dom
+
+### Fixes
+
+* Fixed liked or disliked status not being detected when the track changed naturally.
+* Fixed track liked status detection for the new YouTube Music player bar.
+* Fixed track metadata failing to restore when returning to the Loop UI.
+* Fixed invalid YouTube Music metadata artifacts being interpreted as track metadata.
+
+### Internal and maintenance changes
+
+* Refactored Like/Dislike state parsing to support the new player bar action view model.
+* Added additional delayed feedback-state synchronization attempts for asynchronously updated YouTube Music controls.
+* Removed the legacy monochrome-theme exclusion from mini-player Kawarp.
+
+
 ## [1.4.0] - 2026-09-29
 
 ### Highlights
@@ -173,3 +195,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [1.1.2]: https://github.com/loop-mp3/loop/releases/tag/v1.2.0
 [1.3.0]: https://github.com/loop-mp3/loop/releases/tag/v1.3.0
 [1.4.0]: https://github.com/loop-mp3/loop/releases/tag/v1.4.0
+[1.4.1]: https://github.com/loop-mp3/loop/releases/tag/v1.4.1
