@@ -1499,6 +1499,20 @@ function getTrackInfo(playerBar) {
     };
 }
 
+function getMusicAuthorUrl(authorUrl) {
+    if (!authorUrl) return "";
+
+    try {
+        const url = new URL(authorUrl);
+        if (url.hostname === "www.youtube.com" || url.hostname === "youtube.com") {
+            url.hostname = "music.youtube.com";
+        }
+        return url.toString();
+    } catch {
+        return authorUrl;
+    }
+}
+
 // oEmbed resolves the canonical title and artist from the track ID. Album is
 // read from the linked album entry in YouTube Music's player bar.
 async function getTrackInfoFromTrackId(trackId, playerBar) {
@@ -1526,7 +1540,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             title: details.title,
             // these fallbacks are here so incase something explodes we still get the data
             artist: AuthorNameComposed || domInfo.artist,
-            artistUrl: details.author_url || liveInfo.artistUrl || domInfo.artistUrl,
+            artistUrl: getMusicAuthorUrl(details.author_url) || liveInfo.artistUrl || domInfo.artistUrl,
             album: details.album || oldPlayerBarAlbumName || liveInfo.album || domInfo.album,
             albumUrl: details.album_url || liveInfo.albumUrl || domInfo.albumUrl,
         };
