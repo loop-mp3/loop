@@ -1510,9 +1510,11 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
         return {
             // The player page contains context labels such as "Playing from"
             // and "Autoplay". oEmbed is the source of truth for track metadata.
-            title: details.title && !/^auto-?play$/i.test(details.title.trim())
-                ? details.title
-                : domInfo.title,
+            //title: details.title && !/^auto-?play$/i.test(details.title.trim())
+            //    ? details.title
+            //    : domInfo.title,
+            title: details.title,
+            // these fallbacks are here so incase something explodes we still get the data
             artist: details.author_name || domInfo.artist,
             artistUrl: details.author_url || liveInfo.artistUrl || domInfo.artistUrl,
             album: details.album || liveInfo.album || domInfo.album,
