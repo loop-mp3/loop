@@ -1514,7 +1514,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
                 ? details.title
                 : domInfo.title,
             artist: details.author_name || domInfo.artist,
-            artistUrl: liveInfo.artistUrl || domInfo.artistUrl,
+            artistUrl: details.author_url || liveInfo.artistUrl || domInfo.artistUrl,
             album: details.album || liveInfo.album || domInfo.album,
             albumUrl: details.album_url || liveInfo.albumUrl || domInfo.albumUrl,
         };
