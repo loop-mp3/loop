@@ -1511,6 +1511,11 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
         if (!response.ok) throw new Error(`YouTube oEmbed returned ${response.status}`);
         const details = await response.json();
         const liveInfo = getTrackInfo(playerBar);
+        // a desperate attempt to get the album name from the blessed souls who are still stuck on the old player bar
+        const oldPlayerBarAlbumName =
+            playerBar
+                ?.querySelector('a.yt-simple-endpoint[href^="browse/"]')
+                ?.textContent.trim();
         const AuthorNameComposed =
             details.author_name.replace(/\s*[-–—]\s*Topic$/i, '').trim();        return {
             // The player page contains context labels such as "Playing from"
@@ -1522,7 +1527,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             // these fallbacks are here so incase something explodes we still get the data
             artist: AuthorNameComposed || domInfo.artist,
             artistUrl: details.author_url || liveInfo.artistUrl || domInfo.artistUrl,
-            album: details.album || liveInfo.album || domInfo.album,
+            album: details.album || oldPlayerBarAlbumName || liveInfo.album || domInfo.album,
             albumUrl: details.album_url || liveInfo.albumUrl || domInfo.albumUrl,
         };
     } catch (error) {
