@@ -1691,7 +1691,7 @@ function updateLoop(artworkURL, trackInfo) {
                         Show album name
                     </label>
                     <div class="loop-setting-warning" role="note">
-                        Album names may be inaccurate.
+                        Album names might not be accurate in some scenario 
                     </div>
                     <label class="loop-navigation-toggle">
                         <input id="loop-legacy-fallback-toggle" type="checkbox">
