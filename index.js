@@ -231,6 +231,7 @@ let loopPreferences = {
     showNavigationButtons: false,
     autoOpenMiniPlayer: true,
     useLegacyFallbackArtwork: false,
+    showAlbum: false,
     theme: "default",
 };
 let currentArtworkURL = "";
@@ -411,6 +412,7 @@ function applyLoopPreferences() {
     applyLoopTheme();
     miniPlayerBridge?.setTheme(loopPreferences.theme);
     loop.classList.toggle("loop-no-vinyl", loopPreferences.hideVinyl);
+    loop.classList.toggle("loop-hide-album", !loopPreferences.showAlbum);
     const vinylToggle = loop.querySelector("#loop-vinyl-toggle");
     if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
     const navigationToggle = loop.querySelector("#loop-navigation-toggle");
@@ -419,6 +421,8 @@ function applyLoopPreferences() {
     if (miniPlayerToggle) miniPlayerToggle.checked = loopPreferences.autoOpenMiniPlayer !== false;
     const legacyFallbackToggle = loop.querySelector("#loop-legacy-fallback-toggle");
     if (legacyFallbackToggle) legacyFallbackToggle.checked = Boolean(loopPreferences.useLegacyFallbackArtwork);
+    const albumToggle = loop.querySelector("#loop-album-toggle");
+    if (albumToggle) albumToggle.checked = Boolean(loopPreferences.showAlbum);
     setTrackNavigationButtonsVisible(Boolean(loopPreferences.showNavigationButtons));
     applyArtworkPreference();
 }
@@ -1683,6 +1687,13 @@ function updateLoop(artworkURL, trackInfo) {
                         Don’t show vinyl
                     </label>
                     <label class="loop-navigation-toggle">
+                        <input id="loop-album-toggle" type="checkbox">
+                        Show album name
+                    </label>
+                    <div class="loop-setting-warning" role="note">
+                        Album names may be inaccurate.
+                    </div>
+                    <label class="loop-navigation-toggle">
                         <input id="loop-legacy-fallback-toggle" type="checkbox">
                         Use legacy fallback artwork
                     </label>
@@ -1784,6 +1795,11 @@ function updateLoop(artworkURL, trackInfo) {
         });
         loop.querySelector("#loop-vinyl-toggle").addEventListener("change", (event) => {
             loopPreferences.hideVinyl = event.target.checked;
+            saveLoopPreferences();
+            applyLoopPreferences();
+        });
+        loop.querySelector("#loop-album-toggle").addEventListener("change", (event) => {
+            loopPreferences.showAlbum = event.target.checked;
             saveLoopPreferences();
             applyLoopPreferences();
         });

@@ -471,6 +471,17 @@
     cursor: pointer;
 }
 
+.loop-setting-warning {
+    margin: 2px 0 4px 24px;
+    color: #f0c674;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+#loop.loop-hide-album #loop-track-album {
+    visibility: hidden;
+}
+
 .loop-kawarp-warning {
     max-width: 250px;
     margin: 2px 0 4px 24px;
