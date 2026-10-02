@@ -1513,6 +1513,61 @@ function getMusicAuthorUrl(authorUrl) {
     }
 }
 
+// Use the player endpoint to retrieve more accurate track metadata.
+const prettyPrintMetaCache = new Map();
+
+async function getPlayerMetadataPrettyPrint(trackId) {
+    if (!trackId) return null;
+    if (prettyPrintMetaCache.has(trackId)) {
+        return prettyPrintMetaCache.get(trackId);
+    }
+
+    try {
+        const response = await fetch(
+            "https://music.youtube.com/youtubei/v1/player?prettyPrint=false",
+            {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    videoId: trackId,
+                    context: {
+                        client: {
+                            hl: "en-GB",
+                            gl: "IN",
+                            clientName: "WEB_REMIX",
+                            clientVersion: "1.20260928.13.00"
+                        }
+                    }
+                })
+            }
+        );
+
+        if (!response.ok) {
+            console.error("Pretty print metadata request failed:", response.status);
+            showLoopNotification("Pretty print metadata retrieval failed Track information might not load correctly or might not be accurate press F5 to try again", 4000);
+            return null;
+        }
+
+        const data = await response.json();
+
+        const metadata = {
+            title: data.videoDetails?.title ?? null,
+            artist: data.videoDetails?.author ?? null
+        };
+
+        prettyPrintMetaCache.set(trackId, metadata);
+
+        return metadata;
+    } catch (error) {
+        console.error("Pretty print metadata retrieval failed:", error);
+        showLoopNotification("Pretty print metadata retrieval failed Track information might not load correctly or might not be accurate press F5 to try again", 4000);
+        return null;
+    }
+}
+
 // oEmbed resolves the canonical title and artist from the track ID. Album is
 // read from the linked album entry in YouTube Music's player bar.
 async function getTrackInfoFromTrackId(trackId, playerBar) {
@@ -1524,6 +1579,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`YouTube oEmbed returned ${response.status}`);
         const details = await response.json();
+        const prettyPrintMeta = await getPlayerMetadataPrettyPrint(trackId);
         const liveInfo = getTrackInfo(playerBar);
         // a desperate attempt to get the album name from the blessed souls who are still stuck on the old player bar
         const oldPlayerBarAlbumName =
@@ -1537,9 +1593,10 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             //title: details.title && !/^auto-?play$/i.test(details.title.trim())
             //    ? details.title
             //    : domInfo.title,
-            title: details.title,
+            // currently only exposing the title and artist from pretty print
+            title: prettyPrintMeta?.title || details.title,
             // these fallbacks are here so incase something explodes we still get the data
-            artist: AuthorNameComposed || details.author_name || domInfo.artist,
+            artist: prettyPrintMeta?.artist || AuthorNameComposed || details.author_name || domInfo.artist,
             artistUrl: getMusicAuthorUrl(details.author_url) || liveInfo.artistUrl || domInfo.artistUrl,
             album: details.album || oldPlayerBarAlbumName || liveInfo.album || domInfo.album,
             albumUrl: details.album_url || liveInfo.albumUrl || domInfo.albumUrl,
