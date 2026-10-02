@@ -1546,7 +1546,7 @@ async function getPlayerMetadataPrettyPrint(trackId) {
         );
 
         if (!response.ok) {
-            console.error("Pretty print metadata request failed:", response.status);
+            console.error("[loop.mp3] Pretty print metadata request failed:", response.status);
             showLoopNotification("Pretty print metadata retrieval failed Track information might not load correctly or might not be accurate press F5 to try again", 4000);
             return null;
         }
@@ -1562,7 +1562,7 @@ async function getPlayerMetadataPrettyPrint(trackId) {
 
         return metadata;
     } catch (error) {
-        console.error("Pretty print metadata retrieval failed:", error);
+        console.error("[loop.mp3] Pretty print metadata retrieval failed:", error);
         showLoopNotification("Pretty print metadata retrieval failed Track information might not load correctly or might not be accurate press F5 to try again", 4000);
         return null;
     }
