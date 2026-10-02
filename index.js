@@ -1539,7 +1539,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             //    : domInfo.title,
             title: details.title,
             // these fallbacks are here so incase something explodes we still get the data
-            artist: AuthorNameComposed || domInfo.artist,
+            artist: AuthorNameComposed || details.author_name || domInfo.artist,
             artistUrl: getMusicAuthorUrl(details.author_url) || liveInfo.artistUrl || domInfo.artistUrl,
             album: details.album || oldPlayerBarAlbumName || liveInfo.album || domInfo.album,
             albumUrl: details.album_url || liveInfo.albumUrl || domInfo.albumUrl,
