@@ -94,7 +94,9 @@ function publishElectronMiniPlayerState({ force = false } = {}) {
     const state = {
         title: loop?.querySelector("#loop-track-title")?.textContent.trim() || "Nothing playing",
         artist: loop?.querySelector("#loop-track-artist")?.textContent.trim() || "Search something to play",
-        album: loop?.querySelector("#loop-track-album")?.textContent.trim() || "",
+        album: loopPreferences.showAlbum
+            ? loop?.querySelector("#loop-track-album")?.textContent.trim() || ""
+            : undefined,
         artwork: loop?.querySelector("#loop-artwork")?.src || getFallbackArtwork(),
         currentTime: media && Number.isFinite(media.currentTime) ? media.currentTime : 0,
         duration: media && Number.isFinite(media.duration) ? media.duration : 0,
@@ -608,6 +610,8 @@ function applyLoopPreferences() {
     if (albumToggle) albumToggle.checked = Boolean(loopPreferences.showAlbum);
     setTrackNavigationButtonsVisible(Boolean(loopPreferences.showNavigationButtons));
     applyArtworkPreference();
+    miniPlayerBridge?.sync(getCurrentMedia());
+    publishElectronMiniPlayerState({ force: true });
 }
 
 function applyArtworkPreference() {
@@ -1045,7 +1049,10 @@ async function openMiniPlayer() {
         updateMiniKawarp(artworkURL);
         nodes.title.textContent = empty ? "Nothing playing" : loop.querySelector("#loop-track-title")?.textContent.trim() || "Unknown track";
         nodes.artist.textContent = empty ? "Search something to play" : loop.querySelector("#loop-track-artist")?.textContent.trim() || "Unknown artist";
-        nodes.album.textContent = empty ? "" : loop.querySelector("#loop-track-album")?.textContent.trim() || "";
+        const album = !empty && loopPreferences.showAlbum
+            ? loop.querySelector("#loop-track-album")?.textContent.trim() || ""
+            : undefined;
+        nodes.album.textContent = album ?? "";
         nodes.play.disabled = !media;
         nodes.seek.disabled = !media;
         nodes.play.innerHTML = media && !media.paused ? "&#9208;" : "&#9654;";
