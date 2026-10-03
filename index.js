@@ -249,6 +249,181 @@ const loopPreferencesKey = "loop.mp3.preferences";
 const kawarpConfigKey = "loop.mp3.kawarp-config";
 const kawarpCustomPresetsKey = "loop.mp3.kawarp-custom-presets";
 const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
+const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
+
+function getOnboardingStorageKey() {
+    return `${getInstalledVersion()}IsOnboarded`;
+}
+
+function isOnboardingComplete() {
+    try {
+        return JSON.parse(localStorage.getItem(getOnboardingStorageKey()) || "false") === true;
+    } catch {
+        return false;
+    }
+}
+
+function completeOnboarding() {
+    try {
+        // localStorage stores strings, so JSON preserves the requested boolean value.
+        localStorage.setItem(getOnboardingStorageKey(), JSON.stringify(true));
+    } catch {
+        // The onboarding is still useful if storage is unavailable for this page.
+    }
+}
+
+function escapeHTML(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function renderChangelogMarkdown(markdown) {
+    const inline = (value) => escapeHTML(value)
+        .replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+        .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+        .replace(/_([^_]+)_/g, "<em>$1</em>")
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+            '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+    const output = [];
+    let listItems = [];
+    const flushList = () => {
+        if (!listItems.length) return;
+        output.push(`<ul>${listItems.map((item) => `<li>${inline(item)}</li>`).join("")}</ul>`);
+        listItems = [];
+    };
+
+    String(markdown).split(/\r?\n/).forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+            flushList();
+            return;
+        }
+        const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+        const listItem = trimmed.match(/^[-*+]\s+(.+)$/);
+        if (heading) {
+            flushList();
+            const level = Math.min(heading[1].length + 1, 4);
+            output.push(`<h${level}>${inline(heading[2])}</h${level}>`);
+        } else if (listItem) {
+            listItems.push(listItem[1]);
+        } else {
+            flushList();
+            output.push(`<p>${inline(trimmed)}</p>`);
+        }
+    });
+    flushList();
+    return output.join("");
+}
+
+function showOnboarding() {
+    if (isOnboardingComplete() || document.getElementById("loop-onboarding-modal")) return;
+
+    const modal = document.createElement("div");
+    modal.id = "loop-onboarding-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "loop-onboarding-title");
+    modal.innerHTML = `
+        <div class="loop-onboarding-card">
+            <div class="loop-onboarding-header">
+                <div>
+                    <div class="loop-onboarding-kicker">Welcome to Loop</div>
+                    <h2 id="loop-onboarding-title">What’s new</h2>
+                </div>
+                <button type="button" class="loop-onboarding-close" aria-label="Skip onboarding">&#215;</button>
+            </div>
+            <div class="loop-onboarding-step" data-step="0">
+                <p class="loop-onboarding-description">Here’s what changed in the latest release.</p>
+                <div class="loop-onboarding-changelog" aria-live="polite">Loading changelog...</div>
+            </div>
+            <div class="loop-onboarding-step" data-step="1" hidden>
+                <p class="loop-onboarding-description">Would you like to use Kawarp, Loop’s animated artwork background?</p>
+                <div class="loop-onboarding-choice-row">
+                    <button type="button" class="loop-onboarding-choice loop-onboarding-kawarp-yes">Yes, use Kawarp</button>
+                    <button type="button" class="loop-onboarding-choice loop-onboarding-kawarp-no">No, keep it off</button>
+                </div>
+                <p class="loop-onboarding-status" role="status" aria-live="polite">Kawarp is currently enabled.</p>
+                <button type="button" class="loop-onboarding-secondary loop-onboarding-config">Choose a Kawarp preset or import your own config</button>
+            </div>
+            <div class="loop-onboarding-step" data-step="2" hidden>
+                <p class="loop-onboarding-description">Choose your mini-player preferences. You can change these later from the Loop menu.</p>
+                <label class="loop-onboarding-check"><input class="loop-onboarding-mini-player" type="checkbox"> Open the mini-player when the app is minimized</label>
+                <label class="loop-onboarding-check"><input class="loop-onboarding-navigation" type="checkbox"> Show previous and next buttons</label>
+            </div>
+            <div class="loop-onboarding-footer">
+                <span class="loop-onboarding-progress" aria-live="polite">1 / 3</span>
+                <div class="loop-onboarding-actions">
+                    <button type="button" class="loop-onboarding-prev" disabled>Previous</button>
+                    <button type="button" class="loop-onboarding-next">Next</button>
+                </div>
+            </div>
+        </div>`;
+    (document.getElementById("loop") || document.body).appendChild(modal);
+
+    const steps = [...modal.querySelectorAll(".loop-onboarding-step")];
+    const progress = modal.querySelector(".loop-onboarding-progress");
+    const previous = modal.querySelector(".loop-onboarding-prev");
+    const next = modal.querySelector(".loop-onboarding-next");
+    let currentStep = 0;
+
+    const finish = ({ save = true } = {}) => {
+        if (save) {
+            loopPreferences.autoOpenMiniPlayer = modal.querySelector(".loop-onboarding-mini-player").checked;
+            loopPreferences.showNavigationButtons = modal.querySelector(".loop-onboarding-navigation").checked;
+            saveLoopPreferences();
+            applyLoopPreferences();
+        }
+        completeOnboarding();
+        modal.remove();
+    };
+    const renderStep = () => {
+        steps.forEach((step, index) => { step.hidden = index !== currentStep; });
+        progress.textContent = `${currentStep + 1} / ${steps.length}`;
+        previous.disabled = currentStep === 0;
+        next.textContent = currentStep === steps.length - 1 ? "Finish" : "Next";
+    };
+
+    previous.addEventListener("click", () => {
+        if (currentStep > 0) { currentStep -= 1; renderStep(); }
+    });
+    next.addEventListener("click", () => {
+        if (currentStep === steps.length - 1) { finish(); return; }
+        currentStep += 1;
+        renderStep();
+    });
+    modal.querySelector(".loop-onboarding-close").addEventListener("click", () => finish({ save: false }));
+    modal.querySelector(".loop-onboarding-kawarp-yes").addEventListener("click", () => {
+        setKawarpEnabled(true);
+        modal.querySelector(".loop-onboarding-status").textContent = "Kawarp is enabled.";
+    });
+    modal.querySelector(".loop-onboarding-kawarp-no").addEventListener("click", () => {
+        setKawarpEnabled(false);
+        modal.querySelector(".loop-onboarding-status").textContent = "Kawarp is disabled.";
+    });
+    modal.querySelector(".loop-onboarding-config").addEventListener("click", showKawarpConfigEditor);
+    modal.querySelector(".loop-onboarding-mini-player").checked = loopPreferences.autoOpenMiniPlayer !== false;
+    modal.querySelector(".loop-onboarding-navigation").checked = Boolean(loopPreferences.showNavigationButtons);
+    modal.addEventListener("keydown", (event) => { if (event.key === "Escape") finish({ save: false }); });
+    renderStep();
+
+    fetch(onboardingChangelogURL, { cache: "no-store" })
+        .then((response) => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.text();
+        })
+        .then((changelog) => { modal.querySelector(".loop-onboarding-changelog").innerHTML = renderChangelogMarkdown(changelog); })
+        .catch(() => {
+            modal.querySelector(".loop-onboarding-changelog").textContent = "Could not load the changelog. You can read it on GitHub after onboarding.";
+        });
+    modal.querySelector(".loop-onboarding-next").focus();
+}
 
 function getUpdateURL() {
     return defaultUpdateURL;
@@ -1819,6 +1994,7 @@ function updateLoop(artworkURL, trackInfo) {
             const panel = loop.querySelector("#loop-shortcuts-panel");
             panel.hidden = !panel.hidden;
         });
+        showOnboarding();
         loop.addEventListener("click", (event) => {
             const searchBar = document.querySelector("ytmusic-search-box");
             const resultsPanel = document.getElementById("loop-search-results");
