@@ -383,20 +383,28 @@ function showOnboarding() {
         completeOnboarding();
         modal.remove();
     };
-    const renderStep = () => {
-        steps.forEach((step, index) => { step.hidden = index !== currentStep; });
+    const renderStep = (direction = "next") => {
+        modal.dataset.transition = direction;
+        steps.forEach((step, index) => {
+            step.classList.remove("loop-onboarding-step-active");
+            step.hidden = index !== currentStep;
+        });
+        const activeStep = steps[currentStep];
+        // Force a layout pass so the same step animates every time it is shown.
+        void activeStep.offsetWidth;
+        activeStep.classList.add("loop-onboarding-step-active");
         progress.textContent = `${currentStep + 1} / ${steps.length}`;
         previous.disabled = currentStep === 0;
         next.textContent = currentStep === steps.length - 1 ? "Finish" : "Next";
     };
 
     previous.addEventListener("click", () => {
-        if (currentStep > 0) { currentStep -= 1; renderStep(); }
+        if (currentStep > 0) { currentStep -= 1; renderStep("previous"); }
     });
     next.addEventListener("click", () => {
         if (currentStep === steps.length - 1) { finish(); return; }
         currentStep += 1;
-        renderStep();
+        renderStep("next");
     });
     modal.querySelector(".loop-onboarding-close").addEventListener("click", () => finish({ save: false }));
     modal.querySelector(".loop-onboarding-kawarp-yes").addEventListener("click", () => {
