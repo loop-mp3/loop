@@ -1260,12 +1260,10 @@ const braccatoLyricsTheme = `
     @import url("https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap");
 
     /* blyrics-target-scroll-pos-ratio = 0.5; */
-    /* blyrics-letter-wave = false; */
     .blyrics-container {
         --blyrics-font-size: 3rem;
         --blyrics-line-height: 1.333;
         --blyrics-padding: 2rem;
-        --blyrics-animate-word-wobble: 0;
         --blyrics-word-wobble-transform-from: scaleX(1);
         --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025);
         --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1);
