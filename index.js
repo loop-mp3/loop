@@ -2482,6 +2482,17 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-seek").addEventListener("input", seekTrack);
         loop.querySelector("#loop-like-button").addEventListener("click", () => triggerYTMAction("like"));
         loop.querySelector("#loop-dislike-button").addEventListener("click", () => triggerYTMAction("dislike"));
+        loop.querySelector("#loop-artwork-toggle").addEventListener("click", () => {
+            loopPreferences.hideArtwork = !loopPreferences.hideArtwork;
+            saveLoopPreferences();
+            applyArtworkPreference();
+        });
+        loop.querySelector("#loop-screen-disable").addEventListener("click", () => {
+            DisableScreen().catch((error) => {
+                console.error("[loop.mp3] Could not put screen to sleep:", error);
+                showLoopNotification("Could not put screen to sleep", 3000);
+            });
+        });
         loop.querySelector("#loop-mini-player-button").addEventListener("click", () => {
             openMiniPlayer().catch((error) => {
                 console.warn("[loop.mp3] Could not open miniplayer:", error);
