@@ -2533,6 +2533,12 @@ function updateLoop(artworkURL, trackInfo) {
             loop.querySelector("#loop-shortcuts-panel")
         ));
         document.addEventListener("keydown", (event) => {
+    if (event.shiftKey && event.key === "Delete" && !event.repeat && document.getElementById("loop")) {
+        event.preventDefault();
+        showLoopResetModal();
+        return;
+    }
+
             if (!event.shiftKey || event.key !== "Delete" || event.repeat) return;
             if (!document.getElementById("loop")) return;
             event.preventDefault();
