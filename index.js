@@ -2575,6 +2575,28 @@ function updateLoop(artworkURL, trackInfo) {
             restoreLoopQueue();
             hideLoopSearch();
         });
+        document.addEventListener("pointerdown", (event) => {
+            const searchBar = document.querySelector("ytmusic-search-box");
+            const resultsPanel = document.getElementById("loop-search-results");
+            const searchButton = document.getElementById("loop-search-button");
+
+            if (!searchBar || searchBar.style.display === "none") return;
+            if (!(event.target instanceof Node)) return;
+            if (
+                searchBar.contains(event.target) ||
+                (resultsPanel && resultsPanel.contains(event.target)) ||
+                (searchButton && searchButton.contains(event.target))
+            ) {
+                return;
+            }
+
+            document.dispatchEvent(new KeyboardEvent("keydown", {
+                key: "Escape",
+                code: "Escape",
+                bubbles: true,
+                cancelable: true,
+            }));
+        }, true);
     }
     const artwork = loop.querySelector("#loop-artwork");
     const title = loop.querySelector("#loop-track-title");
@@ -2944,6 +2966,12 @@ async function updateForCurrentTrack(playerBar) {
         syncTrackFeedbackState();
         scheduleTrackFeedbackSync();
         return;
+    }
+
+    const searchBar = document.querySelector("ytmusic-search-box");
+    if (searchBar && searchBar.style.display !== "none") {
+        closeLoopSearchPanel();
+        hideLoopSearch();
     }
 
     lastTrackId = trackId;
