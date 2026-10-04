@@ -2323,19 +2323,6 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-mini-player-toggle" type="checkbox" checked>
                         Open mini player when minimized
                     </label>
-                    <div class="loop-reset-section">
-                        <div class="loop-reset-title">Reset Loop</div>
-                        <div class="loop-reset-description">
-                            Delete all Loop settings and stored data.
-                        </div>
-                        <div class="loop-reset-info">
-                            Open the confirmation dialog before permanently clearing Loop data.
-                        </div>
-                        <button id="loop-reset-button" class="loop-menu-action loop-reset-button" type="button">
-                            <span class="loop-reset-icon" aria-hidden="true">&#128465;</span>
-                            <span class="loop-reset-text">Reset Loop data</span>
-                        </button>
-                    </div>
                 </div>
                 <div id="loop-empty-state" hidden>
                     <div class="loop-empty-title">Nothing is playing</div>
@@ -2405,8 +2392,6 @@ function updateLoop(artworkURL, trackInfo) {
             loopPreferences.autoOpenMiniPlayer = event.target.checked;
             saveLoopPreferences();
         });
-        loop.querySelector("#loop-reset-button").addEventListener("click", showLoopResetModal);
-
         loop.querySelector("#loop-navigation-toggle").addEventListener("change", (event) => {
             loopPreferences.showNavigationButtons = event.target.checked;
             saveLoopPreferences();
