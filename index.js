@@ -2320,7 +2320,7 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-background-toggle" type="checkbox" checked>
                         Animated artwork background <span>(re-enable)</span>
                     </label>
-                    <div id="loop-kawarp-warning" class="loop-kawarp-warning" role="status" hidden>
+                    <div id="loop-kawarp-warning" class="loop-kawarp-warning" role="status" >
                         Kawarp may increase GPU usage and battery drain.
                     </div>
                     <label class="loop-navigation-toggle">
