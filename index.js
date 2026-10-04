@@ -2050,7 +2050,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             domInfo.albumUrl;
         let lyrics;
         if (loopPreferences.showLyrics) {
-            lyrics = await getLyricsFromTrackInfo(trackId, title, artist) || {
+            lyrics = await getLyricsFromTrackInfo(trackId, title, AuthorNameComposed) || {
                 meta: null,
                 syncedLyrics: null,
                 plainLyrics: null,
