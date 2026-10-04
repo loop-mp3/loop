@@ -1243,7 +1243,7 @@
 
 .loop-reset-modal-actions {
     display: flex;
-    justify-content: flex-end;
+    flex-direction: column;
     gap: 8px;
     margin-top: 22px;
 }
