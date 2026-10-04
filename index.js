@@ -234,6 +234,7 @@ let loopPreferences = {
     autoOpenMiniPlayer: true,
     useLegacyFallbackArtwork: false,
     showAlbum: false,
+    showLyrics: false,
     theme: "default",
 };
 let currentArtworkURL = "";
@@ -243,6 +244,7 @@ let kawarpWarningTimer;
 let braccatoLyricsPromise;
 let braccatoLyricsRenderer;
 let braccatoLyricsMount;
+let lyricsRequestId = 0;
 let notificationTimer;
 let notificationAnimationTimer;
 let notificationAnimationFrame;
@@ -601,6 +603,7 @@ function applyLoopPreferences() {
     miniPlayerBridge?.setTheme(loopPreferences.theme);
     loop.classList.toggle("loop-no-vinyl", loopPreferences.hideVinyl);
     loop.classList.toggle("loop-hide-album", !loopPreferences.showAlbum);
+    loop.classList.toggle("loop-lyrics-disabled", !loopPreferences.showLyrics);
     const vinylToggle = loop.querySelector("#loop-vinyl-toggle");
     if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
     const navigationToggle = loop.querySelector("#loop-navigation-toggle");
@@ -611,6 +614,13 @@ function applyLoopPreferences() {
     if (legacyFallbackToggle) legacyFallbackToggle.checked = Boolean(loopPreferences.useLegacyFallbackArtwork);
     const albumToggle = loop.querySelector("#loop-album-toggle");
     if (albumToggle) albumToggle.checked = Boolean(loopPreferences.showAlbum);
+    const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
+    if (lyricsToggle) lyricsToggle.checked = Boolean(loopPreferences.showLyrics);
+    const lyricsPanel = loop.querySelector("#loop-lyrics-panel");
+    if (lyricsPanel && !loopPreferences.showLyrics) {
+        lyricsPanel.hidden = true;
+        braccatoLyricsRenderer?.clear();
+    }
     setTrackNavigationButtonsVisible(Boolean(loopPreferences.showNavigationButtons));
     applyArtworkPreference();
     miniPlayerBridge?.sync(getCurrentMedia());
@@ -1344,6 +1354,14 @@ function updateLoopLyrics(lyrics, empty = false) {
     const panel = document.querySelector("#loop-lyrics-panel");
     const host = panel?.querySelector("#loop-lyrics-host");
     if (!panel || !host) return;
+    if (!loopPreferences.showLyrics) {
+        panel.hidden = true;
+        braccatoLyricsRenderer?.clear();
+        return;
+    }
+    const requestId = lyricsRequestId;
+    const trackId = getCurrentTrackId(getYTMPlayerRoot()) ||
+        (getCurrentMedia() ? lastTrackId : undefined);
     const shadow = host.shadowRoot || host.attachShadow({ mode: "open" });
     if (!shadow.querySelector("#loop-lyrics-loading")) {
         const style = document.createElement("style");
@@ -1397,6 +1415,11 @@ function updateLoopLyrics(lyrics, empty = false) {
 
     loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
     loadBraccatoLyrics().then(({ createLyricsRenderer, styles }) => {
+        if (
+            requestId !== lyricsRequestId ||
+            !loopPreferences.showLyrics ||
+            trackId !== (getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId)
+        ) return;
         let view = shadow.querySelector("#loop-lyrics-view");
         if (!view) {
             const style = document.createElement("style");
@@ -2025,27 +2048,28 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             details.album_url ||
             liveInfo.albumUrl ||
             domInfo.albumUrl;
-        const lyrics = await getLyricsFromTrackInfo(trackId, title, artist) || {
-            meta: null,
-            syncedLyrics: null,
-            plainLyrics: null,
-        };
-        console.log(`[loop.mp3] lyrics metadata: `, lyrics.meta);
-        console.log(`[loop.mp3] lyrics syncedLyrics: 
-${lyrics.syncedLyrics}    `);
-        console.log(`[loop.mp3] lyrics plainLyrics: 
-${lyrics.plainLyrics}    `);
+        let lyrics;
+        if (loopPreferences.showLyrics) {
+            lyrics = await getLyricsFromTrackInfo(trackId, title, artist) || {
+                meta: null,
+                syncedLyrics: null,
+                plainLyrics: null,
+            };
+            console.log("[loop.mp3] Lyrics metadata:", lyrics.meta);
+            console.log("[loop.mp3] Synced lyrics:", lyrics.syncedLyrics);
+            console.log("[loop.mp3] Plain lyrics:", lyrics.plainLyrics);
+        }
         return {
             title,
             artist,
             artistUrl,
             album,
             albumUrl,
-            lyrics: {
+            lyrics: lyrics ? {
                 meta: lyrics.meta,
                 syncedLyrics: lyrics.syncedLyrics,
                 plainLyrics: lyrics.plainLyrics
-            }
+            } : undefined
         };
     } catch (error) {
         showLoopNotification("Could not fetch track metadata. Information might not load correctly press F5 to try again", 4000);
@@ -2139,6 +2163,13 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-legacy-fallback-toggle" type="checkbox">
                         Use legacy fallback artwork
                     </label>
+                    <label class="loop-navigation-toggle">
+                        <input id="loop-lyrics-toggle" type="checkbox">
+                        Show lyrics <span>(experimental)</span>
+                    </label>
+                    <div class="loop-setting-warning" role="note">
+                        Experimental feature. Lyrics are fetched from LRCLIB.
+                    </div>
                     <button id="loop-kawarp-config-button" class="loop-menu-action" type="button">
                         Edit Kawarp shader config
                     </button>
@@ -2252,6 +2283,34 @@ function updateLoop(artworkURL, trackInfo) {
             loopPreferences.useLegacyFallbackArtwork = event.target.checked;
             saveLoopPreferences();
             applyLoopPreferences();
+        });
+        loop.querySelector("#loop-lyrics-toggle").addEventListener("change", async (event) => {
+            loopPreferences.showLyrics = event.target.checked;
+            saveLoopPreferences();
+            const requestId = ++lyricsRequestId;
+            applyLoopPreferences();
+            if (!loopPreferences.showLyrics) return;
+
+            const trackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
+            const title = loop.querySelector("#loop-track-title").textContent.trim();
+            const artist = loop.querySelector("#loop-track-artist").textContent.trim();
+            if (!trackId || !title || !artist) {
+                updateLoopLyrics(null);
+                return;
+            }
+
+            updateLoopLyrics(undefined);
+            const lyrics = await getLyricsFromTrackInfo(trackId, title, artist);
+            if (
+                requestId !== lyricsRequestId ||
+                !loopPreferences.showLyrics ||
+                trackId !== (getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId)
+            ) return;
+            updateLoopLyrics(lyrics || {
+                meta: null,
+                syncedLyrics: null,
+                plainLyrics: null,
+            });
         });
         loop.querySelector("#loop-theme-select").addEventListener("change", (event) => {
             loopPreferences.theme = event.target.value;
@@ -2638,6 +2697,7 @@ async function updateForCurrentTrack(playerBar) {
         artworkURL,
     ].join("|");
     if (!trackId && !getCurrentMedia()) {
+        lyricsRequestId += 1;
         const loop = document.getElementById("loop");
         if (!emptyScreenDismissed) {
             updateLoop(getFallbackArtwork(), {
@@ -2668,6 +2728,7 @@ async function updateForCurrentTrack(playerBar) {
     lastTrackId = trackId;
     lastTrackKey = trackSignature;
     const requestId = ++metadataRequest;
+    lyricsRequestId += 1;
     updateLoop(artworkURL, liveTrackInfo);
     syncRecordMotion();
     const trackInfo = await getTrackInfoFromTrackId(trackId, currentPlayerBar);

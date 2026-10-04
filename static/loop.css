@@ -269,6 +269,13 @@
     transform: translate(-50%, -50%) rotate(var(--loop-rotation, 0deg));
 }
 
+#loop.loop-lyrics-disabled #loop-player::after,
+#loop.loop-lyrics-disabled #loop-artwork,
+#loop.loop-lyrics-disabled #loop-track-info,
+#loop.loop-lyrics-disabled #loop-seek-row {
+    left: 50%;
+}
+
 #loop.loop-no-vinyl #loop-artwork {
     border-radius: 12px;
     transform: translate(-50%, -50%);
