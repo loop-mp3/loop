@@ -1416,11 +1416,15 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
         const lyricsResponse = await fetch(`https://lrclib.net/api/get/${lyricsQueryFirstResult.id}`);
         if (!lyricsResponse.ok) throw new Error(`LRCLIB returned ${lyricsResponse.status}`);
         const lyricsMeta = await lyricsResponse.json();
+        const syncedLyrics = lyricsMeta?.syncedLyrics || lyricsQueryFirstResult.syncedLyrics || null;
+        const plainLyrics = lyricsMeta?.plainLyrics || lyricsQueryFirstResult.plainLyrics || null;
         console.log("[loop.mp3] Fetched lyrics for track:", { trackId, title, artist, data });
         return {
             meta: lyricsMeta,
-            syncedLyrics: lyricsMeta?.syncedLyrics || lyricsQueryFirstResult.syncedLyrics || null,
-            plainLyrics: lyricsMeta?.plainLyrics || lyricsQueryFirstResult.plainLyrics || null,
+            syncedLyrics: lyricsMeta?.instrumental && !syncedLyrics && !plainLyrics
+                ? "[00:00.00] Instrumental only"
+                : syncedLyrics,
+            plainLyrics,
         };
     } catch (error) {
         console.warn("[loop.mp3] Could not fetch lyrics:", error);
@@ -1462,7 +1466,7 @@ const braccatoLyricsShadowCSS = `
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
 `;
 
-function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs) {
+function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs, instrumental = false) {
     const lines = String(syncedLyrics || "")
         .split(/\r?\n/)
         .map((line) => {
@@ -1487,6 +1491,14 @@ function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs) {
         .split(/\r?\n/)
         .map((words) => words.trim())
         .filter(Boolean);
+
+    if (instrumental && !plainLines.length) {
+        return [{
+            startTimeMs: 0,
+            durationMs: Number.isFinite(songDurationMs) && songDurationMs > 0 ? songDurationMs : 4_000,
+            words: "Instrumental only",
+        }];
+    }
 
     const lineDurationMs = Number.isFinite(songDurationMs) && songDurationMs > 0
         ? songDurationMs / plainLines.length
@@ -1569,7 +1581,8 @@ function updateLoopLyrics(lyrics, empty = false) {
     const parsedLyrics = parseSyncedLyrics(
         lyrics?.syncedLyrics,
         lyrics?.plainLyrics,
-        mediaDurationMs > 0 ? mediaDurationMs : metadataDurationMs
+        mediaDurationMs > 0 ? mediaDurationMs : metadataDurationMs,
+        lyrics?.meta?.instrumental === true
     );
     if (!parsedLyrics.length) {
         braccatoLyricsRenderer?.clear();
