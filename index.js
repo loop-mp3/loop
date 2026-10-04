@@ -1402,12 +1402,10 @@ function getExtensionURL(path) {
 
 async function getLyricsFromTrackInfo(trackId, title, artist) {
     try {
-        const titleComposed = title.replace(/\s/g, '+');
-        const artistComposed = artist.replace(/\s/g, '+');
-//      // apparently https is racist to some songs with special characters in the title or artist name
-        //const query = `${titleComposed}+${artistComposed}`;
-        const query = `${encodeURIComponent(titleComposed)}+${encodeURIComponent(artistComposed)}`;re
-        const res = await fetch(`https://lrclib.net/api/search?q=${query}`);
+        const query = new URLSearchParams({
+            q: `${title} ${artist}`,
+        }).toString();
+        const res = await fetch(`https://lrclib.net/api/search?${query}`);
         const data = await res.json();
         // here we are gonna select the first result of the query
         const lyricsQueryFirstResult = data?.[0];
