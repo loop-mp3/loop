@@ -603,6 +603,55 @@ function saveLoopPreferences() {
     }
 }
 
+async function resetLoopData() {
+    const storageAreas = [
+        globalThis.chrome?.storage?.local || globalThis.browser?.storage?.local,
+        globalThis.chrome?.storage?.sync || globalThis.browser?.storage?.sync,
+        globalThis.chrome?.storage?.session || globalThis.browser?.storage?.session,
+    ].filter(Boolean);
+
+    await Promise.all(storageAreas.map((storage) => new Promise((resolve, reject) => {
+        storage.clear(() => {
+            const error = globalThis.chrome?.runtime?.lastError ||
+                globalThis.browser?.runtime?.lastError;
+            if (error) {
+                reject(new Error(error.message));
+                return;
+            }
+            resolve();
+        });
+    })));
+
+    // Loop historically stored a few values in the page's localStorage.
+    // Remove only Loop-owned keys, never clear the site's storage wholesale.
+    try {
+        localStorage.removeItem(loopPreferencesKey);
+        localStorage.removeItem(kawarpConfigKey);
+        localStorage.removeItem(kawarpCustomPresetsKey);
+        localStorage.removeItem(getOnboardingStorageKey());
+    } catch (error) {
+        console.warn("[loop.mp3] Could not clear Loop's legacy localStorage keys:", error);
+    }
+
+    loopPreferences = {
+        animatedBackground: true,
+        hideVinyl: true,
+        hideArtwork: false,
+        showNavigationButtons: false,
+        autoOpenMiniPlayer: true,
+        useLegacyFallbackArtwork: false,
+        showAlbum: false,
+        showLyrics: false,
+        theme: "default",
+    };
+
+    kawarpSettings = { ...defaultKawarpSettings };
+    kawarpEnabled = true;
+    lyricsRequestId++;
+
+    return true;
+}
+
 function applyLoopPreferences() {
     const loop = document.querySelector("#loop");
     if (!loop) return;
@@ -2212,6 +2261,24 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-mini-player-toggle" type="checkbox" checked>
                         Open mini player when minimized
                     </label>
+                    <div class="loop-reset-section">
+                        <div class="loop-reset-title">Reset Loop</div>
+                        <div class="loop-reset-description">
+                            Delete all Loop settings and stored data.
+                        </div>
+                        <div class="loop-reset-info">
+                            Hold the delete button to permanently clear Loop data.
+                            YouTube Music data is not affected.
+                        </div>
+                        <button id="loop-reset-button" class="loop-menu-action loop-reset-button" type="button">
+                            <span class="loop-reset-progress" aria-hidden="true"></span>
+                            <span class="loop-reset-content">
+                                <span class="loop-reset-icon" aria-hidden="true">&#128465;</span>
+                                <span class="loop-reset-text">Hold to delete Loop data</span>
+                            </span>
+                        </button>
+                        <div id="loop-reset-status" class="loop-reset-status" role="status" aria-live="polite"></div>
+                    </div>
                 </div>
                 <div id="loop-empty-state" hidden>
                     <div class="loop-empty-title">Nothing is playing</div>
@@ -2281,6 +2348,62 @@ function updateLoop(artworkURL, trackInfo) {
             loopPreferences.autoOpenMiniPlayer = event.target.checked;
             saveLoopPreferences();
         });
+        let loopResetTimer;
+        let loopResetHolding = false;
+        let loopResetComplete = false;
+
+        const resetButton = loop.querySelector("#loop-reset-button");
+        const resetStatus = loop.querySelector("#loop-reset-status");
+
+        const setResetStatus = (message, type = "") => {
+            resetStatus.textContent = message;
+            resetStatus.className = `loop-reset-status visible${type ? ` ${type}` : ""}`;
+        };
+
+        const cancelResetHold = () => {
+            if (!loopResetHolding || loopResetComplete) return;
+
+            loopResetHolding = false;
+            clearTimeout(loopResetTimer);
+            loopResetTimer = undefined;
+            resetButton.classList.remove("holding");
+            setResetStatus("Reset cancelled.");
+        };
+
+        resetButton.addEventListener("pointerdown", (event) => {
+            if (loopResetHolding || loopResetComplete) return;
+            event.preventDefault();
+
+            loopResetHolding = true;
+            resetStatus.textContent = "";
+            resetStatus.className = "loop-reset-status";
+            resetButton.classList.add("holding");
+
+            loopResetTimer = setTimeout(async () => {
+                if (!loopResetHolding) return;
+
+                try {
+                    await resetLoopData();
+                    loopResetComplete = true;
+                    loopResetHolding = false;
+                    resetButton.classList.remove("holding");
+                    resetButton.querySelector(".loop-reset-icon").textContent = "✓";
+                    resetButton.querySelector(".loop-reset-text").textContent = "Loop data deleted";
+                    setResetStatus("Loop data has been deleted.", "success");
+                    applyLoopPreferences();
+                    applyKawarpSettings(kawarpSettings);
+                } catch (error) {
+                    console.error("[loop.mp3] Could not reset Loop data:", error);
+                    loopResetHolding = false;
+                    resetButton.classList.remove("holding");
+                    setResetStatus("Could not reset Loop data.", "error");
+                }
+            }, 1200);
+        });
+
+        resetButton.addEventListener("pointerup", cancelResetHold);
+        resetButton.addEventListener("pointerleave", cancelResetHold);
+        resetButton.addEventListener("pointercancel", cancelResetHold);
         loop.querySelector("#loop-artwork-toggle").addEventListener("click", () => {
             loopPreferences.hideArtwork = !loopPreferences.hideArtwork;
             saveLoopPreferences();
