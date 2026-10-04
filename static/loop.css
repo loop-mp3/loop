@@ -441,6 +441,58 @@
     display: none;
 }
 
+#loop-volume-control {
+    position: relative;
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+}
+
+#loop-volume-popover {
+    position: absolute;
+    top: 100%;
+    right: -8px;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-sizing: border-box;
+    width: 132px;
+    padding: 9px 10px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(8, 8, 8, 0.96);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition: opacity 120ms ease, transform 120ms ease;
+}
+
+#loop-volume-popover span {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 11px;
+    line-height: 1;
+}
+
+#loop-volume-slider {
+    display: block;
+    width: 100%;
+    height: 4px;
+    margin: 0;
+    accent-color: #fff;
+    cursor: pointer;
+}
+
+#loop-volume-control:hover #loop-volume-popover,
+#loop-volume-control:focus-within #loop-volume-popover {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
 .loop-icon {
     display: block;
     width: 14px;

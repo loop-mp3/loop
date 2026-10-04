@@ -2378,7 +2378,14 @@ function updateLoop(artworkURL, trackInfo) {
                     <button id="loop-previous-button" type="button" aria-label="Previous track" hidden>&#9198;</button>
                     <button id="loop-play-button" type="button" aria-label="Play">&#9654;</button>
                     <button id="loop-next-button" type="button" aria-label="Next track" hidden>&#9197;</button>
-                    <button id="loop-mute-button" type="button" aria-label="Mute">&#128266;</button>
+                    <div id="loop-volume-control">
+                        <button id="loop-mute-button" type="button" aria-label="Mute">&#128266;</button>
+                        <div id="loop-volume-popover">
+                            <span>Volume</span>
+                            <input id="loop-volume-slider" type="range" min="0" max="1" step="0.01" value="1"
+                                aria-label="Volume">
+                        </div>
+                    </div>
                     <button id="loop-queue-button" type="button" aria-label="Show queue">&#9776;</button>
                     <button id="loop-search-button" type="button" aria-label="Search">
                         <svg class="loop-icon" viewBox="0 0 512 512" aria-hidden="true">
@@ -2422,6 +2429,7 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-back-button").addEventListener("click", goBackToNormal);
         loop.querySelector("#loop-play-button").addEventListener("click", togglePlayback);
         loop.querySelector("#loop-mute-button").addEventListener("click", toggleMute);
+        loop.querySelector("#loop-volume-slider").addEventListener("input", setVolume);
         loop.querySelector("#loop-previous-button").addEventListener("click", playPreviousTrack);
         loop.querySelector("#loop-next-button").addEventListener("click", playNextTrack);
         loop.querySelector("#loop-seek").addEventListener("input", seekTrack);
@@ -2609,6 +2617,7 @@ function formatTime(seconds) {
 function updatePlaybackControls(media = getCurrentMedia()) {
     const playButton = document.querySelector("#loop-play-button");
     const muteButton = document.querySelector("#loop-mute-button");
+    const volumeSlider = document.querySelector("#loop-volume-slider");
     const seek = document.querySelector("#loop-seek");
     const currentTime = document.querySelector("#loop-current-time");
     const duration = document.querySelector("#loop-duration");
@@ -2622,6 +2631,7 @@ function updatePlaybackControls(media = getCurrentMedia()) {
         seek.max = "0";
         currentTime.textContent = "0:00";
         duration.textContent = "0:00";
+        if (volumeSlider) volumeSlider.value = "1";
     } else if (playButton && muteButton && seek && currentTime && duration && media) {
         playButton.textContent = media.paused ? "▶" : "⏸";
         playButton.setAttribute("aria-label", media.paused ? "Play" : "Pause");
@@ -2631,6 +2641,7 @@ function updatePlaybackControls(media = getCurrentMedia()) {
         seek.value = Number.isFinite(media.currentTime) ? String(media.currentTime) : "0";
         currentTime.textContent = formatTime(media.currentTime);
         duration.textContent = formatTime(media.duration);
+        if (volumeSlider) volumeSlider.value = String(media.volume);
     }
     braccatoLyricsRenderer?.tick(media ? media.currentTime : 0, {
         isPlaying: Boolean(media && !media.paused && !media.ended),
@@ -2658,6 +2669,17 @@ function toggleMute() {
     if (!media) return;
 
     media.muted = !media.muted;
+    updatePlaybackControls(media);
+}
+
+function setVolume(event) {
+    const media = getCurrentMedia();
+    if (!media) return;
+
+    const volume = Number(event.target.value);
+    if (!Number.isFinite(volume)) return;
+    media.volume = Math.min(1, Math.max(0, volume));
+    if (media.volume > 0 && media.muted) media.muted = false;
     updatePlaybackControls(media);
 }
 
@@ -2808,7 +2830,7 @@ function observeMediaTrackChanges(playerBar) {
         ["loadedmetadata", "durationchange", "canplay", "play", "playing", "emptied", "loadstart"].forEach((eventName) => {
             media.addEventListener(eventName, () => scheduleTrackSync(playerBar));
         });
-        ["play", "playing", "pause", "seeking", "seeked", "ratechange"].forEach((eventName) => {
+        ["play", "playing", "pause", "seeking", "seeked", "ratechange", "volumechange"].forEach((eventName) => {
             media.addEventListener(eventName, () => updatePlaybackControls());
         });
         const mediaObserver = new MutationObserver(() => scheduleTrackSync(playerBar));
