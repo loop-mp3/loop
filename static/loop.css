@@ -645,8 +645,8 @@
 }
 
 #loop.loop-lyrics-disabled #loop-action-dock {
-    right: 18px;
-    left: auto;
+    left: 18px;
+    right: auto;
     transform: none;
 }
 
