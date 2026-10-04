@@ -1224,6 +1224,28 @@ function getExtensionURL(path) {
     }
 }
 
+async function getLyricsFromTrackInfo(trackId, title, artist) {
+    try {
+        const titleComposed = title.replace(/\s/g, '+');
+        const artistComposed = artist.replace(/\s/g, '+');
+        const query = `${titleComposed}+${artistComposed}`;
+        const res = await fetch(`https://lrclib.net/api/search?q=${query}`);
+        const data = await res.json();
+        // here we are gonna select the first result of the query
+        const lyricsQueryFirstResult = data?.[0];
+        if (!lyricsQueryFirstResult) {
+            console.warn("[loop.mp3] No lyrics found for track:", { trackId, title, artist });
+        }
+        const lyricsMeta = await fetch(`https://lrclib.net/api/get/${lyricsQueryFirstResult?.id}`);
+        console.log("[loop.mp3] Fetched lyrics for track:", { trackId, title, artist, data });
+        return lyricsMeta.json();
+    } catch (error) {
+        console.warn("[loop.mp3] Could not fetch lyrics:", error);
+        showLoopNotification("Could not fetch lyrics", 3000);
+        return null;
+    }
+}
+
 function loadKawarpRenderer() {
     if (!kawarpRendererPromise) {
         kawarpRendererPromise = import(getExtensionURL("modules/kawarp.js"))
@@ -1807,7 +1829,8 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             details.album_url ||
             liveInfo.albumUrl ||
             domInfo.albumUrl;
-
+        const lyrics = await getLyricsFromTrackInfo(trackId, title, artist);
+        console.log(`[loop.mp3] lyrics: `, lyrics);
         return {
             title,
             artist,
