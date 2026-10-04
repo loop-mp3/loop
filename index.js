@@ -240,6 +240,7 @@ let currentArtworkURL = "";
 let kawarpRendererClass;
 let kawarpRendererPromise;
 let kawarpWarningTimer;
+let braccatoLyricsPromise;
 let notificationTimer;
 let notificationAnimationTimer;
 let notificationAnimationFrame;
@@ -1235,20 +1236,154 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
         const lyricsQueryFirstResult = data?.[0];
         if (!lyricsQueryFirstResult) {
             console.warn("[loop.mp3] No lyrics found for track:", { trackId, title, artist });
+            return { meta: null, syncedLyrics: null, plainLyrics: null };
         }
-        const lyricsMeta = await fetch(`https://lrclib.net/api/get/${lyricsQueryFirstResult?.id}`);
+        const lyricsResponse = await fetch(`https://lrclib.net/api/get/${lyricsQueryFirstResult.id}`);
+        if (!lyricsResponse.ok) throw new Error(`LRCLIB returned ${lyricsResponse.status}`);
+        const lyricsMeta = await lyricsResponse.json();
         console.log("[loop.mp3] Fetched lyrics for track:", { trackId, title, artist, data });
-        //return lyricsMeta.json();
         return {
-            meta: await lyricsMeta.json(),
-            syncedLyrics: lyricsMeta?.syncedLyrics || lyricsQueryFirstResult?.syncedLyrics || null,
-            plainLyrics: lyricsMeta?.plainLyrics || lyricsQueryFirstResult?.plainLyrics || null,
-        }
+            meta: lyricsMeta,
+            syncedLyrics: lyricsMeta?.syncedLyrics || lyricsQueryFirstResult.syncedLyrics || null,
+            plainLyrics: lyricsMeta?.plainLyrics || lyricsQueryFirstResult.plainLyrics || null,
+        };
     } catch (error) {
         console.warn("[loop.mp3] Could not fetch lyrics:", error);
         showLoopNotification("Could not fetch lyrics", 3000);
         return null;
     }
+}
+
+const braccatoLyricsTheme = `
+    /* blyrics-target-scroll-pos-ratio = 0.5; */
+    .blyrics-container {
+        --blyrics-font-size: 3rem;
+        --blyrics-line-height: 1.333;
+        --blyrics-padding: 2rem;
+        --blyrics-word-wobble-transform-from: scaleX(1);
+        --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025);
+        --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1);
+        --blyrics-word-wobble-transform-to: scaleX(1);
+    }
+    .blyrics-container .blyrics-word-highlight:not([data-long-word]) {
+        --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5));
+    }
+`;
+
+const braccatoLyricsShadowCSS = `
+    :host { display: block; width: 100%; height: 100%; color: #fff; font-family: Satoshi, system-ui, sans-serif; }
+    #loop-lyrics-view { display: block; width: 100%; height: 100%; overflow: auto; scrollbar-width: none; }
+    #loop-lyrics-view::-webkit-scrollbar { display: none; }
+    #loop-lyrics-view[hidden], #loop-lyrics-loading[hidden] { display: none; }
+    #loop-lyrics-loading { position: absolute; top: 50%; left: 50%; display: flex; align-items: center; gap: 12px; transform: translate(-50%, -50%); color: rgba(255,255,255,.7); font-size: 15px; white-space: nowrap; }
+    .loop-lyrics-spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.22); border-top-color: #fff; border-radius: 50%; animation: loop-lyrics-spin 800ms linear infinite; }
+    @keyframes loop-lyrics-spin { to { transform: rotate(360deg); } }
+    .blyrics-container { --blyrics-font-family: Satoshi, system-ui, sans-serif; --blyrics-font-size: 3rem; --blyrics-line-height: 1.333; --blyrics-padding: 2rem; --blyrics-word-wobble-transform-from: scaleX(1); --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025); --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1); --blyrics-word-wobble-transform-to: scaleX(1); }
+    .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
+`;
+
+function parseSyncedLyrics(syncedLyrics, plainLyrics) {
+    const lines = String(syncedLyrics || "")
+        .split(/\r?\n/)
+        .map((line) => {
+            const match = line.match(/^\[(\d+):(\d+(?:\.\d+)?)\](.*)$/);
+            if (!match) return null;
+            return {
+                startTimeMs: Number(match[1]) * 60_000 + Number(match[2]) * 1_000,
+                words: match[3].trim(),
+            };
+        })
+        .filter(Boolean)
+        .sort((left, right) => left.startTimeMs - right.startTimeMs);
+
+    if (lines.length) {
+        return lines.map((line, index) => ({
+            ...line,
+            durationMs: Math.max(750, (lines[index + 1]?.startTimeMs || line.startTimeMs + 4_000) - line.startTimeMs),
+        }));
+    }
+
+    return String(plainLyrics || "")
+        .split(/\r?\n/)
+        .map((words, index) => ({ startTimeMs: index * 4_000, durationMs: 4_000, words: words.trim() }))
+        .filter((line) => line.words);
+}
+
+function loadBraccatoLyrics() {
+    if (!braccatoLyricsPromise) {
+        braccatoLyricsPromise = import(getExtensionURL("modules/braccato/element.js"))
+            .then(() => Promise.all(["variables.css", "lyrics.css", "instrumental.css"].map(async (file) => {
+                const response = await fetch(getExtensionURL(`modules/braccato/styles/${file}`));
+                if (!response.ok) throw new Error(`Could not load Braccato stylesheet ${file}`);
+                return response.text();
+            })));
+    }
+    return braccatoLyricsPromise;
+}
+
+function updateLoopLyrics(lyrics, empty = false) {
+    const panel = document.querySelector("#loop-lyrics-panel");
+    const host = panel?.querySelector("#loop-lyrics-host");
+    if (!panel || !host) return;
+    const shadow = host.shadowRoot || host.attachShadow({ mode: "open" });
+    if (!shadow.querySelector("#loop-lyrics-loading")) {
+        const style = document.createElement("style");
+        style.textContent = braccatoLyricsShadowCSS;
+        shadow.appendChild(style);
+        const loading = document.createElement("div");
+        loading.id = "loop-lyrics-loading";
+        loading.setAttribute("role", "status");
+        const spinner = document.createElement("span");
+        spinner.className = "loop-lyrics-spinner";
+        spinner.setAttribute("aria-hidden", "true");
+        const loadingLabel = document.createElement("span");
+        loadingLabel.className = "loop-lyrics-loading-label";
+        loadingLabel.textContent = "Resolving lyrics";
+        loading.append(spinner, loadingLabel);
+        shadow.appendChild(loading);
+    }
+    const loading = shadow.querySelector("#loop-lyrics-loading");
+
+    if (empty) {
+        panel.hidden = true;
+        return;
+    }
+
+    panel.hidden = false;
+    loading.hidden = false;
+    if (lyrics === undefined) {
+        loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
+        return;
+    }
+
+    const parsedLyrics = parseSyncedLyrics(lyrics?.syncedLyrics, lyrics?.plainLyrics);
+    if (!parsedLyrics.length) {
+        loading.querySelector(".loop-lyrics-loading-label").textContent = "Lyrics unavailable";
+        return;
+    }
+
+    loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
+    loadBraccatoLyrics().then((braccatoStyles) => {
+        let view = shadow.querySelector("#loop-lyrics-view");
+        if (!view) {
+            const style = document.createElement("style");
+            style.textContent = braccatoStyles.join("\n");
+            shadow.appendChild(style);
+            view = document.createElement("braccato-lyrics");
+            view.id = "loop-lyrics-view";
+            view.setAttribute("layout", "scroll");
+            view.hidden = true;
+            shadow.appendChild(view);
+        }
+        view.theme = braccatoLyricsTheme;
+        view.lyrics = parsedLyrics;
+        view.lyricsOptions = { noLyrics: false };
+        loading.hidden = true;
+        view.hidden = false;
+    }).catch((error) => {
+        console.warn("[loop.mp3] Could not load Braccato lyrics renderer:", error);
+        loading.querySelector(".loop-lyrics-loading-label").textContent = "Lyrics could not load";
+    });
 }
 
 function loadKawarpRenderer() {
@@ -1834,7 +1969,11 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             details.album_url ||
             liveInfo.albumUrl ||
             domInfo.albumUrl;
-        const lyrics = await getLyricsFromTrackInfo(trackId, title, artist);
+        const lyrics = await getLyricsFromTrackInfo(trackId, title, artist) || {
+            meta: null,
+            syncedLyrics: null,
+            plainLyrics: null,
+        };
         console.log(`[loop.mp3] lyrics metadata: `, lyrics.meta);
         console.log(`[loop.mp3] lyrics syncedLyrics: 
 ${lyrics.syncedLyrics}    `);
@@ -1846,6 +1985,11 @@ ${lyrics.plainLyrics}    `);
             artistUrl,
             album,
             albumUrl,
+            lyrics: {
+                meta: lyrics.meta,
+                syncedLyrics: lyrics.syncedLyrics,
+                plainLyrics: lyrics.plainLyrics
+            }
         };
     } catch (error) {
         showLoopNotification("Could not fetch track metadata. Information might not load correctly press F5 to try again", 4000);
@@ -1980,6 +2124,9 @@ function updateLoop(artworkURL, trackInfo) {
                         <span id="loop-duration">0:00</span>
                     </div>
                 </div>
+                <section id="loop-lyrics-panel" aria-label="Synchronized lyrics" hidden>
+                    <div id="loop-lyrics-host"></div>
+                </section>
                 <div id="loop-action-dock" aria-label="Track actions">
                     <button id="loop-like-button" type="button" aria-label="Like current track" title="Like current track">
                         <i class="fa-solid fa-thumbs-up" aria-hidden="true"></i>
@@ -2137,6 +2284,7 @@ function updateLoop(artworkURL, trackInfo) {
     syncTrackFeedbackState();
     scheduleTrackFeedbackSync();
     updateKawarpArtwork(artwork.src);
+    updateLoopLyrics(trackInfo.lyrics, Boolean(trackInfo.empty));
     updatePlaybackControls(getCurrentMedia());
     publishDiscordActivity({ force: true });
 }
@@ -2192,6 +2340,11 @@ function updatePlaybackControls(media = getCurrentMedia()) {
         seek.value = Number.isFinite(media.currentTime) ? String(media.currentTime) : "0";
         currentTime.textContent = formatTime(media.currentTime);
         duration.textContent = formatTime(media.duration);
+    }
+    const lyricsView = document.querySelector("#loop-lyrics-host")?.shadowRoot?.querySelector("#loop-lyrics-view");
+    if (lyricsView) {
+        lyricsView.currentTime = media ? media.currentTime : 0;
+        lyricsView.playing = Boolean(media && !media.paused && !media.ended);
     }
     miniPlayerBridge?.sync(media);
     publishElectronMiniPlayerState();

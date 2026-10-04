@@ -21,7 +21,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["config/shader.json", "config/presets/*", "modules/kawarp.js", "static/fallback-artwork.png", "static/fallback-legacy.png"],
+      "resources": ["config/shader.json", "config/presets/*", "modules/kawarp.js", "modules/braccato/*", "modules/braccato/styles/*", "static/fallback-artwork.png", "static/fallback-legacy.png"],
       "matches": ["https://music.youtube.com/*"]
     }
   ],

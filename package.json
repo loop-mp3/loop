@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@braccato/core": "^1.16.3",
     "@kawarp/core": "1.2.0"
   }
 }
