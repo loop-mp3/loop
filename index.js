@@ -241,6 +241,8 @@ let kawarpRendererClass;
 let kawarpRendererPromise;
 let kawarpWarningTimer;
 let braccatoLyricsPromise;
+let braccatoLyricsRenderer;
+let braccatoLyricsMount;
 let notificationTimer;
 let notificationAnimationTimer;
 let notificationAnimationFrame;
@@ -1255,16 +1257,21 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
 }
 
 const braccatoLyricsTheme = `
+    @import url("https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap");
+
     /* blyrics-target-scroll-pos-ratio = 0.5; */
+    /* blyrics-letter-wave = false; */
     .blyrics-container {
         --blyrics-font-size: 3rem;
         --blyrics-line-height: 1.333;
         --blyrics-padding: 2rem;
+        --blyrics-animate-word-wobble: 0;
         --blyrics-word-wobble-transform-from: scaleX(1);
         --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025);
         --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1);
         --blyrics-word-wobble-transform-to: scaleX(1);
     }
+
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) {
         --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5));
     }
@@ -1275,6 +1282,8 @@ const braccatoLyricsShadowCSS = `
     #loop-lyrics-view { display: block; width: 100%; height: 100%; overflow: auto; scrollbar-width: none; }
     #loop-lyrics-view::-webkit-scrollbar { display: none; }
     #loop-lyrics-view[hidden], #loop-lyrics-loading[hidden] { display: none; }
+    .blyrics--line:not(.blyrics--active) { filter: blur(2px); transition: filter 250ms ease; }
+    .blyrics--line.blyrics--active { filter: none; }
     #loop-lyrics-loading { position: absolute; top: 50%; left: 50%; display: flex; align-items: center; gap: 12px; transform: translate(-50%, -50%); color: rgba(255,255,255,.7); font-size: 15px; white-space: nowrap; }
     .loop-lyrics-spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.22); border-top-color: #fff; border-radius: 50%; animation: loop-lyrics-spin 800ms linear infinite; }
     @keyframes loop-lyrics-spin { to { transform: rotate(360deg); } }
@@ -1282,7 +1291,7 @@ const braccatoLyricsShadowCSS = `
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
 `;
 
-function parseSyncedLyrics(syncedLyrics, plainLyrics) {
+function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs) {
     const lines = String(syncedLyrics || "")
         .split(/\r?\n/)
         .map((line) => {
@@ -1303,20 +1312,32 @@ function parseSyncedLyrics(syncedLyrics, plainLyrics) {
         }));
     }
 
-    return String(plainLyrics || "")
+    const plainLines = String(plainLyrics || "")
         .split(/\r?\n/)
-        .map((words, index) => ({ startTimeMs: index * 4_000, durationMs: 4_000, words: words.trim() }))
-        .filter((line) => line.words);
+        .map((words) => words.trim())
+        .filter(Boolean);
+
+    const lineDurationMs = Number.isFinite(songDurationMs) && songDurationMs > 0
+        ? songDurationMs / plainLines.length
+        : 4_000;
+    return plainLines.map((words, index) => ({
+        startTimeMs: index * lineDurationMs,
+        durationMs: lineDurationMs,
+        words,
+    }));
 }
 
 function loadBraccatoLyrics() {
     if (!braccatoLyricsPromise) {
-        braccatoLyricsPromise = import(getExtensionURL("modules/braccato/element.js"))
-            .then(() => Promise.all(["variables.css", "lyrics.css", "instrumental.css"].map(async (file) => {
-                const response = await fetch(getExtensionURL(`modules/braccato/styles/${file}`));
-                if (!response.ok) throw new Error(`Could not load Braccato stylesheet ${file}`);
-                return response.text();
-            })));
+        braccatoLyricsPromise = import(getExtensionURL("modules/braccato/renderer.js"))
+            .then(async ({ createLyricsRenderer }) => ({
+                createLyricsRenderer,
+                styles: await Promise.all(["variables.css", "lyrics.css", "instrumental.css"].map(async (file) => {
+                    const response = await fetch(getExtensionURL(`modules/braccato/styles/${file}`));
+                    if (!response.ok) throw new Error(`Could not load Braccato stylesheet ${file}`);
+                    return response.text();
+                })),
+            }));
     }
     return braccatoLyricsPromise;
 }
@@ -1346,6 +1367,7 @@ function updateLoopLyrics(lyrics, empty = false) {
 
     if (empty) {
         panel.hidden = true;
+        braccatoLyricsRenderer?.clear();
         return;
     }
 
@@ -1356,30 +1378,66 @@ function updateLoopLyrics(lyrics, empty = false) {
         return;
     }
 
-    const parsedLyrics = parseSyncedLyrics(lyrics?.syncedLyrics, lyrics?.plainLyrics);
+    const mediaDuration = getCurrentMedia()?.duration;
+    const metadataDuration = Number(lyrics?.meta?.duration);
+    const mediaDurationMs = Number.isFinite(mediaDuration) && mediaDuration > 0
+        ? mediaDuration * 1_000
+        : 0;
+    const metadataDurationMs = Number.isFinite(metadataDuration) && metadataDuration > 0
+        ? metadataDuration * 1_000
+        : 0;
+    const parsedLyrics = parseSyncedLyrics(
+        lyrics?.syncedLyrics,
+        lyrics?.plainLyrics,
+        mediaDurationMs > 0 ? mediaDurationMs : metadataDurationMs
+    );
     if (!parsedLyrics.length) {
+        braccatoLyricsRenderer?.clear();
         loading.querySelector(".loop-lyrics-loading-label").textContent = "Lyrics unavailable";
         return;
     }
 
     loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
-    loadBraccatoLyrics().then((braccatoStyles) => {
+    loadBraccatoLyrics().then(({ createLyricsRenderer, styles }) => {
         let view = shadow.querySelector("#loop-lyrics-view");
         if (!view) {
             const style = document.createElement("style");
-            style.textContent = braccatoStyles.join("\n");
+            style.textContent = styles.join("\n");
             shadow.appendChild(style);
-            view = document.createElement("braccato-lyrics");
+            const themeStyle = document.createElement("style");
+            themeStyle.textContent = braccatoLyricsTheme;
+            shadow.appendChild(themeStyle);
+            view = document.createElement("div");
             view.id = "loop-lyrics-view";
-            view.setAttribute("layout", "scroll");
             view.hidden = true;
             shadow.appendChild(view);
         }
-        view.theme = braccatoLyricsTheme;
-        view.lyrics = parsedLyrics;
-        view.lyricsOptions = { noLyrics: false };
+        if (braccatoLyricsMount !== view) {
+            braccatoLyricsRenderer?.destroy();
+            braccatoLyricsRenderer = createLyricsRenderer({
+                document,
+                window,
+                mount: view,
+                layout: "scroll",
+                host: {
+                    seek(timeS) {
+                        const media = getCurrentMedia();
+                        if (!media) {
+                            console.warn("[loop.mp3] Cannot seek lyrics because no playable media element is available.");
+                            return;
+                        }
+                        media.currentTime = Math.max(0, Math.min(timeS, media.duration));
+                        updatePlaybackControls(media);
+                    },
+                },
+            });
+            braccatoLyricsMount = view;
+        }
+        braccatoLyricsRenderer.setTheme(braccatoLyricsTheme);
+        braccatoLyricsRenderer.setLyrics(parsedLyrics, { noLyrics: false });
         loading.hidden = true;
         view.hidden = false;
+        updatePlaybackControls();
     }).catch((error) => {
         console.warn("[loop.mp3] Could not load Braccato lyrics renderer:", error);
         loading.querySelector(".loop-lyrics-loading-label").textContent = "Lyrics could not load";
@@ -2341,11 +2399,10 @@ function updatePlaybackControls(media = getCurrentMedia()) {
         currentTime.textContent = formatTime(media.currentTime);
         duration.textContent = formatTime(media.duration);
     }
-    const lyricsView = document.querySelector("#loop-lyrics-host")?.shadowRoot?.querySelector("#loop-lyrics-view");
-    if (lyricsView) {
-        lyricsView.currentTime = media ? media.currentTime : 0;
-        lyricsView.playing = Boolean(media && !media.paused && !media.ended);
-    }
+    braccatoLyricsRenderer?.tick(media ? media.currentTime : 0, {
+        isPlaying: Boolean(media && !media.paused && !media.ended),
+        playbackRate: media?.playbackRate,
+    });
     miniPlayerBridge?.sync(media);
     publishElectronMiniPlayerState();
     publishDiscordActivity();
@@ -2517,6 +2574,9 @@ function observeMediaTrackChanges(playerBar) {
         // background-throttled polling loop.
         ["loadedmetadata", "durationchange", "canplay", "play", "playing", "emptied", "loadstart"].forEach((eventName) => {
             media.addEventListener(eventName, () => scheduleTrackSync(playerBar));
+        });
+        ["play", "playing", "pause", "seeking", "seeked", "ratechange"].forEach((eventName) => {
+            media.addEventListener(eventName, () => updatePlaybackControls());
         });
         const mediaObserver = new MutationObserver(() => scheduleTrackSync(playerBar));
         mediaObserver.observe(media, { attributes: true, attributeFilter: ["src"] });
