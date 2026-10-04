@@ -364,8 +364,12 @@ function showOnboarding() {
                 <label class="loop-onboarding-check"><input class="loop-onboarding-mini-player" type="checkbox"> Open the mini-player when the app is minimized</label>
                 <label class="loop-onboarding-check"><input class="loop-onboarding-navigation" type="checkbox"> Show previous and next buttons</label>
             </div>
+            <div class="loop-onboarding-step" data-step="3" hidden>
+                <p class="loop-onboarding-description">Would you like to enable experimental lyrics? Lyrics are fetched from LRCLIB. You can change this later from the Loop menu.</p>
+                <label class="loop-onboarding-check"><input class="loop-onboarding-lyrics" type="checkbox"> Enable lyrics (experimental)</label>
+            </div>
             <div class="loop-onboarding-footer">
-                <span class="loop-onboarding-progress" aria-live="polite">1 / 3</span>
+                <span class="loop-onboarding-progress" aria-live="polite">1 / 4</span>
                 <div class="loop-onboarding-actions">
                     <button type="button" class="loop-onboarding-prev" disabled>Previous</button>
                     <button type="button" class="loop-onboarding-next">Next</button>
@@ -384,8 +388,10 @@ function showOnboarding() {
         if (save) {
             loopPreferences.autoOpenMiniPlayer = modal.querySelector(".loop-onboarding-mini-player").checked;
             loopPreferences.showNavigationButtons = modal.querySelector(".loop-onboarding-navigation").checked;
+            loopPreferences.showLyrics = modal.querySelector(".loop-onboarding-lyrics").checked;
             saveLoopPreferences();
             applyLoopPreferences();
+            if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
         }
         completeOnboarding();
         modal.remove();
@@ -425,6 +431,7 @@ function showOnboarding() {
     modal.querySelector(".loop-onboarding-config").addEventListener("click", showKawarpConfigEditor);
     modal.querySelector(".loop-onboarding-mini-player").checked = loopPreferences.autoOpenMiniPlayer !== false;
     modal.querySelector(".loop-onboarding-navigation").checked = Boolean(loopPreferences.showNavigationButtons);
+    modal.querySelector(".loop-onboarding-lyrics").checked = Boolean(loopPreferences.showLyrics);
     modal.addEventListener("keydown", (event) => { if (event.key === "Escape") finish({ save: false }); });
     renderStep();
 
@@ -1465,6 +1472,31 @@ function updateLoopLyrics(lyrics, empty = false) {
     });
 }
 
+async function fetchLoopLyricsForCurrentTrack() {
+    const requestId = ++lyricsRequestId;
+    const trackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
+    const loop = document.querySelector("#loop");
+    const title = loop?.querySelector("#loop-track-title")?.textContent.trim();
+    const artist = loop?.querySelector("#loop-track-artist")?.textContent.trim();
+    if (!trackId || !title || !artist) {
+        updateLoopLyrics(null);
+        return;
+    }
+
+    updateLoopLyrics(undefined);
+    const lyrics = await getLyricsFromTrackInfo(trackId, title, artist);
+    if (
+        requestId !== lyricsRequestId ||
+        !loopPreferences.showLyrics ||
+        trackId !== (getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId)
+    ) return;
+    updateLoopLyrics(lyrics || {
+        meta: null,
+        syncedLyrics: null,
+        plainLyrics: null,
+    });
+}
+
 function loadKawarpRenderer() {
     if (!kawarpRendererPromise) {
         kawarpRendererPromise = import(getExtensionURL("modules/kawarp.js"))
@@ -2284,33 +2316,11 @@ function updateLoop(artworkURL, trackInfo) {
             saveLoopPreferences();
             applyLoopPreferences();
         });
-        loop.querySelector("#loop-lyrics-toggle").addEventListener("change", async (event) => {
+        loop.querySelector("#loop-lyrics-toggle").addEventListener("change", (event) => {
             loopPreferences.showLyrics = event.target.checked;
             saveLoopPreferences();
-            const requestId = ++lyricsRequestId;
             applyLoopPreferences();
-            if (!loopPreferences.showLyrics) return;
-
-            const trackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
-            const title = loop.querySelector("#loop-track-title").textContent.trim();
-            const artist = loop.querySelector("#loop-track-artist").textContent.trim();
-            if (!trackId || !title || !artist) {
-                updateLoopLyrics(null);
-                return;
-            }
-
-            updateLoopLyrics(undefined);
-            const lyrics = await getLyricsFromTrackInfo(trackId, title, artist);
-            if (
-                requestId !== lyricsRequestId ||
-                !loopPreferences.showLyrics ||
-                trackId !== (getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId)
-            ) return;
-            updateLoopLyrics(lyrics || {
-                meta: null,
-                syncedLyrics: null,
-                plainLyrics: null,
-            });
+            if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
         });
         loop.querySelector("#loop-theme-select").addEventListener("change", (event) => {
             loopPreferences.theme = event.target.value;
