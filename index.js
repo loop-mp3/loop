@@ -1238,7 +1238,12 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
         }
         const lyricsMeta = await fetch(`https://lrclib.net/api/get/${lyricsQueryFirstResult?.id}`);
         console.log("[loop.mp3] Fetched lyrics for track:", { trackId, title, artist, data });
-        return lyricsMeta.json();
+        //return lyricsMeta.json();
+        return {
+            meta: await lyricsMeta.json(),
+            syncedLyrics: lyricsMeta?.syncedLyrics || lyricsQueryFirstResult?.syncedLyrics || null,
+            plainLyrics: lyricsMeta?.plainLyrics || lyricsQueryFirstResult?.plainLyrics || null,
+        }
     } catch (error) {
         console.warn("[loop.mp3] Could not fetch lyrics:", error);
         showLoopNotification("Could not fetch lyrics", 3000);
@@ -1830,7 +1835,11 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             liveInfo.albumUrl ||
             domInfo.albumUrl;
         const lyrics = await getLyricsFromTrackInfo(trackId, title, artist);
-        console.log(`[loop.mp3] lyrics: `, lyrics);
+        console.log(`[loop.mp3] lyrics metadata: `, lyrics.meta);
+        console.log(`[loop.mp3] lyrics syncedLyrics: 
+${lyrics.syncedLyrics}    `);
+        console.log(`[loop.mp3] lyrics plainLyrics: 
+${lyrics.plainLyrics}    `);
         return {
             title,
             artist,
