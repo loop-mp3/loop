@@ -698,6 +698,10 @@ function showLoopResetModal() {
     confirm.focus();
 }
 
+// Expose the reset modal to the DevTools console without relying on the
+// extension's isolated-world globals.
+document.addEventListener("loop:show-reset-modal", showLoopResetModal);
+
 async function resetLoopData() {
     const localStorageArea =
         globalThis.chrome?.storage?.local || globalThis.browser?.storage?.local;
