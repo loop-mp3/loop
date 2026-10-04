@@ -624,11 +624,11 @@ function showLoopResetModal() {
                 This will delete Loop's stored settings and data. YouTube Music data will not be affected.
             </p>
             <div class="loop-reset-modal-actions">
-                <button type="button" class="loop-reset-modal-cancel">Cancel</button>
                 <button type="button" class="loop-reset-modal-confirm">
                     <span class="loop-reset-modal-progress" aria-hidden="true"></span>
-                    <span class="loop-reset-modal-confirm-content">Hold to delete Loop data</span>
+                    <span class="loop-reset-modal-confirm-content">Hold to reset Loop</span>
                 </button>
+                <button type="button" class="loop-reset-modal-cancel">Cancel</button>
             </div>
         </div>`;
 
@@ -649,7 +649,7 @@ function showLoopResetModal() {
         clearTimeout(resetHoldTimer);
         resetHoldTimer = undefined;
         confirm.classList.remove("holding");
-        confirm.querySelector(".loop-reset-modal-confirm-content").textContent = "Hold to delete Loop data";
+        confirm.querySelector(".loop-reset-modal-confirm-content").textContent = "Hold to reset Loop";
     };
 
     confirm.addEventListener("pointerdown", (event) => {
@@ -677,7 +677,7 @@ function showLoopResetModal() {
                 confirm.disabled = false;
                 resetHolding = false;
                 confirm.classList.remove("holding");
-                confirm.querySelector(".loop-reset-modal-confirm-content").textContent = "Hold to delete Loop data";
+                confirm.querySelector(".loop-reset-modal-confirm-content").textContent = "Hold to reset Loop";
                 showLoopNotification("Could not reset Loop data.", 3000);
             }
         }, 1200);
@@ -699,23 +699,22 @@ function showLoopResetModal() {
 }
 
 async function resetLoopData() {
-    const storageAreas = [
-        globalThis.chrome?.storage?.local || globalThis.browser?.storage?.local,
-        globalThis.chrome?.storage?.sync || globalThis.browser?.storage?.sync,
-        globalThis.chrome?.storage?.session || globalThis.browser?.storage?.session,
-    ].filter(Boolean);
+    const localStorageArea =
+        globalThis.chrome?.storage?.local || globalThis.browser?.storage?.local;
 
-    await Promise.all(storageAreas.map((storage) => new Promise((resolve, reject) => {
-        storage.clear(() => {
-            const error = globalThis.chrome?.runtime?.lastError ||
-                globalThis.browser?.runtime?.lastError;
-            if (error) {
-                reject(new Error(error.message));
-                return;
-            }
-            resolve();
+    if (localStorageArea) {
+        await new Promise((resolve, reject) => {
+            localStorageArea.clear(() => {
+                const error = globalThis.chrome?.runtime?.lastError ||
+                    globalThis.browser?.runtime?.lastError;
+                if (error) {
+                    reject(new Error(error.message));
+                    return;
+                }
+                resolve();
+            });
         });
-    })));
+    }
 
     // Loop historically stored a few values in the page's localStorage.
     // Remove only Loop-owned keys, never clear the site's storage wholesale.
