@@ -1166,87 +1166,6 @@
     background: rgba(255, 255, 255, 0.18);
 }
 
-.loop-reset-section {
-    margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.loop-reset-title {
-    color: #fff;
-    font-size: 12px;
-    font-weight: 700;
-}
-
-.loop-reset-description {
-    margin-top: 3px;
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 11px;
-    line-height: 1.35;
-}
-
-.loop-reset-info {
-    margin: 7px 0 8px;
-    color: rgba(255, 255, 255, 0.58);
-    font-size: 10px;
-    line-height: 1.4;
-}
-
-.loop-reset-button {
-    position: relative;
-    margin-top: 0;
-    overflow: hidden;
-    text-align: center;
-}
-
-.loop-reset-progress {
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 0;
-    background: rgba(255, 80, 80, 0.22);
-    pointer-events: none;
-    transition: width 1200ms linear;
-}
-
-.loop-reset-button.holding .loop-reset-progress {
-    width: 100%;
-}
-
-.loop-reset-content {
-    position: relative;
-    z-index: 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-}
-
-.loop-reset-icon {
-    font-size: 14px;
-}
-
-.loop-reset-status {
-    min-height: 0;
-    margin-top: 6px;
-    font-size: 10px;
-    line-height: 1.35;
-    opacity: 0;
-    transition: opacity 120ms ease;
-}
-
-.loop-reset-status.visible {
-    opacity: 1;
-}
-
-.loop-reset-status.success {
-    color: #9ff0b0;
-}
-
-.loop-reset-status.error {
-    color: #ff9b9b;
-}
-
-
 #loop-reset-modal {
     position: fixed;
     inset: 0;
@@ -1345,9 +1264,29 @@
 }
 
 .loop-reset-modal-actions .loop-reset-modal-confirm {
+    position: relative;
+    overflow: hidden;
     border-color: rgba(255, 120, 120, 0.5);
     background: rgba(255, 80, 80, 0.14);
     color: #ffb0b0;
+}
+
+.loop-reset-modal-progress {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0;
+    background: rgba(255, 80, 80, 0.28);
+    pointer-events: none;
+    transition: width 1200ms linear;
+}
+
+.loop-reset-modal-confirm.holding .loop-reset-modal-progress {
+    width: 100%;
+}
+
+.loop-reset-modal-confirm-content {
+    position: relative;
+    z-index: 1;
 }
 
 .loop-reset-modal-actions .loop-reset-modal-confirm:hover {
@@ -1357,17 +1296,6 @@
 .loop-reset-modal-actions button:disabled {
     cursor: wait;
     opacity: 0.55;
-}
-
-#loop[data-theme="sharp"] .loop-reset-section {
-    border-top-color: #fff;
-}
-
-#loop[data-theme="sharp"] .loop-reset-button {
-    border: 2px solid #000;
-    border-radius: 0;
-    background: #fff;
-    color: #000;
 }
 
 #loop[data-theme="sharp"] #loop-reset-modal {
@@ -1397,12 +1325,6 @@
 #loop[data-theme="sharp"] .loop-reset-modal-actions .loop-reset-modal-confirm {
     background: #fff;
     color: #000;
-}
-
-#loop[data-theme="catppuccin"] .loop-reset-button {
-    border-color: var(--ctp-overlay);
-    background: var(--ctp-surface);
-    color: var(--ctp-text);
 }
 
 #loop[data-theme="catppuccin"] #loop-reset-modal {
