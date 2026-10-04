@@ -2368,6 +2368,9 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-mini-player-toggle" type="checkbox" checked>
                         Open mini player when minimized
                     </label>
+                    <button id="loop-shortcuts-expand-button" class="loop-menu-expand" type="button" hidden>
+                        Expand menu
+                    </button>
                 </div>
                 <div id="loop-empty-state" hidden>
                     <div class="loop-empty-title">Nothing is playing</div>
