@@ -31,7 +31,12 @@
 
 #loop-player {
     width: 100vw;
+    min-height: 100vh;
     height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
     background: #000000;
 
     position: relative;
@@ -1188,60 +1193,120 @@
 }
 
 .loop-reset-button {
-    position: relative;
-    overflow: hidden;
     margin-top: 0;
     text-align: center;
 }
 
-.loop-reset-progress {
-    position: absolute;
+#loop-reset-modal {
+    position: fixed;
     inset: 0;
-    width: 0;
-    background: rgba(255, 80, 80, 0.16);
-    pointer-events: none;
-}
-
-.loop-reset-button.holding .loop-reset-progress {
-    width: 100%;
-    transition: width 1.2s linear;
-}
-
-.loop-reset-button.holding {
-    border-color: rgba(255, 100, 100, 0.45);
-}
-
-.loop-reset-content {
-    position: relative;
-    z-index: 1;
+    z-index: 2147483647;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 7px;
+    box-sizing: border-box;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font: 14px system-ui, sans-serif;
 }
 
-.loop-reset-button.holding .loop-reset-text {
+.loop-reset-modal-card {
+    box-sizing: border-box;
+    width: min(460px, 100%);
+    padding: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    background: #101010;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
+    animation: loop-reset-modal-in 180ms ease-out both;
+}
+
+@keyframes loop-reset-modal-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.loop-reset-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.loop-reset-modal-kicker {
+    color: #ff9b9b;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.loop-reset-modal-header h2 {
+    margin: 4px 0 0;
+    font-size: 21px;
+}
+
+.loop-reset-modal-close {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    cursor: pointer;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.loop-reset-modal-description {
+    margin: 16px 0 0;
+    color: rgba(255, 255, 255, 0.68);
+    line-height: 1.5;
+}
+
+.loop-reset-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 22px;
+}
+
+.loop-reset-modal-actions button {
+    padding: 9px 13px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+}
+
+.loop-reset-modal-actions button:hover,
+.loop-reset-modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.loop-reset-modal-actions .loop-reset-modal-confirm {
+    border-color: rgba(255, 120, 120, 0.5);
+    background: rgba(255, 80, 80, 0.14);
     color: #ffb0b0;
 }
 
-.loop-reset-status {
-    min-height: 16px;
-    margin-top: 6px;
-    color: rgba(255, 255, 255, 0.52);
-    font-size: 10px;
-    line-height: 1.4;
+.loop-reset-modal-actions .loop-reset-modal-confirm:hover {
+    background: rgba(255, 80, 80, 0.24);
 }
 
-.loop-reset-status.visible {
-    opacity: 1;
-}
-
-.loop-reset-status.success {
-    color: #9fd8aa;
-}
-
-.loop-reset-status.error {
-    color: #ff9b9b;
+.loop-reset-modal-actions button:disabled {
+    cursor: wait;
+    opacity: 0.55;
 }
 
 #loop[data-theme="sharp"] .loop-reset-section {
@@ -1255,17 +1320,33 @@
     color: #000;
 }
 
-#loop[data-theme="sharp"] .loop-reset-button.holding {
-    border-color: #000;
-}
-
-#loop[data-theme="sharp"] .loop-reset-button.holding .loop-reset-text {
+#loop[data-theme="sharp"] #loop-reset-modal {
+    background: rgba(255, 255, 255, 0.72);
     color: #000;
 }
 
-#loop[data-theme="sharp"] .loop-reset-progress {
+#loop[data-theme="sharp"] .loop-reset-modal-card {
+    border: 2px solid #fff;
+    border-radius: 0;
     background: #000;
-    opacity: 0.12;
+    box-shadow: 8px 8px 0 #fff;
+}
+
+#loop[data-theme="sharp"] .loop-reset-modal-kicker {
+    color: #fff;
+}
+
+#loop[data-theme="sharp"] .loop-reset-modal-close,
+#loop[data-theme="sharp"] .loop-reset-modal-actions button {
+    border: 2px solid #fff;
+    border-radius: 0;
+    background: #000;
+    color: #fff;
+}
+
+#loop[data-theme="sharp"] .loop-reset-modal-actions .loop-reset-modal-confirm {
+    background: #fff;
+    color: #000;
 }
 
 #loop[data-theme="catppuccin"] .loop-reset-button {
@@ -1274,8 +1355,17 @@
     color: var(--ctp-text);
 }
 
-#loop[data-theme="catppuccin"] .loop-reset-button.holding {
-    border-color: var(--ctp-red);
+#loop[data-theme="catppuccin"] #loop-reset-modal {
+    color: var(--ctp-text);
+}
+
+#loop[data-theme="catppuccin"] .loop-reset-modal-card {
+    border-color: var(--ctp-overlay);
+    background: var(--ctp-mantle);
+}
+
+#loop[data-theme="catppuccin"] .loop-reset-modal-kicker {
+    color: var(--ctp-red);
 }
 
 
