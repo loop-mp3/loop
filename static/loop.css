@@ -587,7 +587,7 @@
 
 #loop-action-dock {
     position: fixed;
-    left: 18px;
+    left: 50%;
     bottom: 18px;
     z-index: 6;
     display: flex;
@@ -599,6 +599,7 @@
     background: rgba(12, 12, 12, 0.9);
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(12px);
+    transform: translateX(-50%);
 }
 
 #loop-action-dock button {
