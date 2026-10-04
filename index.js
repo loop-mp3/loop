@@ -1781,19 +1781,39 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
                 ?.querySelector('a.yt-simple-endpoint[href^="browse/"]')
                 ?.textContent.trim();
         const AuthorNameComposed =
-            details.author_name.replace(/\s*[-–—]\s*Topic$/i, '').trim();        return {
-            // The player page contains context labels such as "Playing from"
-            // and "Autoplay". oEmbed is the source of truth for track metadata.
-            //title: details.title && !/^auto-?play$/i.test(details.title.trim())
-            //    ? details.title
-            //    : domInfo.title,
-            // currently only exposing the title and artist from pretty print
-            title: prettyPrintMeta?.title || details.title,
-            // these fallbacks are here so incase something explodes we still get the data
-            artist: prettyPrintMeta?.artist || AuthorNameComposed || details.author_name || domInfo.artist,
-            artistUrl: getMusicAuthorUrl(details.author_url) || liveInfo.artistUrl || domInfo.artistUrl,
-            album: details.album || oldPlayerBarAlbumName || liveInfo.album || domInfo.album,
-            albumUrl: details.album_url || liveInfo.albumUrl || domInfo.albumUrl,
+            details.author_name.replace(/\s*[-–—]\s*Topic$/i, '').trim();  
+        const title =
+            prettyPrintMeta?.title ||
+            details.title;
+
+        const artist =
+            prettyPrintMeta?.artist ||
+            AuthorNameComposed ||
+            details.author_name ||
+            domInfo.artist;
+
+        const artistUrl =
+            getMusicAuthorUrl(details.author_url) ||
+            liveInfo.artistUrl ||
+            domInfo.artistUrl;
+
+        const album =
+            details.album ||
+            oldPlayerBarAlbumName ||
+            liveInfo.album ||
+            domInfo.album;
+
+        const albumUrl =
+            details.album_url ||
+            liveInfo.albumUrl ||
+            domInfo.albumUrl;
+
+        return {
+            title,
+            artist,
+            artistUrl,
+            album,
+            albumUrl,
         };
     } catch (error) {
         showLoopNotification("Could not fetch track metadata. Information might not load correctly press F5 to try again", 4000);
