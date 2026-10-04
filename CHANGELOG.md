@@ -1,7 +1,7 @@
 
 All notable changes to Loop are documented here.
 
-## [1.4.1] - Unreleased (needs updating)
+## [1.5] - Unreleased
 
 ### Highlights
 
@@ -10,6 +10,10 @@ All notable changes to Loop are documented here.
 * Removed Anchor links on the loop ui for the album due to them not being exposed on the DOM.
 * Implemented artist URL parsing from oEmbed.
 * Implemented title loading from oEmbed to prevent UI artifacts being parsed.
+* Added an optional album-name setting, disabled by default because YouTube Music does not expose reliable album metadata in every player bar.
+* Added a first-run onboarding flow covering the latest changes, Kawarp preferences, mini-player behavior, and navigation-button preferences.
+* Added animated transitions between onboarding steps.
+* Improved track metadata accuracy by using YouTube Music's player endpoint as an additional metadata source.
 
 ### Fixes
 
@@ -18,6 +22,9 @@ All notable changes to Loop are documented here.
 * Fixed track metadata failing to restore when returning to the Loop UI.
 * Fixed invalid YouTube Music metadata artifacts being interpreted as track metadata.
 * Fixed random strings being injected into the track title by hardcoding `Unknown track` until oEmbed metadata is available.
+* Fixed album metadata retrieval for the existing player bar with a legacy player-bar fallback.
+* Fixed author metadata fallback when composed artist information is unavailable.
+* Fixed disabled album names still being sent to the Electron mini-player.
 
 ### Internal and maintenance changes
 
@@ -25,7 +32,9 @@ All notable changes to Loop are documented here.
 * Added additional delayed feedback-state synchronization attempts for asynchronously updated YouTube Music controls.
 * Removed the legacy monochrome-theme exclusion from mini-player Kawarp.
 * Added a warning notification when oEmbed fails to fetch track metadata.
-* Updated the changelog for the `1.4.1` release.
+* Added cached player-endpoint metadata retrieval and prefixed its error messages with the Loop source identifier.
+* Normalized oEmbed author URLs to YouTube Music URLs and removed the `- Topic` suffix from oEmbed artist names.
+* Synchronized mini-player state when Loop preferences are applied.
 
 ## [1.4.0] - 2026-09-29
 
@@ -199,4 +208,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [1.1.2]: https://github.com/loop-mp3/loop/releases/tag/v1.2.0
 [1.3.0]: https://github.com/loop-mp3/loop/releases/tag/v1.3.0
 [1.4.0]: https://github.com/loop-mp3/loop/releases/tag/v1.4.0
-[1.4.1]: https://github.com/loop-mp3/loop/releases/tag/v1.4.1
+[1.5.0]: https://github.com/loop-mp3/loop/releases/tag/v1.5.0
