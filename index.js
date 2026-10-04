@@ -3383,6 +3383,21 @@ document.addEventListener("keydown", (event) => {
         window.location.replace("https://music.youtube.com");
     }
 
+    if (
+        event.key === "Delete" &&
+        event.shiftKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.repeat &&
+        document.getElementById("loop")
+    ) {
+        event.preventDefault();
+        event.stopPropagation();
+        showLoopResetModal();
+        return;
+    }
+
     // Ignore the synthetic J/K events generated for YouTube Music itself.
     if (!event.isTrusted) return;
 
