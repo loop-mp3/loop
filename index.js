@@ -1552,6 +1552,7 @@ function updateLoopLyrics(lyrics, empty = false) {
 
     panel.hidden = false;
     loading.hidden = false;
+    loading.querySelector(".loop-lyrics-submit-link")?.remove();
     if (lyrics === undefined) {
         loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
         return;
@@ -1573,6 +1574,15 @@ function updateLoopLyrics(lyrics, empty = false) {
     if (!parsedLyrics.length) {
         braccatoLyricsRenderer?.clear();
         loading.querySelector(".loop-lyrics-loading-label").textContent = "Lyrics unavailable";
+        const submitLink = document.createElement("a");
+        submitLink.className = "loop-lyrics-submit-link";
+        submitLink.href = "https://lrclibup.boidu.dev/";
+        submitLink.target = "_blank";
+        submitLink.rel = "noopener noreferrer";
+        submitLink.textContent = "Submit lyrics here";
+        loading.appendChild(submitLink);
+        
+        showLoopNotification("Submit lyrics for this track at https://lrclibup.boidu.dev/", 3000);
         return;
     }
 
