@@ -671,7 +671,19 @@ function showLoopResetModal() {
                 applyLoopPreferences();
                 applyKawarpSettings(kawarpSettings);
                 close();
-                showLoopNotification("Loop data has been deleted.", 3000);
+
+                // Clear Cache Storage where the page is allowed to access it,
+                // then return to the YT Music root and reload the page.
+                try {
+                    if ("caches" in window) {
+                        const cacheNames = await caches.keys();
+                        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+                    }
+                } catch (error) {
+                    console.warn("[loop.mp3] Could not clear page Cache Storage:", error);
+                }
+
+                window.location.replace("/");
             } catch (error) {
                 console.error("[loop.mp3] Could not reset Loop data:", error);
                 confirm.disabled = false;
@@ -2527,7 +2539,7 @@ function updateLoop(artworkURL, trackInfo) {
             panel.hidden = !panel.hidden;
             if (!panel.hidden) requestAnimationFrame(() => updateLoopMenuOverflow(panel));
         });
-        loop.querySelector("#loop-shortcuts-expand-button").addEventListener("click", (event) => {
+        loop.querySelector("#loop-shortcuts-expand-button")?.addEventListener("click", (event) => {
             event.stopPropagation();
             const panel = loop.querySelector("#loop-shortcuts-panel");
             panel.classList.toggle("loop-shortcuts-expanded");
@@ -2536,18 +2548,9 @@ function updateLoop(artworkURL, trackInfo) {
         window.addEventListener("resize", () => updateLoopMenuOverflow(
             loop.querySelector("#loop-shortcuts-panel")
         ));
-        document.addEventListener("keydown", (event) => {
-    if (event.shiftKey && event.key === "Delete" && !event.repeat && document.getElementById("loop")) {
-        event.preventDefault();
-        showLoopResetModal();
-        return;
-    }
+        // Shift+Delete is registered globally below so it works even before
+        // Loop's UI is mounted. Do not register a second handler here.
 
-            if (!event.shiftKey || event.key !== "Delete" || event.repeat) return;
-            if (!document.getElementById("loop")) return;
-            event.preventDefault();
-            showLoopResetModal();
-        });
         showOnboarding();
         loop.addEventListener("click", (event) => {
             const searchBar = document.querySelector("ytmusic-search-box");
