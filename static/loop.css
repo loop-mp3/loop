@@ -184,8 +184,8 @@
     width: 40px;
     height: 40px;
 
-    top: 50%;
-    left: 50%;
+    top: 42%;
+    left: 31%;
     transform: translate(-50%, -50%);
 
     border-radius: 50%;
@@ -256,14 +256,14 @@
 }
 
 #loop-artwork {
-    width: 400px;
-    height: 400px;
+    width: min(400px, 34vw);
+    height: min(400px, 34vw);
     object-fit: cover;
     border-radius: 100%;
     border: 5px solid #000;
     position: absolute;
-    top: 50%;
-    left: 50%;
+    top: 42%;
+    left: 31%;
     transform: translate(-50%, -50%) rotate(var(--loop-rotation, 0deg));
 }
 
@@ -274,6 +274,34 @@
 
 #loop.loop-no-vinyl #loop-player::after {
     display: none;
+}
+
+@media (max-width: 800px) {
+    #loop-player::after {
+        top: 50%;
+        left: 50%;
+    }
+
+    #loop-artwork {
+        width: min(58vw, 320px);
+        height: min(58vw, 320px);
+        top: 50%;
+        left: 50%;
+    }
+
+    #loop-track-info {
+        top: auto;
+        bottom: 84px;
+        left: 50%;
+        width: min(82vw, 520px);
+    }
+
+    #loop-seek-row {
+        top: auto;
+        bottom: 48px;
+        left: 50%;
+        width: min(82vw, 520px);
+    }
 }
 
 #loop.loop-empty #loop-action-dock {
@@ -330,10 +358,10 @@
 
 #loop-track-info {
     position: absolute;
-    bottom: 48px;
-    left: 50%;
+    top: 72%;
+    left: 31%;
     transform: translateX(-50%);
-    width: min(80vw, 600px);
+    width: min(30vw, 520px);
     color: #fff;
     text-align: center;
 }
@@ -349,13 +377,13 @@
 
 #loop-seek-row {
     position: absolute;
-    top: calc(50% + 205px);
-    left: 50%;
+    top: 84%;
+    left: 31%;
     z-index: 3;
     display: flex;
     align-items: center;
     gap: 10px;
-    width: min(80vw, 600px);
+    width: min(30vw, 520px);
     transform: translateX(-50%);
     pointer-events: auto;
     color: rgba(255, 255, 255, 0.68);
@@ -1728,5 +1756,21 @@
     .loop-onboarding-actions button,
     .loop-onboarding-close {
         transition: none;
+    }
+}
+
+@media (max-width: 800px) {
+    #loop-track-info {
+        top: auto;
+        bottom: 84px;
+        left: 50%;
+        width: min(82vw, 520px);
+    }
+
+    #loop-seek-row {
+        top: auto;
+        bottom: 48px;
+        left: 50%;
+        width: min(82vw, 520px);
     }
 }
