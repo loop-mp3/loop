@@ -639,6 +639,12 @@
     transform: translateX(-50%);
 }
 
+#loop.loop-lyrics-disabled #loop-action-dock {
+    right: 18px;
+    left: auto;
+    transform: none;
+}
+
 #loop-lyrics-panel {
     position: absolute;
     top: 12%;
