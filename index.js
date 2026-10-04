@@ -812,6 +812,19 @@ function applyLoopTheme() {
     if (themeSelect) themeSelect.value = theme;
 }
 
+function updateLoopMenuOverflow(panel = document.getElementById("loop-shortcuts-panel")) {
+    if (!panel) return;
+
+    const expandButton = panel.querySelector("#loop-shortcuts-expand-button");
+    if (!expandButton) return;
+
+    const isScrollable = panel.scrollHeight > panel.clientHeight + 1;
+    const isExpanded = panel.classList.contains("loop-shortcuts-expanded");
+    expandButton.hidden = !isScrollable && !isExpanded;
+    expandButton.textContent = isExpanded ? "Collapse menu" : "Expand menu";
+    expandButton.setAttribute("aria-expanded", String(isExpanded));
+}
+
 function showAuthWarningPopup() {
     if (document.getElementById("loop-auth-warning")) return;
 
@@ -2469,7 +2482,17 @@ function updateLoop(artworkURL, trackInfo) {
             event.stopPropagation();
             const panel = loop.querySelector("#loop-shortcuts-panel");
             panel.hidden = !panel.hidden;
+            if (!panel.hidden) requestAnimationFrame(() => updateLoopMenuOverflow(panel));
         });
+        loop.querySelector("#loop-shortcuts-expand-button").addEventListener("click", (event) => {
+            event.stopPropagation();
+            const panel = loop.querySelector("#loop-shortcuts-panel");
+            panel.classList.toggle("loop-shortcuts-expanded");
+            updateLoopMenuOverflow(panel);
+        });
+        window.addEventListener("resize", () => updateLoopMenuOverflow(
+            loop.querySelector("#loop-shortcuts-panel")
+        ));
         document.addEventListener("keydown", (event) => {
             if (!event.shiftKey || event.key !== "Delete" || event.repeat) return;
             if (!document.getElementById("loop")) return;

@@ -474,7 +474,13 @@
     color: rgba(255, 255, 255, 0.8);
     font-size: 13px;
     line-height: 1.8;
+    max-height: min(70vh, calc(100vh - 90px));
+    overflow-y: auto;
     pointer-events: auto;
+}
+
+#loop-shortcuts-panel.loop-shortcuts-expanded {
+    max-height: calc(100vh - 76px);
 }
 
 #loop-shortcuts-panel[hidden] {
@@ -1163,6 +1169,25 @@
 }
 
 .loop-menu-action:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.loop-menu-expand {
+    position: sticky;
+    bottom: -1px;
+    width: 100%;
+    margin-top: 12px;
+    padding: 7px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(8, 8, 8, 0.96);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    text-align: center;
+}
+
+.loop-menu-expand:hover {
     background: rgba(255, 255, 255, 0.18);
 }
 
