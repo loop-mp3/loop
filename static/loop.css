@@ -1161,6 +1161,124 @@
     background: rgba(255, 255, 255, 0.18);
 }
 
+.loop-reset-section {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.loop-reset-title {
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.loop-reset-description {
+    margin-top: 3px;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.loop-reset-info {
+    margin: 7px 0 8px;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+.loop-reset-button {
+    position: relative;
+    overflow: hidden;
+    margin-top: 0;
+    text-align: center;
+}
+
+.loop-reset-progress {
+    position: absolute;
+    inset: 0;
+    width: 0;
+    background: rgba(255, 80, 80, 0.16);
+    pointer-events: none;
+}
+
+.loop-reset-button.holding .loop-reset-progress {
+    width: 100%;
+    transition: width 1.2s linear;
+}
+
+.loop-reset-button.holding {
+    border-color: rgba(255, 100, 100, 0.45);
+}
+
+.loop-reset-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+.loop-reset-button.holding .loop-reset-text {
+    color: #ffb0b0;
+}
+
+.loop-reset-status {
+    min-height: 16px;
+    margin-top: 6px;
+    color: rgba(255, 255, 255, 0.52);
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+.loop-reset-status.visible {
+    opacity: 1;
+}
+
+.loop-reset-status.success {
+    color: #9fd8aa;
+}
+
+.loop-reset-status.error {
+    color: #ff9b9b;
+}
+
+#loop[data-theme="sharp"] .loop-reset-section {
+    border-top-color: #fff;
+}
+
+#loop[data-theme="sharp"] .loop-reset-button {
+    border: 2px solid #000;
+    border-radius: 0;
+    background: #fff;
+    color: #000;
+}
+
+#loop[data-theme="sharp"] .loop-reset-button.holding {
+    border-color: #000;
+}
+
+#loop[data-theme="sharp"] .loop-reset-button.holding .loop-reset-text {
+    color: #000;
+}
+
+#loop[data-theme="sharp"] .loop-reset-progress {
+    background: #000;
+    opacity: 0.12;
+}
+
+#loop[data-theme="catppuccin"] .loop-reset-button {
+    border-color: var(--ctp-overlay);
+    background: var(--ctp-surface);
+    color: var(--ctp-text);
+}
+
+#loop[data-theme="catppuccin"] .loop-reset-button.holding {
+    border-color: var(--ctp-red);
+}
+
+
 #loop[data-theme="sharp"] .loop-menu-action {
     border: 2px solid #000;
     border-radius: 0;
