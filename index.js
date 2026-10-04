@@ -603,6 +603,68 @@ function saveLoopPreferences() {
     }
 }
 
+function showLoopResetModal() {
+    if (document.getElementById("loop-reset-modal")) return;
+
+    const modal = document.createElement("div");
+    modal.id = "loop-reset-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "loop-reset-modal-title");
+    modal.innerHTML = `
+        <div class="loop-reset-modal-card">
+            <div class="loop-reset-modal-header">
+                <div>
+                    <div class="loop-reset-modal-kicker">Reset Loop</div>
+                    <h2 id="loop-reset-modal-title">Delete Loop data?</h2>
+                </div>
+                <button type="button" class="loop-reset-modal-close" aria-label="Cancel reset">&#215;</button>
+            </div>
+            <p class="loop-reset-modal-description">
+                This will delete Loop's stored settings and data. YouTube Music data will not be affected.
+            </p>
+            <div class="loop-reset-modal-actions">
+                <button type="button" class="loop-reset-modal-cancel">Cancel</button>
+                <button type="button" class="loop-reset-modal-confirm">Delete Loop data</button>
+            </div>
+        </div>`;
+
+    (document.getElementById("loop") || document.body).appendChild(modal);
+
+    const close = () => modal.remove();
+    const confirm = modal.querySelector(".loop-reset-modal-confirm");
+
+    modal.querySelector(".loop-reset-modal-close").addEventListener("click", close);
+    modal.querySelector(".loop-reset-modal-cancel").addEventListener("click", close);
+    confirm.addEventListener("click", async () => {
+        confirm.disabled = true;
+        confirm.textContent = "Deleting...";
+
+        try {
+            await resetLoopData();
+            applyLoopPreferences();
+            applyKawarpSettings(kawarpSettings);
+            close();
+            showLoopNotification("Loop data has been deleted.", 3000);
+        } catch (error) {
+            console.error("[loop.mp3] Could not reset Loop data:", error);
+            confirm.disabled = false;
+            confirm.textContent = "Delete Loop data";
+            showLoopNotification("Could not reset Loop data.", 3000);
+        }
+    });
+
+    modal.addEventListener("click", (event) => {
+        if (event.target === modal) close();
+    });
+
+    modal.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") close();
+    });
+
+    confirm.focus();
+}
+
 async function resetLoopData() {
     const storageAreas = [
         globalThis.chrome?.storage?.local || globalThis.browser?.storage?.local,
@@ -2267,17 +2329,12 @@ function updateLoop(artworkURL, trackInfo) {
                             Delete all Loop settings and stored data.
                         </div>
                         <div class="loop-reset-info">
-                            Hold the delete button to permanently clear Loop data.
-                            YouTube Music data is not affected.
+                            Open the confirmation dialog before permanently clearing Loop data.
                         </div>
                         <button id="loop-reset-button" class="loop-menu-action loop-reset-button" type="button">
-                            <span class="loop-reset-progress" aria-hidden="true"></span>
-                            <span class="loop-reset-content">
-                                <span class="loop-reset-icon" aria-hidden="true">&#128465;</span>
-                                <span class="loop-reset-text">Hold to delete Loop data</span>
-                            </span>
+                            <span class="loop-reset-icon" aria-hidden="true">&#128465;</span>
+                            <span class="loop-reset-text">Reset Loop data</span>
                         </button>
-                        <div id="loop-reset-status" class="loop-reset-status" role="status" aria-live="polite"></div>
                     </div>
                 </div>
                 <div id="loop-empty-state" hidden>
@@ -2348,68 +2405,8 @@ function updateLoop(artworkURL, trackInfo) {
             loopPreferences.autoOpenMiniPlayer = event.target.checked;
             saveLoopPreferences();
         });
-        let loopResetTimer;
-        let loopResetHolding = false;
-        let loopResetComplete = false;
+        loop.querySelector("#loop-reset-button").addEventListener("click", showLoopResetModal);
 
-        const resetButton = loop.querySelector("#loop-reset-button");
-        const resetStatus = loop.querySelector("#loop-reset-status");
-
-        const setResetStatus = (message, type = "") => {
-            resetStatus.textContent = message;
-            resetStatus.className = `loop-reset-status visible${type ? ` ${type}` : ""}`;
-        };
-
-        const cancelResetHold = () => {
-            if (!loopResetHolding || loopResetComplete) return;
-
-            loopResetHolding = false;
-            clearTimeout(loopResetTimer);
-            loopResetTimer = undefined;
-            resetButton.classList.remove("holding");
-            setResetStatus("Reset cancelled.");
-        };
-
-        resetButton.addEventListener("pointerdown", (event) => {
-            if (loopResetHolding || loopResetComplete) return;
-            event.preventDefault();
-
-            loopResetHolding = true;
-            resetStatus.textContent = "";
-            resetStatus.className = "loop-reset-status";
-            resetButton.classList.add("holding");
-
-            loopResetTimer = setTimeout(async () => {
-                if (!loopResetHolding) return;
-
-                try {
-                    await resetLoopData();
-                    loopResetComplete = true;
-                    loopResetHolding = false;
-                    resetButton.classList.remove("holding");
-                    resetButton.querySelector(".loop-reset-icon").textContent = "✓";
-                    resetButton.querySelector(".loop-reset-text").textContent = "Loop data deleted";
-                    setResetStatus("Loop data has been deleted.", "success");
-                    applyLoopPreferences();
-                    applyKawarpSettings(kawarpSettings);
-                } catch (error) {
-                    console.error("[loop.mp3] Could not reset Loop data:", error);
-                    loopResetHolding = false;
-                    resetButton.classList.remove("holding");
-                    setResetStatus("Could not reset Loop data.", "error");
-                }
-            }, 1200);
-        });
-
-        resetButton.addEventListener("pointerup", cancelResetHold);
-        resetButton.addEventListener("pointerleave", cancelResetHold);
-        resetButton.addEventListener("pointercancel", cancelResetHold);
-        loop.querySelector("#loop-artwork-toggle").addEventListener("click", () => {
-            loopPreferences.hideArtwork = !loopPreferences.hideArtwork;
-            saveLoopPreferences();
-            applyLoopPreferences();
-        });
-        loop.querySelector("#loop-screen-disable").addEventListener("click", () => DisableScreen())
         loop.querySelector("#loop-navigation-toggle").addEventListener("change", (event) => {
             loopPreferences.showNavigationButtons = event.target.checked;
             saveLoopPreferences();
@@ -2455,6 +2452,12 @@ function updateLoop(artworkURL, trackInfo) {
             event.stopPropagation();
             const panel = loop.querySelector("#loop-shortcuts-panel");
             panel.hidden = !panel.hidden;
+        });
+        document.addEventListener("keydown", (event) => {
+            if (!event.shiftKey || event.key !== "Delete" || event.repeat) return;
+            if (!document.getElementById("loop")) return;
+            event.preventDefault();
+            showLoopResetModal();
         });
         showOnboarding();
         loop.addEventListener("click", (event) => {
