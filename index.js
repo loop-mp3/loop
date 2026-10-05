@@ -1029,21 +1029,21 @@ function showLyricsSubmissionModal() {
             modal.querySelector(".loop-lyrics-submit-back").disabled = true;
             closeButton.disabled = true;
             cancelButton.disabled = true;
-            const response = await fetch("https://lrclib.net/api/publish", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Publish-Token": publishToken,
-                },
-                body: JSON.stringify(submission),
+            const response = await chrome.runtime.sendMessage({
+                type: "publish-lyrics",
+                publishToken,
+                submission,
             });
-            if (!response.ok) {
-                const details = (await response.text()).trim();
-                throw new Error(`LRCLIB rejected the submission (${response.status})${details ? `: ${details}` : "."}`);
+            if (!response?.ok) {
+                if (response?.status) {
+                    const details = (response.text || "").trim();
+                    throw new Error(`LRCLIB rejected the submission (${response.status})${details ? `: ${details}` : "."}`);
+                }
+                throw new Error(response?.error || "Could not reach LRCLIB.");
             }
 
             let resultMessage = "Your lyrics were published to LRCLIB.";
-            const responseText = (await response.text()).trim();
+            const responseText = (response.text || "").trim();
             if (responseText) {
                 try {
                     const result = JSON.parse(responseText);
