@@ -258,24 +258,6 @@ const kawarpCustomPresetsKey = "loop.mp3.kawarp-custom-presets";
 const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
 
-async function fetchLrclibEndpoint(url, options = {}) {
-    const { signal: _signal, ...safeOptions } = options;
-
-    return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ type: "lrclib-request", url, options: safeOptions }, (response) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-            }
-            if (response?.error) {
-                reject(new Error(response.error));
-                return;
-            }
-            resolve(response);
-        });
-    });
-}
-
 function getOnboardingStorageKey() {
     return `${getInstalledVersion()}IsOnboarded`;
 }
@@ -974,14 +956,14 @@ function showLyricsSubmissionModal() {
         if (!crypto.subtle) throw new Error("This browser cannot run LRCLIB's secure publish challenge.");
 
         challengeAbortController = new AbortController();
-        const challengeResponse = await fetchLrclibEndpoint("https://lrclib.net/api/request-challenge", {
+        const challengeResponse = await fetch("https://lrclib.net/api/request-challenge", {
             method: "POST",
             signal: challengeAbortController.signal,
         });
         if (!challengeResponse.ok) {
             throw new Error(`LRCLIB challenge request failed (${challengeResponse.status}).`);
         }
-        const challenge = challengeResponse.body;
+        const challenge = await challengeResponse.json();
         const { prefix, target } = challenge || {};
         if (typeof prefix !== "string" || typeof target !== "string" || !/^[0-9a-f]+$/i.test(target)) {
             throw new Error("LRCLIB returned an invalid publish challenge.");
@@ -1047,7 +1029,7 @@ function showLyricsSubmissionModal() {
             modal.querySelector(".loop-lyrics-submit-back").disabled = true;
             closeButton.disabled = true;
             cancelButton.disabled = true;
-            const response = await fetchLrclibEndpoint("https://lrclib.net/api/publish", {
+            const response = await fetch("https://lrclib.net/api/publish", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -1056,15 +1038,15 @@ function showLyricsSubmissionModal() {
                 body: JSON.stringify(submission),
             });
             if (!response.ok) {
-                const details = String(response.text || "").trim();
+                const details = (await response.text()).trim();
                 throw new Error(`LRCLIB rejected the submission (${response.status})${details ? `: ${details}` : "."}`);
             }
 
             let resultMessage = "Your lyrics were published to LRCLIB.";
-            const responseText = String(response.text || "").trim();
+            const responseText = (await response.text()).trim();
             if (responseText) {
                 try {
-                    const result = typeof response.body === "object" && response.body ? response.body : JSON.parse(responseText);
+                    const result = JSON.parse(responseText);
                     if (typeof result.message === "string" && result.message) resultMessage = result.message;
                 } catch {
                     resultMessage = responseText;
@@ -1822,15 +1804,15 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
         const query = new URLSearchParams({
             q: `${title} ${artist}`,
         }).toString();
-        const res = await fetchLrclibEndpoint(`https://lrclib.net/api/search?${query}`);
-        let data = res.body;
+        const res = await fetch(`https://lrclib.net/api/search?${query}`);
+        let data = await res.json();
         // Retry with the title alone when searching with the artist finds no match.
         if (!data?.[0] && artist.trim()) {
             // Give the first search a moment to settle before retrying without the artist.
             await new Promise((resolve) => setTimeout(resolve, 150));
             const titleOnlyQuery = new URLSearchParams({ q: title }).toString();
-            const titleOnlyResponse = await fetchLrclibEndpoint(`https://lrclib.net/api/search?${titleOnlyQuery}`);
-            data = titleOnlyResponse.body;
+            const titleOnlyResponse = await fetch(`https://lrclib.net/api/search?${titleOnlyQuery}`);
+            data = await titleOnlyResponse.json();
         }
         // here we are gonna select the first result of the query
         const lyricsQueryFirstResult = data?.[0];
@@ -1838,9 +1820,9 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
             console.warn("[loop.mp3] No lyrics found for track:", { trackId, title, artist });
             return { meta: null, syncedLyrics: null, plainLyrics: null };
         }
-        const lyricsResponse = await fetchLrclibEndpoint(`https://lrclib.net/api/get/${lyricsQueryFirstResult.id}`);
+        const lyricsResponse = await fetch(`https://lrclib.net/api/get/${lyricsQueryFirstResult.id}`);
         if (!lyricsResponse.ok) throw new Error(`LRCLIB returned ${lyricsResponse.status}`);
-        const lyricsMeta = lyricsResponse.body;
+        const lyricsMeta = await lyricsResponse.json();
         const syncedLyrics = lyricsMeta?.syncedLyrics || lyricsQueryFirstResult.syncedLyrics || null;
         const plainLyrics = lyricsMeta?.plainLyrics || lyricsQueryFirstResult.plainLyrics || null;
         console.log("[loop.mp3] Fetched lyrics for track:", { trackId, title, artist, data });
