@@ -235,6 +235,7 @@ let loopPreferences = {
     useLegacyFallbackArtwork: false,
     showAlbum: false,
     showLyrics: false,
+    volume: 1,
     theme: "default",
 };
 let currentArtworkURL = "";
@@ -1135,6 +1136,7 @@ async function resetLoopData() {
         useLegacyFallbackArtwork: false,
         showAlbum: false,
         showLyrics: false,
+        volume: 1,
         theme: "default",
     };
 
@@ -1148,6 +1150,9 @@ async function resetLoopData() {
 function applyLoopPreferences() {
     const loop = document.querySelector("#loop");
     if (!loop) return;
+    const media = getCurrentMedia();
+    const preferredVolume = getPreferredVolume();
+    if (media) media.volume = preferredVolume;
     applyLoopTheme();
     miniPlayerBridge?.setTheme(loopPreferences.theme);
     loop.classList.toggle("loop-no-vinyl", loopPreferences.hideVinyl);
@@ -1165,6 +1170,8 @@ function applyLoopPreferences() {
     if (albumToggle) albumToggle.checked = Boolean(loopPreferences.showAlbum);
     const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
     if (lyricsToggle) lyricsToggle.checked = Boolean(loopPreferences.showLyrics);
+    const volumeSlider = loop.querySelector("#loop-volume-slider");
+    if (volumeSlider) volumeSlider.value = String(preferredVolume);
     const lyricsPanel = loop.querySelector("#loop-lyrics-panel");
     if (lyricsPanel && !loopPreferences.showLyrics) {
         lyricsPanel.hidden = true;
@@ -3125,7 +3132,7 @@ function updatePlaybackControls(media = getCurrentMedia()) {
         seek.max = "0";
         currentTime.textContent = "0:00";
         duration.textContent = "0:00";
-        if (volumeSlider) volumeSlider.value = "1";
+        if (volumeSlider) volumeSlider.value = String(getPreferredVolume());
     } else if (playButton && muteButton && seek && currentTime && duration && media) {
         playButton.textContent = media.paused ? "▶" : "⏸";
         playButton.setAttribute("aria-label", media.paused ? "Play" : "Pause");
@@ -3166,6 +3173,11 @@ function toggleMute() {
     updatePlaybackControls(media);
 }
 
+function getPreferredVolume() {
+    const volume = Number(loopPreferences.volume);
+    return Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 1;
+}
+
 function setVolume(event) {
     const media = getCurrentMedia();
     if (!media) return;
@@ -3173,6 +3185,8 @@ function setVolume(event) {
     const volume = Number(event.target.value);
     if (!Number.isFinite(volume)) return;
     media.volume = Math.min(1, Math.max(0, volume));
+    loopPreferences.volume = media.volume;
+    saveLoopPreferences();
     if (media.volume > 0 && media.muted) media.muted = false;
     updatePlaybackControls(media);
 }
@@ -3324,6 +3338,7 @@ function observeMediaTrackChanges(playerBar) {
         ["loadedmetadata", "durationchange", "canplay", "play", "playing", "emptied", "loadstart"].forEach((eventName) => {
             media.addEventListener(eventName, () => scheduleTrackSync(playerBar));
         });
+        media.volume = getPreferredVolume();
         ["play", "playing", "pause", "seeking", "seeked", "ratechange", "volumechange"].forEach((eventName) => {
             media.addEventListener(eventName, () => updatePlaybackControls());
         });
