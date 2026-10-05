@@ -2678,7 +2678,8 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
         const title =
             prettyPrintMeta?.title ||
             details.title;
-
+        // using this so collabs dont fuck lyrics up    
+        const titleForLyrics = details.title || prettyPrintMeta?.title;s
         const artist =
             prettyPrintMeta?.artist ||
             AuthorNameComposed ||
@@ -2702,7 +2703,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             domInfo.albumUrl;
         let lyrics;
         if (loopPreferences.showLyrics) {
-            lyrics = await getLyricsFromTrackInfo(trackId, title, AuthorNameComposed) || {
+            lyrics = await getLyricsFromTrackInfo(trackId, titleForLyrics, AuthorNameComposed) || {
                 meta: null,
                 syncedLyrics: null,
                 plainLyrics: null,
