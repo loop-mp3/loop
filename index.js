@@ -1820,7 +1820,7 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
             const titleOnlyResponse = await fetch(`https://lrclib.net/api/search?${titleOnlyQuery}`);
             data = await titleOnlyResponse.json();
         }
-        const lyricsQueryResults = data?.filter((result) => result?.id).slice(0, 2) || [];
+        const lyricsQueryResults = data?.filter((result) => result?.id) || [];
         if (!lyricsQueryResults.length) {
             console.warn("[loop.mp3] No lyrics found for track:", { trackId, title, artist });
             return { meta: null, syncedLyrics: null, plainLyrics: null };
@@ -1845,7 +1845,7 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
             const hasWordSync = lyricsMeta?.hasWordSync ?? lyricsQueryResult.hasWordSync;
             if ((hasSyncedLyricTimestamps(resultLyrics.syncedLyrics) && hasWordSync !== false) || lyricsMeta?.instrumental) {
                 if (resultIndex > 0) {
-                    console.log("[loop.mp3] Using second lyrics search result because the first had no timestamps:", {
+                    console.log(`[loop.mp3] Using lyrics search result ${resultIndex + 1} because earlier results had no usable sync:`, {
                         trackId,
                         title,
                         artist,
