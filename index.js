@@ -4084,7 +4084,7 @@ loadKawarpRenderer().catch((error) => {
 loadKawarpSettings();
 loadLoopPreferences();
 waitForYTM(init);
-async function ToggleFullscreen() {
+async function toggleFullscreen() {
     const isFullscreen = document.fullscreenElement !== null;
     if (isFullscreen) {
         await document.exitFullscreen();
