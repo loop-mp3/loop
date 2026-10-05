@@ -2030,10 +2030,12 @@ function updateLoopLyrics(lyrics, empty = false) {
         loading.querySelector(".loop-lyrics-loading-label").textContent = "Lyrics unavailable";
         const submitLink = document.createElement("a");
         submitLink.className = "loop-lyrics-submit-link";
-        submitLink.href = "https://lrclibup.boidu.dev/";
-        submitLink.target = "_blank";
-        submitLink.rel = "noopener noreferrer";
+        submitLink.href = "#";
         submitLink.textContent = "Submit lyrics here";
+        submitLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            showLyricsSubmissionModal();
+        });
         loading.appendChild(submitLink);
         
         showLoopNotification("Lyrics unavailable", 3000);
