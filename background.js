@@ -38,10 +38,66 @@ function checkForUpdates() {
     })
     .catch((error) => console.warn("[loop.mp3] update check failed", error));
 }
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log("[loop.mp3] extension initialised");
   checkForUpdates();
 });
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "lrclib-request") {
+    const { url, options = {} } = message;
+    fetch(url, { cache: "no-store", ...options })
+      .then(async (response) => {
+        const text = await response.text();
+        const headers = {};
+        response.headers.forEach((value, key) => {
+          headers[key] = value;
+        });
+
+        let body = text || null;
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json") && text) {
+          try {
+            body = JSON.parse(text);
+          } catch {
+            body = text;
+          }
+        }
+
+        sendResponse({
+          ok: response.ok,
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+          body,
+          text,
+        });
+      })
+      .catch((error) => {
+        sendResponse({
+          error: error instanceof Error ? error.message : String(error || "LRCLIB request failed."),
+        });
+      });
+    return true;
+  }
+
+  if (message.type === "open-mini-player" && sender.tab?.id) {
+    chrome.scripting.executeScript({
+      target: {
+        tabId: sender.tab.id
+      },
+      func: () => {
+        const video = document.querySelector("video");
+
+        if (video) {
+          video.requestPictureInPicture();
+        }
+      }
+    });
+  }
+});
+
 // sorry boy we dont need you anymor
 /*
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -57,19 +113,3 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 */
-chrome.runtime.onMessage.addListener((message, sender) => {
-    if (message.type === "open-mini-player" && sender.tab?.id) {
-        chrome.scripting.executeScript({
-            target: {
-                tabId: sender.tab.id
-            },
-            func: () => {
-                const video = document.querySelector("video");
-
-                if (video) {
-                    video.requestPictureInPicture();
-                }
-            }
-        });
-    }
-});
