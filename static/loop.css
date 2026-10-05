@@ -1257,6 +1257,351 @@
     font: 14px system-ui, sans-serif;
 }
 
+#loop-lyrics-submit-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 20px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.76);
+    color: #fff;
+    font: 14px system-ui, sans-serif;
+}
+
+#loop-lyrics-submit-modal [hidden] {
+    display: none !important;
+}
+
+.loop-lyrics-submit-card {
+    box-sizing: border-box;
+    width: min(700px, 100%);
+    max-height: min(90vh, 900px);
+    padding: 22px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    background: #101010;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
+    animation: loop-reset-modal-in 180ms ease-out both;
+}
+
+.loop-lyrics-submit-header,
+.loop-lyrics-submit-input-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.loop-lyrics-submit-kicker {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.loop-lyrics-submit-header h2 {
+    margin: 4px 0 0;
+    font-size: 22px;
+}
+
+.loop-lyrics-submit-close {
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: inherit;
+    cursor: pointer;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.loop-lyrics-submit-warning,
+.loop-lyrics-submit-pow-note,
+.loop-lyrics-submit-help,
+.loop-lyrics-submit-status,
+.loop-lyrics-submit-success-message {
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.5;
+}
+
+.loop-lyrics-submit-warning {
+    margin: 14px 0;
+    color: #ff7777;
+    font-weight: 600;
+}
+
+.loop-lyrics-submit-pow-note {
+    margin: -6px 0 16px;
+    font-size: 12px;
+}
+
+.loop-lyrics-submit-form,
+.loop-lyrics-submit-input {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.loop-lyrics-submit-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.loop-lyrics-submit-fields label,
+.loop-lyrics-submit-input > label {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 600;
+}
+
+.loop-lyrics-submit-fields label span {
+    color: #ff9b9b;
+}
+
+.loop-lyrics-submit-card input:not([type="checkbox"]):not([type="file"]),
+.loop-lyrics-submit-card textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    outline: none;
+    background: rgba(255, 255, 255, 0.07);
+    color: #fff;
+    font: inherit;
+}
+
+.loop-lyrics-submit-card textarea {
+    min-height: 110px;
+    resize: vertical;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.55;
+}
+
+.loop-lyrics-submit-card input:focus,
+.loop-lyrics-submit-card textarea:focus {
+    border-color: rgba(255, 255, 255, 0.65);
+}
+
+.loop-lyrics-submit-input {
+    gap: 12px;
+    padding-top: 4px;
+}
+
+.loop-lyrics-submit-input-header {
+    align-items: center;
+}
+
+.loop-lyrics-submit-input-header h3,
+.loop-lyrics-submit-review h3,
+.loop-lyrics-submit-success h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.loop-lyrics-submit-upload {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.loop-lyrics-submit-upload:focus-within {
+    outline: 2px solid rgba(255, 255, 255, 0.75);
+    outline-offset: 2px;
+}
+
+.loop-lyrics-submit-file {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.loop-lyrics-submit-help {
+    margin: -6px 0 0;
+    font-size: 12px;
+}
+
+.loop-lyrics-submit-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.loop-lyrics-submit-summary {
+    display: grid;
+    grid-template-columns: minmax(90px, 0.3fr) minmax(0, 1fr);
+    gap: 8px 12px;
+    margin: 16px 0;
+}
+
+.loop-lyrics-submit-summary dt {
+    color: rgba(255, 255, 255, 0.58);
+}
+
+.loop-lyrics-submit-summary dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.loop-lyrics-submit-preview {
+    max-height: 180px;
+    margin: 0 0 14px;
+    padding: 10px;
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.3);
+    color: rgba(255, 255, 255, 0.78);
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.loop-lyrics-submit-acknowledgement {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    color: rgba(255, 255, 255, 0.88);
+    line-height: 1.5;
+}
+
+.loop-lyrics-submit-acknowledgement input {
+    flex: 0 0 auto;
+    margin: 4px 0 0;
+    accent-color: #fff;
+}
+
+.loop-lyrics-submit-status {
+    margin: 0;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.loop-lyrics-submit-status.is-error {
+    color: #ff9b9b;
+}
+
+.loop-lyrics-submit-success-message {
+    overflow-wrap: anywhere;
+}
+
+#loop[data-theme="sharp"] #loop-lyrics-submit-modal {
+    background: rgba(255, 255, 255, 0.72);
+    color: #000;
+}
+
+#loop[data-theme="sharp"] .loop-lyrics-submit-card {
+    border: 2px solid #fff;
+    border-radius: 0;
+    background: #000;
+    box-shadow: 8px 8px 0 #fff;
+}
+
+#loop[data-theme="sharp"] .loop-lyrics-submit-card input:not([type="checkbox"]):not([type="file"]),
+#loop[data-theme="sharp"] .loop-lyrics-submit-card textarea,
+#loop[data-theme="sharp"] .loop-lyrics-submit-preview {
+    border: 2px solid #fff;
+    border-radius: 0;
+    background: #fff;
+    color: #000;
+}
+
+#loop[data-theme="sharp"] .loop-lyrics-submit-kicker,
+#loop[data-theme="sharp"] .loop-lyrics-submit-warning,
+#loop[data-theme="sharp"] .loop-lyrics-submit-pow-note,
+#loop[data-theme="sharp"] .loop-lyrics-submit-help,
+#loop[data-theme="sharp"] .loop-lyrics-submit-summary dt,
+#loop[data-theme="sharp"] .loop-lyrics-submit-status,
+#loop[data-theme="sharp"] .loop-lyrics-submit-success-message,
+#loop[data-theme="sharp"] .loop-lyrics-submit-acknowledgement {
+    color: #fff;
+}
+
+#loop[data-theme="sharp"] .loop-lyrics-submit-close,
+#loop[data-theme="sharp"] .loop-lyrics-submit-upload,
+#loop[data-theme="catppuccin"] .loop-lyrics-submit-card {
+    border-color: var(--ctp-overlay);
+    background: var(--ctp-mantle);
+}
+
+#loop[data-theme="catppuccin"] .loop-lyrics-submit-kicker,
+#loop[data-theme="catppuccin"] .loop-lyrics-submit-warning,
+#loop[data-theme="catppuccin"] .loop-lyrics-submit-pow-note,
+#loop[data-theme="catppuccin"] .loop-lyrics-submit-help,
+#loop[data-theme="catppuccin"] .loop-lyrics-submit-summary dt,
+#loop[data-theme="catppuccin"] .loop-lyrics-submit-status,
+#loop[data-theme="catppuccin"] .loop-lyrics-submit-success-message {
+    color: var(--ctp-subtext);
+}
+
+#loop[data-theme="catppuccin"] .loop-lyrics-submit-warning {
+    color: var(--ctp-red);
+}
+
+#loop[data-theme="sharp"] .loop-lyrics-submit-warning {
+    color: #ff7777;
+}
+
+#loop[data-theme="sharp"] .loop-lyrics-submit-status.is-error {
+    color: #ff9b9b;
+}
+
+#loop[data-theme="catppuccin"] .loop-lyrics-submit-status.is-error {
+    color: var(--ctp-red);
+}
+
+#loop[data-theme="catppuccin"] .loop-lyrics-submit-card input:not([type="checkbox"]):not([type="file"]),
+#loop[data-theme="catppuccin"] .loop-lyrics-submit-card textarea,
+#loop[data-theme="catppuccin"] .loop-lyrics-submit-preview {
+    border-color: var(--ctp-overlay);
+    background: var(--ctp-crust);
+    color: var(--ctp-text);
+}
+
+@media (max-width: 560px) {
+    #loop-lyrics-submit-modal {
+        align-items: flex-start;
+        padding: 10px;
+    }
+
+    .loop-lyrics-submit-card {
+        max-height: calc(100vh - 20px);
+        padding: 16px;
+    }
+
+    .loop-lyrics-submit-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .loop-lyrics-submit-actions button {
+        flex: 1 1 auto;
+    }
+}
+
 .loop-reset-modal-card {
     box-sizing: border-box;
     width: min(460px, 100%);
