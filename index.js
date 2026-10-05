@@ -2890,6 +2890,9 @@ function updateLoop(artworkURL, trackInfo) {
                     <button id="loop-screen-disable" type="button" aria-label="power off the screen while music playing" title="Turn off screen">
                     <i class="fa-solid fa-power-off" aria-hidden="true"></i>
                     </button>
+                    <button id="loop-toggle-fullscreen" type="button" aria-label="Toggle Fullscreen" title="Toggle Fullscreen">
+                    <i class="fa-solid fa-expand" aria-hidden="true"></i>                    
+                    </button>
                 </div>
             </div>`;
         document.body.appendChild(loop);
@@ -2914,6 +2917,12 @@ function updateLoop(artworkURL, trackInfo) {
                 showLoopNotification("Could not put screen to sleep", 3000);
             });
         });
+        loop.querySelector("#loop-toggle-fullscreen").addEventListener("click", () => {
+            toggleFullscreen().catch((error) => {
+                console.error("[loop.mp3] Could not toggle fullscreen:", error);
+                showLoopNotification("Could not toggle fullscreen", 3000);
+            });
+        });    
         loop.querySelector("#loop-mini-player-button").addEventListener("click", () => {
             openMiniPlayer().catch((error) => {
                 console.warn("[loop.mp3] Could not open miniplayer:", error);
@@ -4075,6 +4084,16 @@ loadKawarpRenderer().catch((error) => {
 loadKawarpSettings();
 loadLoopPreferences();
 waitForYTM(init);
+async function ToggleFullscreen() {
+    const isFullscreen = document.fullscreenElement !== null;
+    if (isFullscreen) {
+        await document.exitFullscreen();
+        console.log("[loop.mp3] Exited fullscreen mode");
+    } else {
+        await document.documentElement.requestFullscreen();
+        console.log("[loop.mp3] Entered fullscreen mode");
+    }
+}
 async function checkIsSleepSupported() {
     const isSleep = await isSleepSupported();
     const screenOffButton = document.querySelector("#loop-screen-disable");
