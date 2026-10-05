@@ -1843,7 +1843,7 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
 
             firstResultLyrics ||= resultLyrics;
             const hasWordSync = lyricsMeta?.hasWordSync ?? lyricsQueryResult.hasWordSync;
-            if ((hasSyncedLyricTimestamps(resultLyrics.syncedLyrics) && hasWordSync !== false) || lyricsMeta?.instrumental) {
+            if (hasSyncedLyricTimestamps(resultLyrics.syncedLyrics) || lyricsMeta?.instrumental) {
                 if (resultIndex > 0) {
                     console.log(`[loop.mp3] Using lyrics search result ${resultIndex + 1} because earlier results had no usable sync:`, {
                         trackId,
@@ -1854,6 +1854,8 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
                 console.log("[loop.mp3] Fetched lyrics for track:", { trackId, title, artist, data });
                 return resultLyrics;
             }
+
+            if (hasWordSync === false) continue;
         }
 
         console.log("[loop.mp3] Fetched lyrics for track:", { trackId, title, artist, data });
