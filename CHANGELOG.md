@@ -14,6 +14,11 @@ All notable changes to Loop are documented here.
 * Added a first-run onboarding flow covering the latest changes, Kawarp preferences, mini-player behavior, and navigation-button preferences.
 * Added animated transitions between onboarding steps.
 * Improved track metadata accuracy by using YouTube Music's player endpoint as an additional metadata source.
+* Added an optional lyrics display with dynamically synchronized, theme-aware lyrics, including instrumental-track handling.
+* Added LRCLIB lyrics submission from the unavailable-lyrics view.
+* Added volume controls with persisted volume settings.
+* Added a fullscreen toggle to the action dock and a Loop-menu shortcut.
+* Added a confirmation modal and hold-to-confirm controls for resetting Loop data.
 
 ### Fixes
 
@@ -25,6 +30,9 @@ All notable changes to Loop are documented here.
 * Fixed album metadata retrieval for the existing player bar with a legacy player-bar fallback.
 * Fixed author metadata fallback when composed artist information is unavailable.
 * Fixed disabled album names still being sent to the Electron mini-player.
+* Improved lyrics matching and synchronization by retrying missing results, evaluating multiple LRCLIB matches, validating timestamps, and handling instrumental tracks.
+* Fixed lyrics lookups for special characters in search queries and improved lookup accuracy with the oEmbed title and resolved artist name.
+* Fixed the screen-disable control and reset flow, including global Shift+Delete handling and refreshing the Loop UI after reset.
 
 ### Internal and maintenance changes
 
@@ -35,6 +43,10 @@ All notable changes to Loop are documented here.
 * Added cached player-endpoint metadata retrieval and prefixed its error messages with the Loop source identifier.
 * Normalized oEmbed author URLs to YouTube Music URLs and removed the `- Topic` suffix from oEmbed artist names.
 * Synchronized mini-player state when Loop preferences are applied.
+* Added a scrollable Loop menu, a Kawarp warning, and an onboarding preference for showing lyrics; adjusted action-dock placement when lyrics are hidden.
+* Routed LRCLIB lyric publishing through the extension service worker to handle cross-origin requests.
+* Made the reset operation clear only Loop data from local storage and moved hold-to-confirm reset handling into the confirmation modal.
+* Closed the search panel when clicking outside it.
 
 ## [1.4.0] - 2026-09-29
 
