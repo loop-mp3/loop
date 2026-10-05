@@ -1799,6 +1799,12 @@ function getExtensionURL(path) {
     }
 }
 
+function hasSyncedLyricTimestamps(syncedLyrics) {
+    return String(syncedLyrics || "")
+        .split(/\r?\n/)
+        .some((line) => /^\[\d+:\d+(?:\.\d+)?\]/.test(line));
+}
+
 async function getLyricsFromTrackInfo(trackId, title, artist) {
     try {
         const query = new URLSearchParams({
@@ -1814,25 +1820,44 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
             const titleOnlyResponse = await fetch(`https://lrclib.net/api/search?${titleOnlyQuery}`);
             data = await titleOnlyResponse.json();
         }
-        // here we are gonna select the first result of the query
-        const lyricsQueryFirstResult = data?.[0];
-        if (!lyricsQueryFirstResult) {
+        const lyricsQueryResults = data?.filter((result) => result?.id).slice(0, 2) || [];
+        if (!lyricsQueryResults.length) {
             console.warn("[loop.mp3] No lyrics found for track:", { trackId, title, artist });
             return { meta: null, syncedLyrics: null, plainLyrics: null };
         }
-        const lyricsResponse = await fetch(`https://lrclib.net/api/get/${lyricsQueryFirstResult.id}`);
-        if (!lyricsResponse.ok) throw new Error(`LRCLIB returned ${lyricsResponse.status}`);
-        const lyricsMeta = await lyricsResponse.json();
-        const syncedLyrics = lyricsMeta?.syncedLyrics || lyricsQueryFirstResult.syncedLyrics || null;
-        const plainLyrics = lyricsMeta?.plainLyrics || lyricsQueryFirstResult.plainLyrics || null;
+
+        let firstResultLyrics = null;
+        for (const [resultIndex, lyricsQueryResult] of lyricsQueryResults.entries()) {
+            const lyricsResponse = await fetch(`https://lrclib.net/api/get/${lyricsQueryResult.id}`);
+            if (!lyricsResponse.ok) throw new Error(`LRCLIB returned ${lyricsResponse.status}`);
+            const lyricsMeta = await lyricsResponse.json();
+            const syncedLyrics = lyricsMeta?.syncedLyrics || lyricsQueryResult.syncedLyrics || null;
+            const plainLyrics = lyricsMeta?.plainLyrics || lyricsQueryResult.plainLyrics || null;
+            const resultLyrics = {
+                meta: lyricsMeta,
+                syncedLyrics: lyricsMeta?.instrumental && !syncedLyrics && !plainLyrics
+                    ? "[00:00.00] Instrumental only"
+                    : syncedLyrics,
+                plainLyrics,
+            };
+
+            firstResultLyrics ||= resultLyrics;
+            const hasWordSync = lyricsMeta?.hasWordSync ?? lyricsQueryResult.hasWordSync;
+            if ((hasSyncedLyricTimestamps(resultLyrics.syncedLyrics) && hasWordSync !== false) || lyricsMeta?.instrumental) {
+                if (resultIndex > 0) {
+                    console.log("[loop.mp3] Using second lyrics search result because the first had no timestamps:", {
+                        trackId,
+                        title,
+                        artist,
+                    });
+                }
+                console.log("[loop.mp3] Fetched lyrics for track:", { trackId, title, artist, data });
+                return resultLyrics;
+            }
+        }
+
         console.log("[loop.mp3] Fetched lyrics for track:", { trackId, title, artist, data });
-        return {
-            meta: lyricsMeta,
-            syncedLyrics: lyricsMeta?.instrumental && !syncedLyrics && !plainLyrics
-                ? "[00:00.00] Instrumental only"
-                : syncedLyrics,
-            plainLyrics,
-        };
+        return firstResultLyrics;
     } catch (error) {
         console.warn("[loop.mp3] Could not fetch lyrics:", error);
         showLoopNotification("Could not fetch lyrics", 3000);
