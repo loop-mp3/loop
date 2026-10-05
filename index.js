@@ -2682,7 +2682,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             details.title ||
             prettyPrintMeta?.title
         // using this so collabs dont fuck lyrics up    
-        const titleForLyrics = details.title || prettyPrintMeta?.title;s
+        const titleForLyrics = details.title || prettyPrintMeta?.title;
         const artist =
             prettyPrintMeta?.artist ||
             AuthorNameComposed ||
