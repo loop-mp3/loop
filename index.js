@@ -2677,9 +2677,10 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
                 ?.textContent.trim();
         const AuthorNameComposed =
             details.author_name.replace(/\s*[-–—]\s*Topic$/i, '').trim();  
+        // using ts so collabs should show and preety print dosent frucj        
         const title =
-            prettyPrintMeta?.title ||
-            details.title;
+            details.title ||
+            prettyPrintMeta?.title
         // using this so collabs dont fuck lyrics up    
         const titleForLyrics = details.title || prettyPrintMeta?.title;s
         const artist =
