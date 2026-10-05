@@ -2789,13 +2789,14 @@ function updateLoop(artworkURL, trackInfo) {
                     <div><kbd>Ctrl + F5</kbd> Reload Loop Session</div>
                     <div><kbd>F5</kbd> Reload Resources</div>
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
+                    <div><kbd>F</kbd> Fullscreen <span>(press esc to close)</span></div>                   
                     <label class="loop-navigation-toggle">
                         <input id="loop-navigation-toggle" type="checkbox">
                         Show previous/next buttons
                     </label>
                     <label class="loop-navigation-toggle">
                         <input id="loop-background-toggle" type="checkbox" checked>
-                        Animated artwork background <span>(re-enable)</span>
+                        Enable Kwarp <span>(re-enable)</span>
                     </label>
                     <div id="loop-kawarp-warning" class="loop-kawarp-warning" role="status" >
                         Kawarp may increase GPU usage and battery drain.
