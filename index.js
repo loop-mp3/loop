@@ -1908,8 +1908,8 @@ const braccatoLyricsShadowCSS = `
     @keyframes loop-lyrics-spin { to { transform: rotate(360deg); } }
     .blyrics-container { --blyrics-font-family: Satoshi, system-ui, sans-serif; --blyrics-font-size: 3rem; --blyrics-line-height: 1.333; --blyrics-padding: 2rem; --blyrics-word-wobble-transform-from: scaleX(1); --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025); --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1); --blyrics-word-wobble-transform-to: scaleX(1); }
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
-    #loop-lyrics-footer { display: flex; justify-content: center; gap: 8px; padding: 12px 0 4px; }
-    .loop-lyrics-footer-button { border: 1px solid rgba(255,255,255,.24); border-radius: 999px; padding: 7px 13px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; }
+    #loop-lyrics-footer { display: flex; justify-content: center; gap: 8px; padding: 12px 0 4px; border-top: 1px solid rgba(255,255,255,.12); }
+    .loop-lyrics-footer-button { min-width: 118px; border: 1px solid rgba(255,255,255,.24); border-radius: 999px; padding: 7px 13px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; text-decoration: none; text-align: center; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; }
     .loop-lyrics-footer-button:hover, .loop-lyrics-footer-button:focus-visible { border-color: rgba(255,255,255,.6); background: rgba(255,255,255,.16); color: #fff; }
     .loop-lyrics-footer-button:disabled { cursor: wait; opacity: .55; }
 `;
