@@ -1896,9 +1896,11 @@ const braccatoLyricsTheme = `
 
 const braccatoLyricsShadowCSS = `
     :host { display: block; width: 100%; height: 100%; color: #fff; font-family: Satoshi, system-ui, sans-serif; }
+    #loop-lyrics-shell { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
     #loop-lyrics-view { display: block; width: 100%; height: 100%; overflow: auto; scrollbar-width: none; }
+    #loop-lyrics-shell #loop-lyrics-view { flex: 1 1 auto; min-height: 0; height: auto; }
     #loop-lyrics-view::-webkit-scrollbar { display: none; }
-    #loop-lyrics-view[hidden], #loop-lyrics-loading[hidden] { display: none; }
+    #loop-lyrics-view[hidden], #loop-lyrics-loading[hidden], #loop-lyrics-footer[hidden] { display: none; }
     .blyrics--line:not(.blyrics--active) { filter: blur(2px); transition: filter 250ms ease; }
     .blyrics--line.blyrics--active { filter: none; }
     #loop-lyrics-loading { position: absolute; top: 50%; left: 50%; display: flex; align-items: center; gap: 12px; transform: translate(-50%, -50%); color: rgba(255,255,255,.7); font-size: 15px; white-space: nowrap; }
@@ -1906,6 +1908,10 @@ const braccatoLyricsShadowCSS = `
     @keyframes loop-lyrics-spin { to { transform: rotate(360deg); } }
     .blyrics-container { --blyrics-font-family: Satoshi, system-ui, sans-serif; --blyrics-font-size: 3rem; --blyrics-line-height: 1.333; --blyrics-padding: 2rem; --blyrics-word-wobble-transform-from: scaleX(1); --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025); --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1); --blyrics-word-wobble-transform-to: scaleX(1); }
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
+    #loop-lyrics-footer { display: flex; justify-content: center; gap: 8px; padding: 12px 0 4px; }
+    .loop-lyrics-footer-button { border: 1px solid rgba(255,255,255,.24); border-radius: 999px; padding: 7px 13px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; }
+    .loop-lyrics-footer-button:hover, .loop-lyrics-footer-button:focus-visible { border-color: rgba(255,255,255,.6); background: rgba(255,255,255,.16); color: #fff; }
+    .loop-lyrics-footer-button:disabled { cursor: wait; opacity: .55; }
 `;
 
 function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs, instrumental = false) {
@@ -1967,6 +1973,46 @@ function loadBraccatoLyrics() {
     return braccatoLyricsPromise;
 }
 
+function ensureLyricsFooter(shadow) {
+    let footer = shadow.querySelector("#loop-lyrics-footer");
+    if (footer) return footer;
+
+    footer = document.createElement("div");
+    footer.id = "loop-lyrics-footer";
+    footer.hidden = true;
+
+    const reloadButton = document.createElement("button");
+    reloadButton.className = "loop-lyrics-footer-button";
+    reloadButton.type = "button";
+    reloadButton.textContent = "Reload lyrics";
+    reloadButton.addEventListener("click", () => {
+        reloadButton.disabled = true;
+        fetchLoopLyricsForCurrentTrack().finally(() => {
+            reloadButton.disabled = false;
+        });
+    });
+
+    const sourceLink = document.createElement("a");
+    sourceLink.className = "loop-lyrics-footer-button";
+    sourceLink.target = "_blank";
+    sourceLink.rel = "noopener noreferrer";
+    sourceLink.textContent = "Open lyrics source";
+    sourceLink.hidden = true;
+
+    footer.append(reloadButton, sourceLink);
+    shadow.appendChild(footer);
+    return footer;
+}
+
+function updateLyricsFooter(shadow, lyrics) {
+    const footer = ensureLyricsFooter(shadow);
+    const sourceLink = footer.querySelector("a");
+    const lyricsId = lyrics?.meta?.id;
+    sourceLink.hidden = !lyricsId;
+    if (lyricsId) sourceLink.href = `https://lrclib.net/tracks/${encodeURIComponent(lyricsId)}`;
+    footer.hidden = false;
+}
+
 function updateLoopLyrics(lyrics, empty = false) {
     const panel = document.querySelector("#loop-lyrics-panel");
     const host = panel?.querySelector("#loop-lyrics-host");
@@ -1997,15 +2043,19 @@ function updateLoopLyrics(lyrics, empty = false) {
         shadow.appendChild(loading);
     }
     const loading = shadow.querySelector("#loop-lyrics-loading");
+    const footer = ensureLyricsFooter(shadow);
 
     if (empty) {
         panel.hidden = true;
+        footer.hidden = true;
         braccatoLyricsRenderer?.clear();
         return;
     }
 
     panel.hidden = false;
     loading.hidden = false;
+    footer.hidden = true;
+    shadow.querySelector("#loop-lyrics-view")?.setAttribute("hidden", "");
     loading.querySelector(".loop-lyrics-submit-link")?.remove();
     if (lyrics === undefined) {
         loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
@@ -2061,7 +2111,11 @@ function updateLoopLyrics(lyrics, empty = false) {
             view = document.createElement("div");
             view.id = "loop-lyrics-view";
             view.hidden = true;
-            shadow.appendChild(view);
+            const shell = document.createElement("div");
+            shell.id = "loop-lyrics-shell";
+            shell.appendChild(view);
+            shell.appendChild(footer);
+            shadow.appendChild(shell);
         }
         if (braccatoLyricsMount !== view) {
             braccatoLyricsRenderer?.destroy();
@@ -2088,6 +2142,7 @@ function updateLoopLyrics(lyrics, empty = false) {
         braccatoLyricsRenderer.setLyrics(parsedLyrics, { noLyrics: false });
         loading.hidden = true;
         view.hidden = false;
+        updateLyricsFooter(shadow, lyrics);
         updatePlaybackControls();
     }).catch((error) => {
         console.warn("[loop.mp3] Could not load Braccato lyrics renderer:", error);
