@@ -1,7 +1,7 @@
 
 All notable changes to Loop are documented here.
 
-## [1.5] - Unreleased
+## [1.5] - 2026-10-06
 
 ### Highlights
 
