@@ -1866,7 +1866,8 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
             if (hasWordSync === false) continue;
         }
 
-        console.log("[loop.mp3] Fetched lyrics for track:", { trackId, title, artist, data });
+        showLoopNotification("Synced lyrics unavailable", 3000);
+        console.log("[loop.mp3] Fetched lyrics without synced timestamps:", { trackId, title, artist, data });
         return firstResultLyrics;
     } catch (error) {
         console.warn("[loop.mp3] Could not fetch lyrics:", error);
@@ -1883,6 +1884,7 @@ const braccatoLyricsTheme = `
         --blyrics-font-size: 3rem;
         --blyrics-line-height: 1.333;
         --blyrics-padding: 2rem;
+        --blyrics-text-color: #aaa;
         --blyrics-word-wobble-transform-from: scaleX(1);
         --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025);
         --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1);
@@ -2003,9 +2005,9 @@ function ensureLyricsFooter(shadow) {
     sourceLink.className = "loop-lyrics-footer-button";
     sourceLink.target = "_blank";
     sourceLink.rel = "noopener noreferrer";
-    sourceLink.setAttribute("aria-label", "Open lyrics source");
-    sourceLink.title = "Open lyrics source";
-    sourceLink.innerHTML = '<i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i><span>Open lyrics source</span>';
+    sourceLink.setAttribute("aria-label", "Open lyrics sync");
+    sourceLink.title = "Open lyrics sync";
+    sourceLink.innerHTML = '<i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i><span>Open lyrics sync</span>';
     sourceLink.hidden = true;
 
     footer.append(reloadButton, sourceLink);
