@@ -1908,8 +1908,12 @@ const braccatoLyricsShadowCSS = `
     @keyframes loop-lyrics-spin { to { transform: rotate(360deg); } }
     .blyrics-container { --blyrics-font-family: Satoshi, system-ui, sans-serif; --blyrics-font-size: 3rem; --blyrics-line-height: 1.333; --blyrics-padding: 2rem; --blyrics-word-wobble-transform-from: scaleX(1); --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025); --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1); --blyrics-word-wobble-transform-to: scaleX(1); }
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
-    #loop-lyrics-footer { display: flex; justify-content: center; gap: 8px; padding: 12px 0 4px; border-top: 1px solid rgba(255,255,255,.12); }
-    .loop-lyrics-footer-button { min-width: 118px; border: 1px solid rgba(255,255,255,.24); border-radius: 999px; padding: 7px 13px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; text-decoration: none; text-align: center; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; }
+    .blyrics-container > #loop-lyrics-footer { display: flex; justify-content: flex-start; gap: 8px; margin: 0; padding: 12px 0 16px .25em !important; border-top: 1px solid rgba(255,255,255,.12); cursor: default; transform: none !important; }
+    .blyrics-container > #loop-lyrics-footer[hidden] { display: none; }
+    .loop-lyrics-footer-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-width: 0; border: 1px solid rgba(255,255,255,.24); border-radius: 50%; padding: 0; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 13px; text-decoration: none; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; }
+    .loop-lyrics-footer-button .fa-solid { font-family: "Font Awesome 6 Free"; font-weight: 900; }
+    .loop-lyrics-footer-button .fa-arrows-rotate::before { content: "\\f021"; }
+    .loop-lyrics-footer-button .fa-up-right-from-square::before { content: "\\f35d"; }
     .loop-lyrics-footer-button:hover, .loop-lyrics-footer-button:focus-visible { border-color: rgba(255,255,255,.6); background: rgba(255,255,255,.16); color: #fff; }
     .loop-lyrics-footer-button:disabled { cursor: wait; opacity: .55; }
 `;
@@ -1984,7 +1988,9 @@ function ensureLyricsFooter(shadow) {
     const reloadButton = document.createElement("button");
     reloadButton.className = "loop-lyrics-footer-button";
     reloadButton.type = "button";
-    reloadButton.textContent = "Reload lyrics";
+    reloadButton.setAttribute("aria-label", "Reload lyrics");
+    reloadButton.title = "Reload lyrics";
+    reloadButton.innerHTML = '<i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>';
     reloadButton.addEventListener("click", () => {
         reloadButton.disabled = true;
         fetchLoopLyricsForCurrentTrack().finally(() => {
@@ -1996,7 +2002,9 @@ function ensureLyricsFooter(shadow) {
     sourceLink.className = "loop-lyrics-footer-button";
     sourceLink.target = "_blank";
     sourceLink.rel = "noopener noreferrer";
-    sourceLink.textContent = "Open lyrics source";
+    sourceLink.setAttribute("aria-label", "Open lyrics source");
+    sourceLink.title = "Open lyrics source";
+    sourceLink.innerHTML = '<i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i>';
     sourceLink.hidden = true;
 
     footer.append(reloadButton, sourceLink);
@@ -2006,6 +2014,8 @@ function ensureLyricsFooter(shadow) {
 
 function updateLyricsFooter(shadow, lyrics) {
     const footer = ensureLyricsFooter(shadow);
+    const lyricsContainer = shadow.querySelector(".blyrics-container");
+    if (lyricsContainer) lyricsContainer.appendChild(footer);
     const sourceLink = footer.querySelector("a");
     const lyricsId = lyrics?.meta?.id;
     sourceLink.hidden = !lyricsId;
