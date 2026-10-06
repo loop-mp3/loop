@@ -1910,7 +1910,7 @@ const braccatoLyricsShadowCSS = `
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
     .blyrics-container > #loop-lyrics-footer { display: flex; justify-content: flex-start; gap: 8px; margin: 0; padding: 12px 0 16px .25em !important; border-top: 1px solid rgba(255,255,255,.12); cursor: default; transform: none !important; }
     .blyrics-container > #loop-lyrics-footer[hidden] { display: none; }
-    .loop-lyrics-footer-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: auto; height: 34px; min-width: 0; border: 1px solid rgba(255,255,255,.24); border-radius: 999px; padding: 0 13px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; }
+    .loop-lyrics-footer-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: auto; height: 34px; min-width: 0; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 0 13px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; }
     .loop-lyrics-footer-button .fa-solid { font-family: "Font Awesome 6 Free"; font-weight: 900; }
     .loop-lyrics-footer-button .fa-arrows-rotate::before { content: "\\f021"; }
     .loop-lyrics-footer-button .fa-up-right-from-square::before { content: "\\f35d"; }
