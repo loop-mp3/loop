@@ -15,6 +15,7 @@ All notable changes to Loop are documented here.
 * Added animated transitions between onboarding steps.
 * Improved track metadata accuracy by using YouTube Music's player endpoint as an additional metadata source.
 * Added an optional lyrics display with dynamically synchronized, theme-aware lyrics, including instrumental-track handling.
+* Added randomly selected musical note symbols for timestamp-only lyric lines.
 * Added LRCLIB lyrics submission from the unavailable-lyrics view.
 * Added volume controls with persisted volume settings.
 * Added a fullscreen toggle to the action dock and a Loop-menu shortcut.
