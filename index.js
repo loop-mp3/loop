@@ -1927,6 +1927,7 @@ async function getLyricsFromLrclib(trackId, title, artist) {
 }
 
 async function getLyricsFromTrackInfo(trackId, title, artist) {
+    const resolutionStartedAt = performance.now();
     const preferredProvider = currentTrackLyricsProvider.trackId === trackId
         ? currentTrackLyricsProvider.providerId
         : null;
@@ -1935,20 +1936,22 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
         ? [preferredProvider, ...baseOrder.filter((providerId) => providerId !== preferredProvider)]
         : baseOrder;
     for (const providerId of order) {
+        const providerStartedAt = performance.now();
         try {
             const lyrics = providerId === "groove"
                 ? await getLyricsFromGroove(trackId, title, artist)
                 : await getLyricsFromLrclib(trackId, title, artist);
             if (!lyrics) {
-                console.warn(`[loop.mp3] ${providerId} had no lyrics; trying the next provider.`);
+                console.warn(`[loop.mp3] ${providerId} had no lyrics after ${(performance.now() - providerStartedAt).toFixed(1)} ms; trying the next provider.`);
                 continue;
             }
-            console.log(`[loop.mp3] Fetched lyrics from ${providerId}:`, { trackId, title, artist });
+            console.log(`[loop.mp3] Fetched lyrics from ${providerId} in ${(performance.now() - providerStartedAt).toFixed(1)} ms (total ${(performance.now() - resolutionStartedAt).toFixed(1)} ms):`, { trackId, title, artist });
             return lyrics;
         } catch (error) {
-            console.warn(`[loop.mp3] ${providerId} lyrics provider failed; trying the next provider:`, error);
+            console.warn(`[loop.mp3] ${providerId} lyrics provider failed after ${(performance.now() - providerStartedAt).toFixed(1)} ms; trying the next provider:`, error);
         }
     }
+    console.warn(`[loop.mp3] Lyrics resolution failed after ${(performance.now() - resolutionStartedAt).toFixed(1)} ms.`, { trackId, title, artist });
     showLoopNotification("Could not fetch lyrics", 3000);
     return null;
 }
@@ -2053,7 +2056,8 @@ const braccatoLyricsShadowCSS = `
     .blyrics-container { --blyrics-font-family: Satoshi, system-ui, sans-serif; --blyrics-font-size: 3rem; --blyrics-line-height: 1.333; --blyrics-padding: 2rem; --blyrics-word-wobble-transform-from: scaleX(1); --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025); --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1); --blyrics-word-wobble-transform-to: scaleX(1); }
     #loop-lyrics-view .blyrics-container { display: flex; flex-direction: column; min-height: 100%; }
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
-    .blyrics-container > #loop-lyrics-footer { display: flex; justify-content: flex-start; gap: 8px; width: 100%; box-sizing: border-box; margin: auto 0 0; padding: 12px 0 16px .25em !important; border-top: 1px solid rgba(255,255,255,.12); cursor: default; transform: none !important; }
+    .blyrics-container > #loop-lyrics-footer { display: flex; justify-content: flex-start; gap: 8px; width: 100%; box-sizing: border-box; margin: auto 0 0; padding: 12px 0 16px .25em !important; border-top: 1px solid rgba(255,255,255,.12); visibility: hidden; opacity: 0; pointer-events: none; cursor: default; transform: none !important; transition: opacity 150ms ease; }
+    .blyrics-container > #loop-lyrics-footer.is-visible { position: sticky; bottom: 0; z-index: 2; visibility: visible; opacity: 1; pointer-events: auto; background: rgba(12, 20, 19, .92); backdrop-filter: blur(10px); }
     .blyrics-container > #loop-lyrics-footer[hidden] { display: none; }
     .loop-lyrics-footer-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: auto; height: 34px; min-width: 0; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 0 13px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; }
     .loop-lyrics-footer-button .fa-solid { font-family: "Font Awesome 6 Free"; font-weight: 900; }
@@ -2170,10 +2174,27 @@ function ensureLyricsFooter(shadow) {
     return footer;
 }
 
+function syncLyricsFooterVisibility(shadow) {
+    const view = shadow.querySelector("#loop-lyrics-view");
+    const footer = shadow.querySelector("#loop-lyrics-footer");
+    if (!view || !footer || footer.hidden) return;
+    const endThreshold = Math.max(footer.offsetHeight + 24, view.clientHeight * 0.08);
+    const reachedEnd = view.scrollTop + view.clientHeight >= view.scrollHeight - endThreshold;
+    footer.classList.toggle("is-visible", reachedEnd);
+}
+
+function bindLyricsFooterScroll(shadow) {
+    const view = shadow.querySelector("#loop-lyrics-view");
+    if (!view || view.dataset.loopLyricsFooterScrollBound) return;
+    view.dataset.loopLyricsFooterScrollBound = "true";
+    view.addEventListener("scroll", () => syncLyricsFooterVisibility(shadow), { passive: true });
+}
+
 function updateLyricsFooter(shadow, lyrics) {
     const footer = ensureLyricsFooter(shadow);
     const lyricsContainer = shadow.querySelector(".blyrics-container");
     if (lyricsContainer) lyricsContainer.appendChild(footer);
+    bindLyricsFooterScroll(shadow);
     const sourceLink = footer.querySelector("a");
     const providerSelect = footer.querySelector("select");
     if (providerSelect) {
@@ -2193,6 +2214,7 @@ function updateLyricsFooter(shadow, lyrics) {
     sourceLink.hidden = !sourceURL;
     if (sourceURL) sourceLink.href = sourceURL;
     footer.hidden = false;
+    syncLyricsFooterVisibility(shadow);
 }
 
 function updateLoopLyrics(lyrics, empty = false) {
