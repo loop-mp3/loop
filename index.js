@@ -453,7 +453,7 @@ function showUpdateNotice(config) {
     const message = document.createElement("span");
     message.textContent = config.update_notice || "A new Loop update is available.";
     const link = document.createElement("a");
-    const updateURL = getUpdateURL();
+    const updateURL = defaultUpdateURL;
     link.href = updateURL;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
@@ -486,7 +486,7 @@ function showRequiredUpdateBlocker(config) {
     message.textContent = config.update_notice ||
         "This version of Loop is no longer supported. Update to continue.";
     const link = document.createElement("a");
-    const updateURL = getUpdateURL();
+    const updateURL = defaultUpdateURL;
     link.href = updateURL;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
