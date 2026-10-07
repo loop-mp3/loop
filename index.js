@@ -1853,6 +1853,38 @@ function getCurrentTrackDurationInSeconds() {
     return Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null;
 }
 
+async function waitForCurrentTrackDuration(timeoutMs = 3000) {
+    const currentDuration = getCurrentTrackDurationInSeconds();
+    if (currentDuration !== null) return currentDuration;
+
+    return new Promise((resolve) => {
+        const mediaElements = [...document.querySelectorAll("video, audio")];
+        let timeoutId;
+        let intervalId;
+
+        const finish = () => {
+            mediaElements.forEach((media) => {
+                media.removeEventListener("loadedmetadata", checkDuration);
+                media.removeEventListener("durationchange", checkDuration);
+            });
+            clearTimeout(timeoutId);
+            clearInterval(intervalId);
+            resolve(getCurrentTrackDurationInSeconds());
+        };
+        const checkDuration = () => {
+            if (getCurrentTrackDurationInSeconds() !== null) finish();
+        };
+
+        mediaElements.forEach((media) => {
+            media.addEventListener("loadedmetadata", checkDuration);
+            media.addEventListener("durationchange", checkDuration);
+        });
+        intervalId = setInterval(checkDuration, 100);
+        timeoutId = setTimeout(finish, timeoutMs);
+        checkDuration();
+    });
+}
+
 function lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDurationInSeconds) {
     if (!Number.isFinite(trackDurationInSeconds)) return false;
     const lyricsDuration = Number(lyricsMeta?.duration ?? lyricsQueryResult?.duration);
@@ -1948,6 +1980,7 @@ async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSecond
 }
 
 async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSeconds = getCurrentTrackDurationInSeconds()) {
+    trackDurationInSeconds ??= await waitForCurrentTrackDuration();
     const resolutionStartedAt = performance.now();
     const preferredProvider = currentTrackLyricsProvider.trackId === trackId
         ? currentTrackLyricsProvider.providerId
