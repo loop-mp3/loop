@@ -258,6 +258,7 @@ let loopVisible = false;
 const loopPreferencesKey = "loop.mp3.preferences";
 const kawarpConfigKey = "loop.mp3.kawarp-config";
 const kawarpCustomPresetsKey = "loop.mp3.kawarp-custom-presets";
+const lyricsCacheKeyPrefix = "lyrics_";
 const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
 const lyricsProviders = [
@@ -627,6 +628,196 @@ function saveLoopPreferences() {
     } catch {
         // Preferences are optional; continue if storage is unavailable.
     }
+}
+
+function getLyricsCacheKey(trackId) {
+    return `${lyricsCacheKeyPrefix}${trackId}`;
+}
+
+function getLyricsCacheStorage() {
+    return globalThis.chrome?.storage?.local || globalThis.browser?.storage?.local;
+}
+
+function getCachedLyrics(trackId) {
+    const storage = getLyricsCacheStorage();
+    if (!storage || !trackId) return Promise.resolve(null);
+
+    return new Promise((resolve) => {
+        storage.get(getLyricsCacheKey(trackId), (result) => {
+            const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+            if (error) {
+                console.warn("[loop.mp3] Could not read cached lyrics:", error.message);
+                resolve(null);
+                return;
+            }
+            resolve(result?.[getLyricsCacheKey(trackId)] || null);
+        });
+    });
+}
+
+function cacheLyrics(trackId, title, artist, duration, lyrics) {
+    const storage = getLyricsCacheStorage();
+    if (!storage || !trackId || !lyrics?.meta?.provider) return Promise.resolve();
+
+    const requestDuration = Number(duration);
+    const responseDuration = Number(lyrics.meta.duration);
+    const cachedLyrics = {
+        provider: lyrics.meta.provider,
+        title,
+        artist,
+        duration: Number.isFinite(requestDuration)
+            ? requestDuration
+            : Number.isFinite(responseDuration) ? responseDuration : null,
+        syncedLyrics: lyrics.syncedLyrics || null,
+        plainLyrics: lyrics.plainLyrics || null,
+        cachedAt: Date.now(),
+    };
+
+    return new Promise((resolve) => {
+        storage.set({ [getLyricsCacheKey(trackId)]: cachedLyrics }, () => {
+            const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+            if (error) console.warn("[loop.mp3] Could not cache lyrics:", error.message);
+            resolve();
+        });
+    });
+}
+
+function restoreCachedLyrics(cachedLyrics) {
+    if (!cachedLyrics?.provider) return null;
+    if (!cachedLyrics.syncedLyrics && !cachedLyrics.plainLyrics) return null;
+    return {
+        meta: {
+            provider: cachedLyrics.provider,
+            title: cachedLyrics.title,
+            artist: cachedLyrics.artist,
+            duration: cachedLyrics.duration,
+            cachedAt: cachedLyrics.cachedAt,
+        },
+        syncedLyrics: cachedLyrics.syncedLyrics || null,
+        plainLyrics: cachedLyrics.plainLyrics || null,
+    };
+}
+
+function getAllCachedLyrics() {
+    const storage = getLyricsCacheStorage();
+    if (!storage) return Promise.resolve([]);
+
+    return new Promise((resolve) => {
+        storage.get(null, (result) => {
+            const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+            if (error) {
+                console.warn("[loop.mp3] Could not read lyrics cache:", error.message);
+                resolve([]);
+                return;
+            }
+
+            resolve(Object.entries(result || {})
+                .filter(([key, value]) => key.startsWith(lyricsCacheKeyPrefix) && value?.provider)
+                .map(([key, value]) => ({ trackId: key.slice(lyricsCacheKeyPrefix.length), ...value }))
+                .sort((a, b) => Number(b.cachedAt || 0) - Number(a.cachedAt || 0)));
+        });
+    });
+}
+
+function showCachedLyricsModal() {
+    if (document.getElementById("loop-lyrics-cache-modal")) return;
+
+    const modal = document.createElement("div");
+    modal.id = "loop-lyrics-cache-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "loop-lyrics-cache-title");
+    modal.innerHTML = `
+        <section class="loop-lyrics-cache-card">
+            <header class="loop-lyrics-cache-header">
+                <div>
+                    <div class="loop-lyrics-cache-kicker">Loop storage</div>
+                    <h2 id="loop-lyrics-cache-title">Cached lyrics</h2>
+                </div>
+                <button type="button" class="loop-lyrics-cache-close" aria-label="Close cached lyrics">&#215;</button>
+            </header>
+            <div class="loop-lyrics-cache-layout">
+                <div class="loop-lyrics-cache-list" role="listbox" aria-label="Cached lyrics tracks">
+                    <div class="loop-lyrics-cache-status">Loading cached lyrics…</div>
+                </div>
+                <div class="loop-lyrics-cache-details" aria-live="polite">
+                    <div class="loop-lyrics-cache-empty">Select a cached track to view its metadata.</div>
+                </div>
+            </div>
+        </section>`;
+    (document.getElementById("loop") || document.body).appendChild(modal);
+
+    const close = () => modal.remove();
+    const list = modal.querySelector(".loop-lyrics-cache-list");
+    const details = modal.querySelector(".loop-lyrics-cache-details");
+
+    const showDetails = (entry, button) => {
+        list.querySelectorAll("[aria-selected='true']").forEach((item) => item.setAttribute("aria-selected", "false"));
+        button.setAttribute("aria-selected", "true");
+        details.replaceChildren();
+
+        const heading = document.createElement("h3");
+        heading.textContent = entry.title || "Untitled track";
+        const artist = document.createElement("p");
+        artist.className = "loop-lyrics-cache-detail-artist";
+        artist.textContent = entry.artist || "Unknown artist";
+
+        const metadata = document.createElement("dl");
+        const fields = [
+            ["Track ID", entry.trackId],
+            ["Provider", entry.provider],
+            ["Duration", Number.isFinite(Number(entry.duration)) ? `${Math.floor(entry.duration / 60)}:${String(Math.round(entry.duration % 60)).padStart(2, "0")}` : "Unknown"],
+            ["Cached", entry.cachedAt ? new Date(entry.cachedAt).toLocaleString() : "Unknown"],
+        ];
+        fields.forEach(([label, value]) => {
+            const term = document.createElement("dt");
+            term.textContent = label;
+            const valueElement = document.createElement("dd");
+            valueElement.textContent = value;
+            metadata.append(term, valueElement);
+        });
+
+        const lyrics = document.createElement("pre");
+        lyrics.className = "loop-lyrics-cache-content";
+        lyrics.textContent = entry.syncedLyrics || entry.plainLyrics || "No lyric text stored.";
+        details.append(heading, artist, metadata, lyrics);
+    };
+
+    getAllCachedLyrics().then((entries) => {
+        list.replaceChildren();
+        if (!entries.length) {
+            const empty = document.createElement("div");
+            empty.className = "loop-lyrics-cache-status";
+            empty.textContent = "No cached lyrics yet.";
+            list.appendChild(empty);
+            return;
+        }
+
+        entries.forEach((entry, index) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "loop-lyrics-cache-item";
+            button.setAttribute("role", "option");
+            button.setAttribute("aria-selected", index === 0 ? "true" : "false");
+            const title = document.createElement("strong");
+            title.textContent = entry.title || "Untitled track";
+            const subtitle = document.createElement("span");
+            subtitle.textContent = `${entry.artist || "Unknown artist"} · ${entry.provider}`;
+            button.append(title, subtitle);
+            button.addEventListener("click", () => showDetails(entry, button));
+            list.appendChild(button);
+            if (index === 0) showDetails(entry, button);
+        });
+    });
+
+    modal.querySelector(".loop-lyrics-cache-close").addEventListener("click", close);
+    modal.addEventListener("click", (event) => {
+        if (event.target === modal) close();
+    });
+    modal.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") close();
+    });
+    modal.querySelector(".loop-lyrics-cache-close").focus();
 }
 
 function showLoopResetModal() {
@@ -1979,7 +2170,7 @@ async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSecond
     return firstResultLyrics;
 }
 
-async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSeconds = getCurrentTrackDurationInSeconds()) {
+async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSeconds = getCurrentTrackDurationInSeconds(), forceRefresh = false) {
     trackDurationInSeconds ??= await waitForCurrentTrackDuration();
     const resolutionStartedAt = performance.now();
     const preferredProvider = currentTrackLyricsProvider.trackId === trackId
@@ -1989,6 +2180,16 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
     const order = preferredProvider && baseOrder.includes(preferredProvider)
         ? [preferredProvider, ...baseOrder.filter((providerId) => providerId !== preferredProvider)]
         : baseOrder;
+
+    if (!forceRefresh) {
+        const cachedLyrics = restoreCachedLyrics(await getCachedLyrics(trackId));
+        if (cachedLyrics && (!preferredProvider || cachedLyrics.meta.provider === preferredProvider)) {
+            currentTrackLyricsProvider = { trackId, providerId: cachedLyrics.meta.provider };
+            console.log("[loop.mp3] Using cached lyrics:", { trackId, provider: cachedLyrics.meta.provider });
+            return cachedLyrics;
+        }
+    }
+
     for (const providerId of order) {
         const providerStartedAt = performance.now();
         try {
@@ -1999,6 +2200,7 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
                 console.warn(`[loop.mp3] ${providerId} had no lyrics after ${(performance.now() - providerStartedAt).toFixed(1)} ms; trying the next provider.`);
                 continue;
             }
+            await cacheLyrics(trackId, title, artist, trackDurationInSeconds, lyrics);
             console.log(`[loop.mp3] Fetched lyrics from ${providerId} in ${(performance.now() - providerStartedAt).toFixed(1)} ms (total ${(performance.now() - resolutionStartedAt).toFixed(1)} ms):`, { trackId, title, artist });
             return lyrics;
         } catch (error) {
@@ -2199,7 +2401,7 @@ function ensureLyricsFooter(shadow) {
     reloadButton.innerHTML = '<i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i><span>Reload lyrics</span>';
     reloadButton.addEventListener("click", () => {
         reloadButton.disabled = true;
-        fetchLoopLyricsForCurrentTrack().finally(() => {
+        fetchLoopLyricsForCurrentTrack(true).finally(() => {
             reloadButton.disabled = false;
         });
     });
@@ -2408,7 +2610,7 @@ function updateLoopLyrics(lyrics, empty = false) {
     });
 }
 
-async function fetchLoopLyricsForCurrentTrack() {
+async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
     const requestId = ++lyricsRequestId;
     const trackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
     const loop = document.querySelector("#loop");
@@ -2424,7 +2626,7 @@ async function fetchLoopLyricsForCurrentTrack() {
     }
 
     updateLoopLyrics(undefined);
-    const lyrics = await getLyricsFromTrackInfo(trackId, title, artist, getCurrentTrackDurationInSeconds());
+    const lyrics = await getLyricsFromTrackInfo(trackId, title, artist, getCurrentTrackDurationInSeconds(), forceRefresh);
     if (
         requestId !== lyricsRequestId ||
         !loopPreferences.showLyrics ||
@@ -3157,6 +3359,9 @@ function updateLoop(artworkURL, trackInfo) {
                     <button id="loop-lyrics-submit-button" class="loop-menu-action" type="button">
                         Submit lyrics to LRCLIB
                     </button>
+                    <button id="loop-lyrics-cache-button" class="loop-menu-action" type="button">
+                        View cached lyrics
+                    </button>
                     <button id="loop-kawarp-config-button" class="loop-menu-action" type="button">
                         Edit Kawarp shader config
                     </button>
@@ -3311,6 +3516,10 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-lyrics-submit-button").addEventListener("click", () => {
             loop.querySelector("#loop-shortcuts-panel").hidden = true;
             showLyricsSubmissionModal();
+        });
+        loop.querySelector("#loop-lyrics-cache-button").addEventListener("click", () => {
+            loop.querySelector("#loop-shortcuts-panel").hidden = true;
+            showCachedLyricsModal();
         });
         loop.querySelector("#loop-kawarp-config-button").addEventListener("click", showKawarpConfigEditor);
         loop.querySelector("#loop-shortcuts-button").addEventListener("click", (event) => {
