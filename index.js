@@ -1848,6 +1848,17 @@ function hasSyncedLyricTimestamps(syncedLyrics) {
         .some((line) => /^\[\d+:\d+(?:\.\d+)?\]/.test(line));
 }
 
+function getCurrentTrackDurationInSeconds() {
+    const duration = Number(getCurrentMedia()?.duration);
+    return Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null;
+}
+
+function lyricsDurationMatchesTrack(lyricsMeta, lyricsQueryResult, trackDurationInSeconds) {
+    if (!Number.isFinite(trackDurationInSeconds)) return true;
+    const lyricsDuration = Number(lyricsMeta?.duration ?? lyricsQueryResult?.duration);
+    return Number.isFinite(lyricsDuration) && Math.round(lyricsDuration) === trackDurationInSeconds;
+}
+
 function normalizeLyricsResponse(payload, providerId) {
     const candidates = [payload, ...(Array.isArray(payload) ? payload : []), payload?.lyrics, payload?.data, payload?.result, payload?.track]
         .filter((candidate) => candidate && typeof candidate === "object");
@@ -1877,9 +1888,12 @@ function normalizeLyricsResponse(payload, providerId) {
     };
 }
 
-async function getLyricsFromGroove(trackId, title, artist) {
+async function getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds) {
     if (!trackId) throw new Error("Groove requires a track ID");
-    const response = await fetch(`${lyricsProviders[0].endpoint}/${encodeURIComponent(trackId)}`, {
+    const query = Number.isFinite(trackDurationInSeconds)
+        ? `?duration=${encodeURIComponent(trackDurationInSeconds)}`
+        : "";
+    const response = await fetch(`${lyricsProviders[0].endpoint}/${encodeURIComponent(trackId)}${query}`, {
         cache: "no-store",
     });
     if (!response.ok) throw new Error(`Groove returned ${response.status}`);
@@ -1888,7 +1902,7 @@ async function getLyricsFromGroove(trackId, title, artist) {
     return lyrics;
 }
 
-async function getLyricsFromLrclib(trackId, title, artist) {
+async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSeconds) {
     const query = new URLSearchParams({ q: `${title} ${artist}` }).toString();
     const res = await fetch(`${lyricsProviders[1].endpoint}?${query}`);
     if (!res.ok) throw new Error(`LRCLIB search returned ${res.status}`);
@@ -1909,6 +1923,13 @@ async function getLyricsFromLrclib(trackId, title, artist) {
         const lyricsMeta = await lyricsResponse.json();
         const syncedLyrics = lyricsMeta?.syncedLyrics || lyricsQueryResult.syncedLyrics || null;
         const plainLyrics = lyricsMeta?.plainLyrics || lyricsQueryResult.plainLyrics || null;
+        if (!lyricsDurationMatchesTrack(lyricsMeta, lyricsQueryResult, trackDurationInSeconds)) {
+            console.log(`[loop.mp3] Skipping LRCLIB search result ${resultIndex + 1} because its duration does not match the track.`, {
+                trackDurationInSeconds,
+                lyricsDuration: lyricsMeta?.duration ?? lyricsQueryResult.duration,
+            });
+            continue;
+        }
         const resultLyrics = {
             meta: { ...lyricsMeta, provider: "lrclib" },
             syncedLyrics: lyricsMeta?.instrumental && !syncedLyrics && !plainLyrics
@@ -1923,10 +1944,10 @@ async function getLyricsFromLrclib(trackId, title, artist) {
         }
         if ((lyricsMeta?.hasWordSync ?? lyricsQueryResult.hasWordSync) === false) continue;
     }
-    return firstResultLyrics;
+    return Number.isFinite(trackDurationInSeconds) ? null : firstResultLyrics;
 }
 
-async function getLyricsFromTrackInfo(trackId, title, artist) {
+async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSeconds = getCurrentTrackDurationInSeconds()) {
     const resolutionStartedAt = performance.now();
     const preferredProvider = currentTrackLyricsProvider.trackId === trackId
         ? currentTrackLyricsProvider.providerId
@@ -1939,8 +1960,8 @@ async function getLyricsFromTrackInfo(trackId, title, artist) {
         const providerStartedAt = performance.now();
         try {
             const lyrics = providerId === "groove"
-                ? await getLyricsFromGroove(trackId, title, artist)
-                : await getLyricsFromLrclib(trackId, title, artist);
+                ? await getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds)
+                : await getLyricsFromLrclib(trackId, title, artist, trackDurationInSeconds);
             if (!lyrics) {
                 console.warn(`[loop.mp3] ${providerId} had no lyrics after ${(performance.now() - providerStartedAt).toFixed(1)} ms; trying the next provider.`);
                 continue;
@@ -2370,7 +2391,7 @@ async function fetchLoopLyricsForCurrentTrack() {
     }
 
     updateLoopLyrics(undefined);
-    const lyrics = await getLyricsFromTrackInfo(trackId, title, artist);
+    const lyrics = await getLyricsFromTrackInfo(trackId, title, artist, getCurrentTrackDurationInSeconds());
     if (
         requestId !== lyricsRequestId ||
         !loopPreferences.showLyrics ||
@@ -2970,7 +2991,12 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             domInfo.albumUrl;
         let lyrics;
         if (loopPreferences.showLyrics) {
-            lyrics = await getLyricsFromTrackInfo(trackId, titleForLyrics, AuthorNameComposed) || {
+            lyrics = await getLyricsFromTrackInfo(
+                trackId,
+                titleForLyrics,
+                AuthorNameComposed,
+                getCurrentTrackDurationInSeconds()
+            ) || {
                 meta: null,
                 syncedLyrics: null,
                 plainLyrics: null,
