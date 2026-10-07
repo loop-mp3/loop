@@ -1,31 +1,51 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "loop.mp3",
   "version": "1.5.0",
-  "description": "A minimal, keyboard-first music player built on top of YouTube Music. (DO NOT USE IN A BROWSER IT MAY BREAK)",
+  "description": "A fast, minimal YouTube Music player extension optimized for Firefox Android.",
   "author": "Saaransh_Xd",
   "content_scripts": [
     {
-      "matches": ["https://music.youtube.com/*"],
-      "js": ["index.js"],
-      "css": ["static/loop.css"],
+      "matches": [
+        "https://music.youtube.com/*"
+      ],
+      "js": [
+        "index.js"
+      ],
+      "css": [
+        "static/loop.css"
+      ],
       "run_at": "document_start"
     }
   ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
   "permissions": [
     "storage",
-    "scripting"
+    "unlimitedStorage",
+    "https://music.youtube.com/*",
+    "https://www.youtube.com/*",
+    "https://img.youtube.com/*",
+    "https://lrclib.net/*",
+    "https://groove.mizucode.qzz.io/*"
   ],
   "web_accessible_resources": [
-    {
-      "resources": ["config/shader.json", "config/presets/*", "modules/kawarp.js", "modules/braccato/*", "modules/braccato/styles/*", "static/fallback-artwork.png", "static/fallback-legacy.png"],
-      "matches": ["https://music.youtube.com/*"]
-    }
+    "config/shader.json",
+    "config/presets/*",
+    "modules/kawarp.js",
+    "modules/braccato/*",
+    "modules/braccato/styles/*",
+    "static/fallback-artwork.png",
+    "static/fallback-legacy.png"
   ],
   "background": {
-    "service_worker": "background.js"
+    "scripts": [
+      "background.js"
+    ],
+    "persistent": false
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "loop@loop-mp3",
+      "strict_min_version": "128.0"
+    }
   }
 }
