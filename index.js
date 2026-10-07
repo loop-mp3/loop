@@ -247,6 +247,7 @@ let braccatoLyricsPromise;
 let braccatoLyricsRenderer;
 let braccatoLyricsMount;
 let lyricsRequestId = 0;
+let currentTrackLyricsProvider = { trackId: null, providerId: null };
 let notificationTimer;
 let notificationAnimationTimer;
 let notificationAnimationFrame;
@@ -260,7 +261,7 @@ const kawarpCustomPresetsKey = "loop.mp3.kawarp-custom-presets";
 const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
 const lyricsProviders = [
-    { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/lyrics" },
+    { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/v1/track" },
     { id: "lrclib", label: "LRCLIB", endpoint: "https://lrclib.net/api/search" },
 ];
 
@@ -1877,19 +1878,10 @@ function normalizeLyricsResponse(payload, providerId) {
 }
 
 async function getLyricsFromGroove(trackId, title, artist) {
-    const params = { trackId, track_id: trackId, videoId: trackId, title, artist };
-    const query = new URLSearchParams(params).toString();
-    let response = await fetch(`${lyricsProviders[0].endpoint}?${query}`, { cache: "no-store" });
-    if (!response.ok) {
-        // Keep compatibility with the service's documented /api root if it
-        // exposes the lookup as a JSON POST instead of /api/lyrics.
-        response = await fetch("https://groove.mizucode.qzz.io/api", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(params),
-            cache: "no-store",
-        });
-    }
+    if (!trackId) throw new Error("Groove requires a track ID");
+    const response = await fetch(`${lyricsProviders[0].endpoint}/${encodeURIComponent(trackId)}`, {
+        cache: "no-store",
+    });
     if (!response.ok) throw new Error(`Groove returned ${response.status}`);
     const lyrics = normalizeLyricsResponse(await response.json(), "groove");
     if (!lyrics) throw new Error("Groove returned no usable lyrics");
@@ -1935,7 +1927,13 @@ async function getLyricsFromLrclib(trackId, title, artist) {
 }
 
 async function getLyricsFromTrackInfo(trackId, title, artist) {
-    const order = getLyricsProviderOrder();
+    const preferredProvider = currentTrackLyricsProvider.trackId === trackId
+        ? currentTrackLyricsProvider.providerId
+        : null;
+    const baseOrder = getLyricsProviderOrder();
+    const order = preferredProvider && baseOrder.includes(preferredProvider)
+        ? [preferredProvider, ...baseOrder.filter((providerId) => providerId !== preferredProvider)]
+        : baseOrder;
     for (const providerId of order) {
         try {
             const lyrics = providerId === "groove"
@@ -2063,6 +2061,9 @@ const braccatoLyricsShadowCSS = `
     .loop-lyrics-footer-button .fa-up-right-from-square::before { content: "\\f35d"; }
     .loop-lyrics-footer-button:hover, .loop-lyrics-footer-button:focus-visible { border-color: rgba(255,255,255,.6); background: rgba(255,255,255,.16); color: #fff; }
     .loop-lyrics-footer-button:disabled { cursor: wait; opacity: .55; }
+    .loop-lyrics-footer-provider { height: 34px; max-width: 115px; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 0 8px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; cursor: pointer; }
+    .loop-lyrics-footer-provider:focus-visible { outline: 2px solid rgba(255,255,255,.8); outline-offset: 1px; }
+    .loop-lyrics-footer-provider option { color: #fff; background: #181818; }
 `;
 
 function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs, instrumental = false) {
@@ -2154,7 +2155,17 @@ function ensureLyricsFooter(shadow) {
     sourceLink.innerHTML = '<i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i><span>Open lyrics sync</span>';
     sourceLink.hidden = true;
 
-    footer.append(reloadButton, sourceLink);
+    const providerSelect = document.createElement("select");
+    providerSelect.className = "loop-lyrics-footer-provider";
+    providerSelect.setAttribute("aria-label", "Lyrics provider for current track");
+    providerSelect.title = "Lyrics provider for current track";
+    providerSelect.addEventListener("change", () => {
+        const trackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
+        currentTrackLyricsProvider = { trackId, providerId: providerSelect.value };
+        fetchLoopLyricsForCurrentTrack();
+    });
+
+    footer.append(reloadButton, providerSelect, sourceLink);
     shadow.appendChild(footer);
     return footer;
 }
@@ -2164,9 +2175,23 @@ function updateLyricsFooter(shadow, lyrics) {
     const lyricsContainer = shadow.querySelector(".blyrics-container");
     if (lyricsContainer) lyricsContainer.appendChild(footer);
     const sourceLink = footer.querySelector("a");
+    const providerSelect = footer.querySelector("select");
+    if (providerSelect) {
+        const selectedProvider = lyrics?.meta?.provider || getLyricsProviderOrder()[0];
+        providerSelect.replaceChildren(...lyricsProviders.map((provider) => {
+            const option = new Option(provider.label, provider.id);
+            option.selected = provider.id === selectedProvider;
+            return option;
+        }));
+        providerSelect.value = selectedProvider;
+    }
     const lyricsId = lyrics?.meta?.id;
-    sourceLink.hidden = !lyricsId;
-    if (lyricsId) sourceLink.href = `https://lrclib.net/tracks/${encodeURIComponent(lyricsId)}`;
+    const sourceURL = lyrics?.meta?.sourceUrl || lyrics?.meta?.source_url ||
+        (lyrics?.meta?.provider === "lrclib" && lyricsId
+            ? `https://lrclib.net/tracks/${encodeURIComponent(lyricsId)}`
+            : "");
+    sourceLink.hidden = !sourceURL;
+    if (sourceURL) sourceLink.href = sourceURL;
     footer.hidden = false;
 }
 
@@ -2316,6 +2341,10 @@ async function fetchLoopLyricsForCurrentTrack() {
     if (!trackId || !title || !artist) {
         updateLoopLyrics(null);
         return;
+    }
+
+    if (currentTrackLyricsProvider.trackId !== trackId) {
+        currentTrackLyricsProvider = { trackId, providerId: null };
     }
 
     updateLoopLyrics(undefined);
