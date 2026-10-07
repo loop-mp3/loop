@@ -235,6 +235,7 @@ let loopPreferences = {
     useLegacyFallbackArtwork: false,
     showAlbum: false,
     showLyrics: false,
+    lyricsProviderOrder: ["groove", "lrclib"],
     volume: 1,
     theme: "default",
 };
@@ -258,6 +259,29 @@ const kawarpConfigKey = "loop.mp3.kawarp-config";
 const kawarpCustomPresetsKey = "loop.mp3.kawarp-custom-presets";
 const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
+const lyricsProviders = [
+    { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/lyrics" },
+    { id: "lrclib", label: "LRCLIB", endpoint: "https://lrclib.net/api/search" },
+];
+
+function getLyricsProviderOrder() {
+    const storedOrder = Array.isArray(loopPreferences.lyricsProviderOrder)
+        ? loopPreferences.lyricsProviderOrder
+        : [];
+    const knownIds = new Set(lyricsProviders.map((provider) => provider.id));
+    return [...new Set([
+        ...storedOrder.filter((providerId) => knownIds.has(providerId)),
+        ...lyricsProviders.map((provider) => provider.id),
+    ])];
+}
+
+function setLyricsProviderOrder(providerId) {
+    const order = getLyricsProviderOrder();
+    if (!order.includes(providerId)) return;
+    loopPreferences.lyricsProviderOrder = [providerId, ...order.filter((id) => id !== providerId)];
+    saveLoopPreferences();
+    applyLoopPreferences();
+}
 
 function getOnboardingStorageKey() {
     return `${getInstalledVersion()}IsOnboarded`;
@@ -1136,6 +1160,7 @@ async function resetLoopData() {
         useLegacyFallbackArtwork: false,
         showAlbum: false,
         showLyrics: false,
+        lyricsProviderOrder: ["groove", "lrclib"],
         volume: 1,
         theme: "default",
     };
@@ -1170,6 +1195,16 @@ function applyLoopPreferences() {
     if (albumToggle) albumToggle.checked = Boolean(loopPreferences.showAlbum);
     const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
     if (lyricsToggle) lyricsToggle.checked = Boolean(loopPreferences.showLyrics);
+    const lyricsProviderSelect = loop.querySelector("#loop-lyrics-provider-select");
+    if (lyricsProviderSelect) {
+        const order = getLyricsProviderOrder();
+        lyricsProviderSelect.replaceChildren(...order.map((providerId, index) => {
+            const provider = lyricsProviders.find((entry) => entry.id === providerId);
+            const option = new Option(`${provider.label} (priority ${index + 1})`, provider.id);
+            return option;
+        }));
+        lyricsProviderSelect.value = order[0];
+    }
     const volumeSlider = loop.querySelector("#loop-volume-slider");
     if (volumeSlider) volumeSlider.value = String(preferredVolume);
     const lyricsPanel = loop.querySelector("#loop-lyrics-panel");
@@ -1812,7 +1847,116 @@ function hasSyncedLyricTimestamps(syncedLyrics) {
         .some((line) => /^\[\d+:\d+(?:\.\d+)?\]/.test(line));
 }
 
+function normalizeLyricsResponse(payload, providerId) {
+    const candidates = [payload, ...(Array.isArray(payload) ? payload : []), payload?.lyrics, payload?.data, payload?.result, payload?.track]
+        .filter((candidate) => candidate && typeof candidate === "object");
+    const source = candidates.find((candidate) =>
+        candidate.syncedLyrics || candidate.synced_lyrics || candidate.lrc ||
+        candidate.plainLyrics || candidate.plain_lyrics || candidate.lyrics
+    );
+    if (!source) return null;
+    const nestedLyrics = source.lyrics && typeof source.lyrics === "object" ? source.lyrics : {};
+    const syncedLyrics = source.syncedLyrics || source.synced_lyrics || source.lrc ||
+        nestedLyrics.syncedLyrics || nestedLyrics.synced_lyrics || nestedLyrics.lrc ||
+        (typeof source.lyrics === "string" ? source.lyrics : null);
+    const plainLyrics = source.plainLyrics || source.plain_lyrics ||
+        nestedLyrics.plainLyrics || nestedLyrics.plain_lyrics;
+    if (!syncedLyrics && !plainLyrics && source.instrumental !== true) return null;
+    return {
+        meta: {
+            ...source,
+            provider: providerId,
+            instrumental: source.instrumental === true,
+            duration: source.duration,
+        },
+        syncedLyrics: source.instrumental && !syncedLyrics && !plainLyrics
+            ? "[00:00.00] Instrumental only\n[99:99.99] ♪"
+            : syncedLyrics || null,
+        plainLyrics: plainLyrics || null,
+    };
+}
+
+async function getLyricsFromGroove(trackId, title, artist) {
+    const params = { trackId, track_id: trackId, videoId: trackId, title, artist };
+    const query = new URLSearchParams(params).toString();
+    let response = await fetch(`${lyricsProviders[0].endpoint}?${query}`, { cache: "no-store" });
+    if (!response.ok) {
+        // Keep compatibility with the service's documented /api root if it
+        // exposes the lookup as a JSON POST instead of /api/lyrics.
+        response = await fetch("https://groove.mizucode.qzz.io/api", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(params),
+            cache: "no-store",
+        });
+    }
+    if (!response.ok) throw new Error(`Groove returned ${response.status}`);
+    const lyrics = normalizeLyricsResponse(await response.json(), "groove");
+    if (!lyrics) throw new Error("Groove returned no usable lyrics");
+    return lyrics;
+}
+
+async function getLyricsFromLrclib(trackId, title, artist) {
+    const query = new URLSearchParams({ q: `${title} ${artist}` }).toString();
+    const res = await fetch(`${lyricsProviders[1].endpoint}?${query}`);
+    if (!res.ok) throw new Error(`LRCLIB search returned ${res.status}`);
+    let data = await res.json();
+    if (!data?.[0] && artist.trim()) {
+        const titleOnlyQuery = new URLSearchParams({ q: title }).toString();
+        const titleOnlyResponse = await fetch(`${lyricsProviders[1].endpoint}?${titleOnlyQuery}`);
+        if (!titleOnlyResponse.ok) throw new Error(`LRCLIB search returned ${titleOnlyResponse.status}`);
+        data = await titleOnlyResponse.json();
+    }
+    const lyricsQueryResults = data?.filter((result) => result?.id) || [];
+    if (!lyricsQueryResults.length) return null;
+
+    let firstResultLyrics = null;
+    for (const [resultIndex, lyricsQueryResult] of lyricsQueryResults.entries()) {
+        const lyricsResponse = await fetch(`https://lrclib.net/api/get/${lyricsQueryResult.id}`);
+        if (!lyricsResponse.ok) throw new Error(`LRCLIB returned ${lyricsResponse.status}`);
+        const lyricsMeta = await lyricsResponse.json();
+        const syncedLyrics = lyricsMeta?.syncedLyrics || lyricsQueryResult.syncedLyrics || null;
+        const plainLyrics = lyricsMeta?.plainLyrics || lyricsQueryResult.plainLyrics || null;
+        const resultLyrics = {
+            meta: { ...lyricsMeta, provider: "lrclib" },
+            syncedLyrics: lyricsMeta?.instrumental && !syncedLyrics && !plainLyrics
+                ? "[00:00.00] Instrumental only\n[99:99.99] ♪"
+                : syncedLyrics,
+            plainLyrics,
+        };
+        firstResultLyrics ||= resultLyrics;
+        if (hasSyncedLyricTimestamps(resultLyrics.syncedLyrics) || lyricsMeta?.instrumental) {
+            if (resultIndex > 0) console.log(`[loop.mp3] Using LRCLIB search result ${resultIndex + 1} because earlier results had no usable sync.`);
+            return resultLyrics;
+        }
+        if ((lyricsMeta?.hasWordSync ?? lyricsQueryResult.hasWordSync) === false) continue;
+    }
+    return firstResultLyrics;
+}
+
 async function getLyricsFromTrackInfo(trackId, title, artist) {
+    const order = getLyricsProviderOrder();
+    for (const providerId of order) {
+        try {
+            const lyrics = providerId === "groove"
+                ? await getLyricsFromGroove(trackId, title, artist)
+                : await getLyricsFromLrclib(trackId, title, artist);
+            if (!lyrics) {
+                console.warn(`[loop.mp3] ${providerId} had no lyrics; trying the next provider.`);
+                continue;
+            }
+            console.log(`[loop.mp3] Fetched lyrics from ${providerId}:`, { trackId, title, artist });
+            return lyrics;
+        } catch (error) {
+            console.warn(`[loop.mp3] ${providerId} lyrics provider failed; trying the next provider:`, error);
+        }
+    }
+    showLoopNotification("Could not fetch lyrics", 3000);
+    return null;
+}
+
+/* Legacy single-provider implementation retained below for reference during updates. */
+async function getLegacyLyricsFromTrackInfo(trackId, title, artist) {
     try {
         const query = new URLSearchParams({
             q: `${title} ${artist}`,
@@ -2894,8 +3038,12 @@ function updateLoop(artworkURL, trackInfo) {
                         Show lyrics <span>(experimental)</span>
                     </label>
                     <div class="loop-setting-warning" role="note">
-                        Experimental feature. Lyrics are fetched from LRCLIB.
+                        Lyrics try providers in priority order and fall back when one fails.
                     </div>
+                    <label class="loop-navigation-toggle loop-lyrics-provider-setting">
+                        Lyrics provider
+                        <select id="loop-lyrics-provider-select" aria-label="Preferred lyrics provider"></select>
+                    </label>
                     <button id="loop-lyrics-submit-button" class="loop-menu-action" type="button">
                         Submit lyrics to LRCLIB
                     </button>
@@ -3039,6 +3187,10 @@ function updateLoop(artworkURL, trackInfo) {
             loopPreferences.showLyrics = event.target.checked;
             saveLoopPreferences();
             applyLoopPreferences();
+            if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
+        });
+        loop.querySelector("#loop-lyrics-provider-select").addEventListener("change", (event) => {
+            setLyricsProviderOrder(event.target.value);
             if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
         });
         loop.querySelector("#loop-theme-select").addEventListener("change", (event) => {

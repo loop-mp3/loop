@@ -726,6 +726,28 @@
     display: none;
 }
 
+.loop-lyrics-provider-setting {
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+#loop-lyrics-provider-select {
+    min-width: 150px;
+    padding: 5px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+
+#loop-lyrics-provider-select option {
+    background: #181818;
+    color: #fff;
+}
+
 #loop-lyrics-host {
     display: block;
     width: 100%;
