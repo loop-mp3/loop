@@ -68,7 +68,6 @@ function getCurrentArtwork(playerBar, trackId) {
 
 let lastDiscordUpdate = 0;
 let lastDiscordSignature = "";
-let lastElectronMiniPlayerSignature = "";
 
 function getKawarpState() {
     return {
@@ -208,7 +207,6 @@ let loopPreferences = {
     hideVinyl: true,
     hideArtwork: false,
     showNavigationButtons: false,
-    autoOpenMiniPlayer: true,
     useLegacyFallbackArtwork: false,
     showAlbum: false,
     showLyrics: false,
@@ -444,22 +442,6 @@ function showOnboarding() {
     modal.querySelector(".loop-onboarding-next").focus();
 }
 
-function getUpdateURL() {
-    return defaultUpdateURL;
-}
-
-function openUpdateInBrowser(event, updateURL) {
-    const isElectron = /Electron/i.test(navigator.userAgent) ||
-        Boolean(globalThis.process?.versions?.electron);
-    if (!isElectron) return;
-
-    // Electron clients commonly handle window.open as an external browser
-    // request. Keep the normal anchor fallback if that handler is absent.
-    event.preventDefault();
-    const browserWindow = window.open(updateURL, "_blank", "noopener,noreferrer");
-    if (!browserWindow) window.location.assign(updateURL);
-}
-
 function showUpdateNotice(config) {
     const loopPlayer = document.querySelector("#loop-player");
     if (!loopPlayer || document.getElementById("loop-update-notice")) return;
@@ -484,7 +466,6 @@ function showUpdateNotice(config) {
     notice.append(message, link, dismiss);
     loopPlayer.prepend(notice);
 
-    link.addEventListener("click", (event) => openUpdateInBrowser(event, updateURL));
     dismiss.addEventListener("click", (event) => {
         event.stopPropagation();
         notice.remove();
@@ -511,7 +492,6 @@ function showRequiredUpdateBlocker(config) {
     link.rel = "noopener noreferrer";
     link.textContent = "Download the update";
     blocker.append(title, message, link);
-    link.addEventListener("click", (event) => openUpdateInBrowser(event, updateURL));
     (document.body || document.documentElement).appendChild(blocker);
 }
 
@@ -1385,7 +1365,6 @@ async function resetLoopData() {
         hideVinyl: true,
         hideArtwork: false,
         showNavigationButtons: false,
-        autoOpenMiniPlayer: true,
         useLegacyFallbackArtwork: false,
         showAlbum: false,
         showLyrics: false,
@@ -1416,8 +1395,6 @@ function applyLoopPreferences() {
     if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
     const navigationToggle = loop.querySelector("#loop-navigation-toggle");
     if (navigationToggle) navigationToggle.checked = Boolean(loopPreferences.showNavigationButtons);
-    const miniPlayerToggle = loop.querySelector("#loop-mini-player-toggle");
-    if (miniPlayerToggle) miniPlayerToggle.checked = loopPreferences.autoOpenMiniPlayer !== false;
     const legacyFallbackToggle = loop.querySelector("#loop-legacy-fallback-toggle");
     if (legacyFallbackToggle) legacyFallbackToggle.checked = Boolean(loopPreferences.useLegacyFallbackArtwork);
     const albumToggle = loop.querySelector("#loop-album-toggle");
@@ -1648,19 +1625,6 @@ function ensureLoopRecordButton() {
         recordButton.innerHTML = '<i class="fa-solid fa-record-vinyl" aria-hidden="true"></i>';
     }
     castButton.insertAdjacentElement("beforebegin", recordButton);
-}
-
-async function openMiniPlayer() {
-    // Mini-player is intentionally unavailable on Firefox mobile.
-}
-
-
-async function DisableScreen() {
-    showLoopNotification("Screen controls are unavailable on Firefox mobile.", 2500);
-}
-
-function isSleepSupported() {
-    return Promise.resolve(false);
 }
 
 function triggerYTMAction(action) {
@@ -3150,12 +3114,6 @@ function updateLoop(artworkURL, trackInfo) {
                 showLoopNotification("Could not toggle fullscreen", 3000);
             });
         });    
-        loop.querySelector("#loop-mini-player-button").addEventListener("click", () => {
-            openMiniPlayer().catch((error) => {
-                console.warn("[loop.mp3] Could not open miniplayer:", error);
-                showLoopNotification("Could not open miniplayer");
-            });
-        });
         loop.querySelector("#loop-navigation-toggle").addEventListener("change", (event) => {
             loopPreferences.showNavigationButtons = event.target.checked;
             saveLoopPreferences();
@@ -4046,11 +4004,6 @@ document.addEventListener("keydown", (event) => {
         console.log("[loop.mp3] Search called");
         showLoopSearch();
         return;
-    }
-
-    if (event.altKey && event.key === "l") {
-        console.log("[loop.mp3] triggered screen disable")
-        DisableScreen()
     }
 
     if (event.ctrlKey && event.key.toLowerCase() === "q") {
