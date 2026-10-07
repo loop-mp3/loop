@@ -1422,6 +1422,43 @@
     font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
+.loop-lyrics-cache-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.loop-lyrics-cache-actions button {
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+}
+
+.loop-lyrics-cache-actions button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.loop-lyrics-cache-actions button:disabled {
+    cursor: wait;
+    opacity: 0.55;
+}
+
+.loop-lyrics-cache-delete {
+    border-color: rgba(255, 110, 110, 0.4) !important;
+    color: #ffb0b0 !important;
+}
+
+.loop-lyrics-cache-action-status {
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 12px;
+}
+
 @media (max-width: 640px) {
     .loop-lyrics-cache-layout {
         grid-template-columns: 1fr;
