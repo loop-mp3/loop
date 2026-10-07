@@ -1,3 +1,5 @@
+document.documentElement.classList.add("loop-firefox-mobile");
+
 function waitForYTM(callback) {
     const check = () => {
         const playerPage = document.querySelector("ytmusic-player-page");
@@ -81,40 +83,15 @@ function getKawarpState() {
 }
 
 function publishElectronKawarpState() {
-    window.postMessage({
-        source: "loop.mp3",
-        type: "loop:electron-kawarp-state",
-        state: getKawarpState(),
-    }, "*");
+    // Desktop Electron bridge removed for Firefox mobile.
 }
 
-function publishElectronMiniPlayerState({ force = false } = {}) {
-    const loop = document.getElementById("loop");
-    const media = getCurrentMedia();
-    const state = {
-        title: loop?.querySelector("#loop-track-title")?.textContent.trim() || "Nothing playing",
-        artist: loop?.querySelector("#loop-track-artist")?.textContent.trim() || "Search something to play",
-        album: loopPreferences.showAlbum
-            ? loop?.querySelector("#loop-track-album")?.textContent.trim() || ""
-            : undefined,
-        artwork: loop?.querySelector("#loop-artwork")?.src || getFallbackArtwork(),
-        currentTime: media && Number.isFinite(media.currentTime) ? media.currentTime : 0,
-        duration: media && Number.isFinite(media.duration) ? media.duration : 0,
-        paused: !media || media.paused,
-        theme: loop?.dataset.theme || loopPreferences.theme || "default",
-    };
-    const signature = JSON.stringify({ ...state, currentTime: Math.floor(state.currentTime) });
-    if (!force && signature === lastElectronMiniPlayerSignature) return;
-    lastElectronMiniPlayerSignature = signature;
-    window.postMessage({
-        source: "loop.mp3",
-        type: "loop:electron-mini-player-state",
-        state,
-    }, "*");
+function publishElectronMiniPlayerState() {
+    // Desktop Electron bridge removed for Firefox mobile.
 }
 
-function publishElectronMiniPlayerCommand(type) {
-    window.postMessage({ source: "loop.mp3", type }, "*");
+function publishElectronMiniPlayerCommand() {
+    // Desktop Electron bridge removed for Firefox mobile.
 }
 
 function publishDiscordActivity({ force = false } = {}) {
@@ -191,7 +168,7 @@ async function checkYTMusicAuth() {
 }
 
 const defaultKawarpSettings = {
-    enabled: true,
+    enabled: false,
     kawarpOpacity: 0.57,
     kawarpWarpIntensity: 1,
     kawarpBlurPasses: 7,
@@ -227,7 +204,7 @@ let kawarpSettings = { ...defaultKawarpSettings };
 let kawarpBackground;
 let kawarpEnabled = true;
 let loopPreferences = {
-    animatedBackground: true,
+    animatedBackground: false,
     hideVinyl: true,
     hideArtwork: false,
     showNavigationButtons: false,
@@ -387,16 +364,11 @@ function showOnboarding() {
                 <button type="button" class="loop-onboarding-secondary loop-onboarding-config">Choose a Kawarp preset or import your own config</button>
             </div>
             <div class="loop-onboarding-step" data-step="2" hidden>
-                <p class="loop-onboarding-description">Choose your mini-player preferences. You can change these later from the Loop menu.</p>
-                <label class="loop-onboarding-check"><input class="loop-onboarding-mini-player" type="checkbox"> Open the mini-player when the app is minimized</label>
-                <label class="loop-onboarding-check"><input class="loop-onboarding-navigation" type="checkbox"> Show previous and next buttons</label>
-            </div>
-            <div class="loop-onboarding-step" data-step="3" hidden>
                 <p class="loop-onboarding-description">Would you like to enable experimental lyrics? Lyrics are fetched from LRCLIB. You can change this later from the Loop menu.</p>
                 <label class="loop-onboarding-check"><input class="loop-onboarding-lyrics" type="checkbox"> Enable lyrics (experimental)</label>
             </div>
             <div class="loop-onboarding-footer">
-                <span class="loop-onboarding-progress" aria-live="polite">1 / 4</span>
+                <span class="loop-onboarding-progress" aria-live="polite">1 / 3</span>
                 <div class="loop-onboarding-actions">
                     <button type="button" class="loop-onboarding-prev" disabled>Previous</button>
                     <button type="button" class="loop-onboarding-next">Next</button>
@@ -413,7 +385,6 @@ function showOnboarding() {
 
     const finish = ({ save = true } = {}) => {
         if (save) {
-            loopPreferences.autoOpenMiniPlayer = modal.querySelector(".loop-onboarding-mini-player").checked;
             loopPreferences.showNavigationButtons = modal.querySelector(".loop-onboarding-navigation").checked;
             loopPreferences.showLyrics = modal.querySelector(".loop-onboarding-lyrics").checked;
             saveLoopPreferences();
@@ -456,7 +427,6 @@ function showOnboarding() {
         modal.querySelector(".loop-onboarding-status").textContent = "Kawarp is disabled.";
     });
     modal.querySelector(".loop-onboarding-config").addEventListener("click", showKawarpConfigEditor);
-    modal.querySelector(".loop-onboarding-mini-player").checked = loopPreferences.autoOpenMiniPlayer !== false;
     modal.querySelector(".loop-onboarding-navigation").checked = Boolean(loopPreferences.showNavigationButtons);
     modal.querySelector(".loop-onboarding-lyrics").checked = Boolean(loopPreferences.showLyrics);
     modal.addEventListener("keydown", (event) => { if (event.key === "Escape") finish({ save: false }); });
@@ -1680,346 +1650,17 @@ function ensureLoopRecordButton() {
     castButton.insertAdjacentElement("beforebegin", recordButton);
 }
 
-async function openMiniPlayerLegacy() {
-    if (!("documentPictureInPicture" in window)) {
-        console.error("[loop.mp3] miniplayer not supported");
-        return;
-    }
-
-    if (documentPictureInPicture.window) {
-        documentPictureInPicture.window.focus();
-        return;
-    }
-
-    const pipWindow = await documentPictureInPicture.requestWindow({
-        width: 520,
-        height: 180,
-        disallowReturnToOpener: true
-    });
-
-    // Basic HTML
-    pipWindow.document.body.innerHTML = `
-        <div id="mini-player">
-            <img id="artwork" src="" />
-
-            <div id="info">
-                <div id="title">Loop</div>
-                <div id="artist">Nothing playing</div>
-            </div>
-
-            <div id="controls">
-                <button id="previous">⏮</button>
-                <button id="play-pause">▶</button>
-                <button id="next">⏭</button>
-            </div>
-        </div>
-    `;
-
-    // CSS
-    const style = pipWindow.document.createElement("style");
-
-    style.textContent = `
-        html, body {
-            margin: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #111;
-            color: white;
-            font-family: Arial, sans-serif;
-        }
-
-        #mini-player {
-            box-sizing: border-box;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 16px;
-        }
-
-        #artwork {
-            width: 140px;
-            height: 140px;
-            object-fit: cover;
-            border-radius: 12px;
-        }
-
-        #info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        #title {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        #artist {
-            margin-top: 6px;
-            opacity: 0.6;
-        }
-
-        #controls {
-            display: flex;
-            gap: 8px;
-        }
-
-        button {
-            border: 0;
-            background: transparent;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-        }
-    `;
-
-    pipWindow.document.head.appendChild(style);
-
-    // Detect when Chrome closes the PiP window
-    pipWindow.addEventListener("pagehide", () => {
-        console.log("[loop.mp3] closed pip");
-        showLoopNotification(`Closed miniplayer`)
-    });
-}
-
-
-let miniPlayerBridge;
-
 async function openMiniPlayer() {
-    if (!("documentPictureInPicture" in window)) {
-        console.error("[loop.mp3] miniplayer not supported");
-        return;
-    }
-    if (documentPictureInPicture.window) {
-        documentPictureInPicture.window.focus();
-        return;
-    }
-
-    const pipWindow = await documentPictureInPicture.requestWindow({
-        width: 520,
-        height: 210,
-        disallowReturnToOpener: true,
-    });
-    const theme = loopPreferences.theme || "default";
-    pipWindow.document.documentElement.dataset.theme = theme;
-    pipWindow.document.body.innerHTML = `
-        <div id="mini-player">
-            <canvas id="mini-kawarp-background" aria-hidden="true"></canvas>
-            <img id="artwork" src="${getFallbackArtwork()}" alt="Track artwork">
-            <div id="info">
-                <div id="title">Nothing playing</div>
-                <div id="artist">Search something to play</div>
-                <div id="album"></div>
-                <div id="timeline">
-                    <span id="current-time">0:00</span>
-                    <input id="seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="Seek through track" disabled>
-                    <span id="duration">0:00</span>
-                </div>
-                <div id="controls">
-                    <button id="previous" type="button" aria-label="Previous track" title="Previous track">&#9198;</button>
-                    <button id="play-pause" type="button" aria-label="Play" title="Play">&#9654;</button>
-                    <button id="next" type="button" aria-label="Next track" title="Next track">&#9197;</button>
-                </div>
-            </div>
-        </div>`;
-
-    const loopStylesheet = pipWindow.document.createElement("link");
-    loopStylesheet.rel = "stylesheet";
-    loopStylesheet.href = getExtensionURL("static/loop.css");
-    loopStylesheet.dataset.loopStylesheet = "true";
-    pipWindow.document.head.appendChild(loopStylesheet);
-
-    const style = pipWindow.document.createElement("style");
-    style.textContent = `
-        :root { color-scheme: dark; --mini-bg: #000; --mini-text: #fff; --mini-muted: rgba(255,255,255,.6); --mini-control: rgba(255,255,255,.12); --mini-accent: #fff; --mini-border: rgba(255,255,255,.18); }
-        html[data-theme="sharp"] { color-scheme: light; --mini-bg: #000; --mini-text: #fff; --mini-muted: #fff; --mini-control: #000; --mini-accent: #fff; --mini-border: #fff; }
-        html[data-theme="catppuccin"] { --mini-bg: #1e1e2e; --mini-text: #cdd6f4; --mini-muted: #a6adc8; --mini-control: #313244; --mini-accent: #cba6f7; --mini-border: #45475a; }
-        html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: var(--mini-bg); color: var(--mini-text); font-family: system-ui, sans-serif; }
-        #mini-player { position: relative; box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; gap: 14px; padding: 12px 14px; animation: mini-player-fade-in 220ms ease-out both; }
-        #mini-kawarp-background { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; opacity: .57; pointer-events: none; }
-        #mini-player > :not(#mini-kawarp-background) { position: relative; z-index: 1; }
-        @keyframes mini-player-fade-in { from { opacity: 0; transform: translateY(6px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        @media (prefers-reduced-motion: reduce) { #mini-player { animation: none; } }
-        #artwork { flex: 0 0 136px; width: 136px; height: 136px; object-fit: cover; border: 1px solid var(--mini-border); border-radius: 10px; background: var(--mini-control); }
-        #info { flex: 1; min-width: 0; }
-        #title, #artist, #album { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        #title { font-size: 17px; font-weight: 600; }
-        #artist, #album { margin-top: 4px; color: var(--mini-muted); font-size: 13px; }
-        #album:empty { display: none; }
-        #timeline { display: flex; align-items: center; gap: 7px; margin-top: 11px; color: var(--mini-muted); font-size: 11px; }
-        #seek { flex: 1; min-width: 80px; accent-color: var(--mini-accent); }
-        #controls { display: flex; align-items: center; gap: 12px; margin-top: 5px; }
-        button { width: 32px; height: 32px; border: 1px solid var(--mini-border); border-radius: 50%; background: var(--mini-control); color: var(--mini-text); font-size: 20px; cursor: pointer; }
-        button:hover:not(:disabled) { background: var(--mini-accent); color: var(--mini-bg); }
-        button:disabled { opacity: .35; cursor: default; }
-        #play-pause { background: var(--mini-accent); color: var(--mini-bg); font-size: 16px; }
-        html[data-theme="sharp"] button { border-radius: 0; border-width: 2px; }
-        html[data-theme="sharp"] #play-pause { background: #fff; color: #000; }
-        html[data-theme="catppuccin"] button { border-radius: 10px; }
-        @media (max-width: 390px) { #artwork { flex-basis: 104px; width: 104px; height: 104px; } #mini-player { gap: 10px; padding: 10px; } }
-    `;
-    pipWindow.document.head.appendChild(style);
-
-    const doc = pipWindow.document;
-    const nodes = {
-        artwork: doc.getElementById("artwork"), title: doc.getElementById("title"),
-        artist: doc.getElementById("artist"), album: doc.getElementById("album"),
-        seek: doc.getElementById("seek"), currentTime: doc.getElementById("current-time"),
-        duration: doc.getElementById("duration"), play: doc.getElementById("play-pause"),
-        previous: doc.getElementById("previous"), next: doc.getElementById("next"),
-    };
-    const miniKawarpCanvas = doc.getElementById("mini-kawarp-background");
-    let miniKawarpBackground;
-    let miniKawarpArtwork = "";
-    const updateMiniKawarp = async (artworkURL) => {
-        const shouldRun = kawarpEnabled && loopPreferences.animatedBackground;
-        if (!shouldRun) {
-            miniKawarpCanvas.style.display = "none";
-            miniKawarpBackground?.dispose();
-            miniKawarpBackground = undefined;
-            return;
-        }
-        miniKawarpCanvas.style.display = "block";
-        try {
-            const Renderer = await loadKawarpRenderer();
-            if (!miniKawarpBackground) {
-                miniKawarpBackground = new Renderer(miniKawarpCanvas, {
-                    warpIntensity: kawarpSettings.kawarpWarpIntensity,
-                    blurPasses: kawarpSettings.kawarpBlurPasses,
-                    animationSpeed: kawarpSettings.kawarpAnimationSpeed,
-                    transitionDuration: kawarpSettings.kawarpTransitionDuration,
-                    saturation: kawarpSettings.kawarpSaturation,
-                    dithering: kawarpSettings.kawarpDithering,
-                    scale: kawarpSettings.scale,
-                });
-                miniKawarpBackground.start();
-            } else {
-                miniKawarpBackground.setOptions({
-                    warpIntensity: kawarpSettings.kawarpWarpIntensity,
-                    blurPasses: kawarpSettings.kawarpBlurPasses,
-                    animationSpeed: kawarpSettings.kawarpAnimationSpeed,
-                    transitionDuration: kawarpSettings.kawarpTransitionDuration,
-                    saturation: kawarpSettings.kawarpSaturation,
-                    dithering: kawarpSettings.kawarpDithering,
-                    scale: kawarpSettings.scale,
-                });
-            }
-            if (artworkURL && artworkURL !== miniKawarpArtwork) {
-                miniKawarpArtwork = artworkURL;
-                await miniKawarpBackground.loadImage(artworkURL);
-            }
-        } catch (error) {
-            console.warn("[loop.mp3] Could not initialize PiP Kawarp:", error);
-            miniKawarpCanvas.style.display = "none";
-        }
-    };
-    const mediaListeners = new Map();
-    let connectedMedia;
-    const sync = (media = getCurrentMedia()) => {
-        const loop = document.querySelector("#loop");
-        const empty = !loop || loop.classList.contains("loop-empty");
-        const artworkURL = loop?.querySelector("#loop-artwork")?.src || getFallbackArtwork();
-        nodes.artwork.src = artworkURL;
-        updateMiniKawarp(artworkURL);
-        nodes.title.textContent = empty ? "Nothing playing" : loop.querySelector("#loop-track-title")?.textContent.trim() || "Unknown track";
-        nodes.artist.textContent = empty ? "Search something to play" : loop.querySelector("#loop-track-artist")?.textContent.trim() || "Unknown artist";
-        const album = !empty && loopPreferences.showAlbum
-            ? loop.querySelector("#loop-track-album")?.textContent.trim() || ""
-            : undefined;
-        nodes.album.textContent = album ?? "";
-        nodes.play.disabled = !media;
-        nodes.seek.disabled = !media;
-        nodes.play.innerHTML = media && !media.paused ? "&#9208;" : "&#9654;";
-        nodes.play.setAttribute("aria-label", media && !media.paused ? "Pause" : "Play");
-        nodes.play.title = media && !media.paused ? "Pause" : "Play";
-        nodes.seek.max = media && Number.isFinite(media.duration) ? String(media.duration) : "0";
-        nodes.seek.value = media && Number.isFinite(media.currentTime) ? String(media.currentTime) : "0";
-        nodes.currentTime.textContent = formatTime(media?.currentTime);
-        nodes.duration.textContent = formatTime(media?.duration);
-    };
-    const connectMedia = (media) => {
-        if (connectedMedia === media) return;
-        if (connectedMedia) (mediaListeners.get(connectedMedia) || []).forEach(([name, fn]) => connectedMedia.removeEventListener(name, fn));
-        connectedMedia = media;
-        if (!media) return;
-        const fn = () => sync(media);
-        const listeners = ["timeupdate", "durationchange", "loadedmetadata", "play", "pause", "ended"].map((name) => {
-            media.addEventListener(name, fn);
-            return [name, fn];
-        });
-        mediaListeners.set(media, listeners);
-    };
-    miniPlayerBridge = {
-        sync(media) { connectMedia(media); sync(media); },
-        setTheme(nextTheme) { pipWindow.document.documentElement.dataset.theme = nextTheme || "default"; },
-        syncEffects() { updateMiniKawarp(miniKawarpArtwork); },
-        destroy() {
-            connectMedia(null);
-            miniKawarpBackground?.dispose();
-            miniKawarpBackground = undefined;
-            miniPlayerBridge = undefined;
-        },
-    };
-    nodes.play.addEventListener("click", () => { togglePlayback(); sync(); });
-    nodes.previous.addEventListener("click", () => { playPreviousTrack(); window.setTimeout(sync, 150); });
-    nodes.next.addEventListener("click", () => { playNextTrack(); window.setTimeout(sync, 150); });
-    nodes.seek.addEventListener("input", seekTrack);
-    sync();
-    pipWindow.addEventListener("pagehide", () => {
-        miniPlayerBridge?.destroy();
-        console.log("[loop.mp3] closed pip");
-        showLoopNotification("Closed miniplayer");
-    });
+    // Mini-player is intentionally unavailable on Firefox mobile.
 }
+
 
 async function DisableScreen() {
-    const supported = await Promise.race([
-        isSleepSupported(),
-        new Promise((resolve) => window.setTimeout(() => resolve(false), 1000)),
-    ]);
-
-    if (!supported) {
-        showLoopNotification(
-            "Sleep not supported on your platform",
-            3000
-        );
-        return;
-    }
-
-    window.postMessage({
-        source: "loop.mp3",
-        type: "loop:screen-off",
-    }, "*");
-    showLoopNotification(
-        "Screen put to sleep",
-        3000
-    );
+    showLoopNotification("Screen controls are unavailable on Firefox mobile.", 2500);
 }
 
 function isSleepSupported() {
-    return new Promise((resolve) => {
-        function handler(event) {
-            if (
-                event.source !== window ||
-                event.data?.source !== "loop.mp3" ||
-                event.data?.type !== "loop:is-screen-off-supported-response"
-            ) {
-                return;
-            }
-
-            window.removeEventListener("message", handler);
-            resolve(event.data.supported);
-        }
-
-        window.addEventListener("message", handler);
-
-        window.postMessage({
-            source: "loop.mp3",
-            type: "loop:is-screen-off-supported"
-        }, "*");
-    });
+    return Promise.resolve(false);
 }
 
 function triggerYTMAction(action) {
@@ -3380,7 +3021,6 @@ function updateLoop(artworkURL, trackInfo) {
                     <div><kbd>L / Shift + →</kbd> 10 Second forward</div>
                     <div><kbd>Ctrl + K</kbd> Search</div>
                     <div><kbd>Ctrl + Q</kbd> See queue</div>
-                    <div><kbd>Alt + L</kbd> Turn off screen <span>(with loop running)</span></div>
                     <div><kbd>~</kbd> Toggle Loop</div>
                     <div><kbd>Ctrl + F5</kbd> Reload Loop Session</div>
                     <div><kbd>F5</kbd> Reload Resources</div>
@@ -3432,13 +3072,6 @@ function updateLoop(artworkURL, trackInfo) {
                     <button id="loop-kawarp-config-button" class="loop-menu-action" type="button">
                         Edit Kawarp shader config
                     </button>
-                    <button id="loop-mini-player-button" class="loop-menu-action" type="button">
-                        Open mini player
-                    </button>
-                    <label class="loop-navigation-toggle">
-                        <input id="loop-mini-player-toggle" type="checkbox" checked>
-                        Open mini player when minimized
-                    </label>
                 </div>
                 <div id="loop-empty-state" hidden>
                     <div class="loop-empty-title">Nothing is playing</div>
@@ -3490,9 +3123,6 @@ function updateLoop(artworkURL, trackInfo) {
                     <button id="loop-artwork-toggle" type="button" aria-label="Hide artwork" aria-pressed="false" title="Hide artwork">
                         <i class="fa-solid fa-image" aria-hidden="true"></i>
                     </button>
-                    <button id="loop-screen-disable" type="button" aria-label="power off the screen while music playing" title="Turn off screen">
-                    <i class="fa-solid fa-power-off" aria-hidden="true"></i>
-                    </button>
                     <button id="loop-toggle-fullscreen" type="button" aria-label="Toggle Fullscreen" title="Toggle Fullscreen">
                     <i class="fa-solid fa-expand" aria-hidden="true"></i>                    
                     </button>
@@ -3514,12 +3144,6 @@ function updateLoop(artworkURL, trackInfo) {
             saveLoopPreferences();
             applyArtworkPreference();
         });
-        loop.querySelector("#loop-screen-disable").addEventListener("click", () => {
-            DisableScreen().catch((error) => {
-                console.error("[loop.mp3] Could not put screen to sleep:", error);
-                showLoopNotification("Could not put screen to sleep", 3000);
-            });
-        });
         loop.querySelector("#loop-toggle-fullscreen").addEventListener("click", () => {
             toggleFullscreen().catch((error) => {
                 console.error("[loop.mp3] Could not toggle fullscreen:", error);
@@ -3531,10 +3155,6 @@ function updateLoop(artworkURL, trackInfo) {
                 console.warn("[loop.mp3] Could not open miniplayer:", error);
                 showLoopNotification("Could not open miniplayer");
             });
-        });
-        loop.querySelector("#loop-mini-player-toggle").addEventListener("change", (event) => {
-            loopPreferences.autoOpenMiniPlayer = event.target.checked;
-            saveLoopPreferences();
         });
         loop.querySelector("#loop-navigation-toggle").addEventListener("change", (event) => {
             loopPreferences.showNavigationButtons = event.target.checked;
@@ -4606,92 +4226,11 @@ function forceCustomFavicon() {
     }
 }
 
-window.addEventListener("message", (event) => {
-    if (event.source !== window) return;
-    const { source, type, requestId } = event.data || {};
-    if (source === "loop.electron" && type === "loop:electron-get-kawarp-state") {
-        window.postMessage({
-            source: "loop.mp3",
-            type: "loop:electron-kawarp-state",
-            requestId,
-            state: getKawarpState(),
-        }, "*");
-        return;
-    }
-
-    const state = event.data?.state;
-    if (source !== "loop.mp3" || !window.electronAPI) return;
-
-    switch (type) {
-        case "loop:electron-open-mini-player":
-            window.electronAPI.openMiniPlayer();
-            break;
-        case "loop:electron-close-mini-player":
-            window.electronAPI.closeMiniPlayer();
-            break;
-        case "loop:electron-mini-player-state":
-            window.electronAPI.updateMiniPlayer(state);
-            break;
-        default:
-            break;
-    }
-});
-
-window.addEventListener("message", (event) => {
-    if (event.source !== window || event.data?.source !== "loop.mp3") return;
-    const { type, value } = event.data;
-    if (type !== "loop:electron-mini-player-command") return;
-
-    switch (value?.command) {
-        case "play-pause":
-            togglePlayback();
-            break;
-        case "previous":
-            playPreviousTrack();
-            break;
-        case "next":
-            playNextTrack();
-            break;
-        case "seek": {
-            const media = getCurrentMedia();
-            const nextTime = Number(value.position);
-            if (media && Number.isFinite(nextTime)) media.currentTime = nextTime;
-            updatePlaybackControls(media);
-            break;
-        }
-        case "close":
-            documentPictureInPicture.window?.close();
-            break;
-        default:
-            return;
-    }
-    publishElectronMiniPlayerState({ force: true });
-});
-
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") {
-    console.log("[loop.mp3] The application window minimized");
-    if (loopPreferences.autoOpenMiniPlayer !== false) {
-        publishElectronMiniPlayerCommand("loop:electron-open-mini-player");
-        publishElectronMiniPlayerState({ force: true });
-    }
-  } else {
-    console.log("[loop.mp3] The application window maximised");
-    publishElectronMiniPlayerCommand("loop:electron-close-mini-player");
-    showLoopNotification("Miniplayer Closed");
-    console.log("[loop.mp3] closed miniplayer");
-    documentPictureInPicture.window?.close();
-  }
-});
-
 forceCustomFavicon();
 
 setInterval(forceCustomFavicon, 1000);
 
 loadFontAwesome();
-loadKawarpRenderer().catch((error) => {
-    console.warn("[loop.mp3] Could not load @kawarp/core:", error);
-});
 loadKawarpSettings();
 loadLoopPreferences();
 waitForYTM(init);
@@ -4705,42 +4244,3 @@ async function toggleFullscreen() {
         console.log("[loop.mp3] Entered fullscreen mode");
     }
 }
-async function checkIsSleepSupported() {
-    const isSleep = await isSleepSupported();
-    const screenOffButton = document.querySelector("#loop-screen-disable");
-
-    if (isSleep) {
-        console.log("[loop.mp3] Screen sleep supported");
-        return;
-    }
-
-    console.warn("[loop.mp3] Screen sleep not supported");
-
-    if (screenOffButton) {
-        screenOffButton.disabled = true;
-        screenOffButton.style.opacity = "0.5";
-        screenOffButton.style.cursor = "not-allowed";
-    }
-
-    showLoopNotification(
-        "Screen disable isn't supported by your platform",
-        6000
-    );
-}
-function isElectron() {
-  if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
-    return true;
-  }
-  
-  if (typeof navigator === 'object' && typeof navigator.userAgent === 'string' && navigator.userAgent.indexOf('Electron') >= 0) {
-    return true;
-  }
-  
-  return false;
-}
-
-if(!isElectron) {
-    showLoopNotification("No application shell detected some function might not work");
-}
-
-checkIsSleepSupported();
