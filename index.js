@@ -2148,7 +2148,7 @@ function lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDuration
     const lyricsDuration = Number(lyricsMeta?.duration ?? lyricsQueryResult?.duration);
     return Number.isFinite(lyricsDuration) && Math.round(lyricsDuration) > trackDurationInSeconds;
 }
-
+// no longer needed its causing more inaccuracy :sob:
 function LyricsTitleMatchesTrack(lyricsMeta, lyricsQueryResult, title) {
     const lyricsTitle = String(lyricsMeta?.title ?? lyricsQueryResult?.title ?? "").trim().toLowerCase();
     const trackTitle = String(title ?? "").trim().toLowerCase();
@@ -2219,8 +2219,8 @@ async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSecond
         const lyricsMeta = await lyricsResponse.json();
         const syncedLyrics = lyricsMeta?.syncedLyrics || lyricsQueryResult.syncedLyrics || null;
         const plainLyrics = lyricsMeta?.plainLyrics || lyricsQueryResult.plainLyrics || null;
-        if (lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDurationInSeconds) && LyricsTitleMatchesTrack(lyricsMeta, lyricsQueryResult, lyricsMeta?.title || title)) {
-            console.log(`[loop.mp3] Skipping LRCLIB search result ${resultIndex + 1} because its duration exceeds the track duration or doesn't match the track title.`, {
+        if (lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDurationInSeconds)) {
+            console.log(`[loop.mp3] Skipping LRCLIB search result ${resultIndex + 1} because its duration exceeds the track duration.`, {
                 trackDurationInSeconds,
                 lyricsDuration: lyricsMeta?.duration ?? lyricsQueryResult.duration,
             });
