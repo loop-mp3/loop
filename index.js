@@ -2149,6 +2149,12 @@ function lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDuration
     return Number.isFinite(lyricsDuration) && Math.round(lyricsDuration) > trackDurationInSeconds;
 }
 
+function LyricsTitleMatchesTrack(lyricsMeta, lyricsQueryResult, title) {
+    const lyricsTitle = String(lyricsMeta?.title ?? lyricsQueryResult?.title ?? "").trim().toLowerCase();
+    const trackTitle = String(title ?? "").trim().toLowerCase();
+    return lyricsTitle && trackTitle && lyricsTitle === trackTitle;
+}
+
 function normalizeLyricsResponse(payload, providerId) {
     const candidates = [payload, ...(Array.isArray(payload) ? payload : []), payload?.lyrics, payload?.data, payload?.result, payload?.track]
         .filter((candidate) => candidate && typeof candidate === "object");
@@ -2213,8 +2219,8 @@ async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSecond
         const lyricsMeta = await lyricsResponse.json();
         const syncedLyrics = lyricsMeta?.syncedLyrics || lyricsQueryResult.syncedLyrics || null;
         const plainLyrics = lyricsMeta?.plainLyrics || lyricsQueryResult.plainLyrics || null;
-        if (lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDurationInSeconds)) {
-            console.log(`[loop.mp3] Skipping LRCLIB search result ${resultIndex + 1} because its duration exceeds the track duration.`, {
+        if (lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDurationInSeconds) && LyricsTitleMatchesTrack(lyricsMeta, lyricsQueryResult, lyricsMeta?.title || title)) {
+            console.log(`[loop.mp3] Skipping LRCLIB search result ${resultIndex + 1} because its duration exceeds the track duration or doesn't match the track title.`, {
                 trackDurationInSeconds,
                 lyricsDuration: lyricsMeta?.duration ?? lyricsQueryResult.duration,
             });
