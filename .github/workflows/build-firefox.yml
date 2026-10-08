@@ -1,0 +1,22 @@
+name: Build Firefox Mobile ZIP
+
+on:
+  push:
+    branches: ["firefox-mobile-mv2"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove development files
+        run: |
+          rm -f AGENTS.md package.json package-lock.json
+          rm -rf .git .github
+      - name: Package extension
+        run: zip -r loop-firefox-mobile-mv2.zip . -x "*.DS_Store"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: loop-firefox-mobile-mv2
+          path: loop-firefox-mobile-mv2.zip
