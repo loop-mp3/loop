@@ -2143,10 +2143,22 @@ async function waitForCurrentTrackDuration(timeoutMs = 3000) {
     });
 }
 
-function lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDurationInSeconds) {
+function lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDurationInSeconds, syncedLyrics) {
     if (!Number.isFinite(trackDurationInSeconds)) return false;
-    const lyricsDuration = Number(lyricsMeta?.duration ?? lyricsQueryResult?.duration);
-    return Number.isFinite(lyricsDuration) && Math.round(lyricsDuration) > trackDurationInSeconds;
+    const duration = Number(lyricsMeta?.duration ?? lyricsQueryResult?.duration);
+    const durationExceeds = Number.isFinite(duration) && Math.round(duration + 30) > trackDurationInSeconds;
+    if (!durationExceeds) return false;
+
+    const lastNonEmptyLine = String(syncedLyrics || "")
+        .split(/\r?\n/)
+        .reverse()
+        .find((line) => line.replace(/\[\d{1,3}:\d{2}(?:\.\d+)?\]/g, "").trim());
+    const lastLyricTimestamp = lastNonEmptyLine?.match(/\[(\d{1,3}):(\d{2})(?:\.(\d+))?\]/);
+    if (!lastLyricTimestamp) return durationExceeds;
+
+    const lyricEnd = Number(lastLyricTimestamp[1]) * 60 + Number(lastLyricTimestamp[2]) +
+        Number(`0.${lastLyricTimestamp[3] || 0}`);
+    return lyricEnd > trackDurationInSeconds;
 }
 // no longer needed its causing more inaccuracy :sob:
 function LyricsTitleMatchesTrack(lyricsMeta, lyricsQueryResult, title) {
@@ -2219,10 +2231,10 @@ async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSecond
         const lyricsMeta = await lyricsResponse.json();
         const syncedLyrics = lyricsMeta?.syncedLyrics || lyricsQueryResult.syncedLyrics || null;
         const plainLyrics = lyricsMeta?.plainLyrics || lyricsQueryResult.plainLyrics || null;
-        if (lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDurationInSeconds)) {
+        if (lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDurationInSeconds, syncedLyrics)) {
             console.log(`[loop.mp3] Skipping LRCLIB search result ${resultIndex + 1} because its duration exceeds the track duration.`, {
                 trackDurationInSeconds,
-                lyricsDuration: lyricsMeta?.duration ?? lyricsQueryResult.duration,
+                lyricsDuration: (Number(lyricsMeta?.duration + 15 ?? lyricsQueryResult.duration) + 15),
             });
             continue;
         }
