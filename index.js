@@ -2035,9 +2035,18 @@ function triggerYTMAction(action) {
 let feedbackSyncTimers = [];
 
 function scheduleTrackFeedbackSync() {
-    feedbackSyncTimers.forEach((timer) => window.clearTimeout(timer));
-    feedbackSyncTimers = [100, 300, 800, 1500, 2500].map((delay) =>
-        window.setTimeout(syncTrackFeedbackState, delay)
+    if (feedbackSyncTimers.length) return;
+
+    const delays = [100, 300, 800, 1500, 2500];
+
+    feedbackSyncTimers = delays.map((delay, index) =>
+        window.setTimeout(() => {
+            syncTrackFeedbackState();
+
+            if (index === delays.length - 1) {
+                feedbackSyncTimers = [];
+            }
+        }, delay)
     );
 }
 
