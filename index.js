@@ -4561,7 +4561,7 @@ async function init(playerBar) {
         ensureLoopRecordButton();
         updateForCurrentTrack(playerBar);
         watchPlaybackState();
-    }, 100);
+    }, 500);
 }
 // yeah we do that here
 // we are rasist to those button
