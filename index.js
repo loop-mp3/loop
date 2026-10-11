@@ -3275,6 +3275,93 @@ function getMusicAuthorUrl(authorUrl) {
     }
 }
 
+// using the browse endpoint to get the writers (yes i dug through the ytm network logs manually, what iam i insane? yes fortunately and i have no life i stay in my house i never go outside i fear sunlight once i accidently touched grass and was hospitalised for 3 weeks)
+async function getTrackWriterCredits(browseId) {
+    if (!browseId) {
+        console.error(`[loop.mp3] No browseId provided for track credits retrieval.`);
+        return [];
+    }
+    try {
+        const response = await fetch(
+            "https://music.youtube.com/youtubei/v1/browse?prettyPrint=false",
+            {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    context: {
+                        client: {
+                            hl: "en",
+                            gl: "IN",
+                            clientName: "WEB_REMIX",
+                            clientVersion: "1.20261006.10.00"
+                        }
+                    },
+                    browseId
+                })
+            }
+        );
+
+        if (!response.ok) {
+            console.error(
+                "[loop.mp3] Track credits request failed:",
+                response.status
+            );
+            return [];
+        }
+
+        const data = await response.json();
+        return getTrackWritersFromBrowse(data);
+    } catch (error) {
+        console.error(
+            "[loop.mp3] Track credits retrieval failed:",
+            error
+        );
+        return [];
+    }
+}
+
+// this is the selector that gets the writers name apparently ytm is wasting our precious ram in saving 100's of lines of useless json even in this ram cris 
+function getTrackWritersFromBrowse(data) {
+    const actions = data.onResponseReceivedActions ?? [];
+
+    for (const action of actions) {
+        const sections =
+            action.openPopupAction
+                ?.popup
+                ?.dismissableDialogRenderer
+                ?.sections ?? [];
+
+        const creditsSection = sections.find(section => {
+            const renderer =
+                section.dismissableDialogContentSectionRenderer;
+
+            return renderer?.title?.runs
+                ?.some(run => run.text === "Written by");
+        });
+
+        if (!creditsSection) continue;
+
+        const runs =
+            creditsSection.dismissableDialogContentSectionRenderer
+                .subtitle?.runs ?? [];
+
+        return [...new Set(
+            runs
+                .map(run => run.text)
+                .join("")
+                .split("\n")
+                .map(name => name.trim())
+                .filter(Boolean)
+        )];
+    }
+
+    return [];
+}
+
+
 // Use the player endpoint to retrieve more accurate track metadata.
 const prettyPrintMetaCache = new Map();
 
@@ -3361,7 +3448,11 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             AuthorNameComposed ||
             details.author_name ||
             domInfo.artist;
-
+            // its an array just fetching them to test
+            // this is the browseId ytm uses for some reason its just appending the trackId to the prefix MPTC for some fucking reason
+        const browseId = `MPTC${trackId}`;
+        const TrackWriters = await getTrackWriterCredits(browseId);
+        console.log(`[loop.mp3] Track Writers:`, TrackWriters);
         const artistUrl =
             getMusicAuthorUrl(details.author_url) ||
             liveInfo.artistUrl ||
