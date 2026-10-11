@@ -3487,12 +3487,10 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
                 ?.textContent.trim();
         const AuthorNameComposed =
             details.author_name.replace(/\s*[-–—]\s*Topic$/i, '').trim();  
-        // using ts so collabs should show and preety print dosent frucj        
+        // Use the canonical title so collaborations remain intact.
         const title =
             details.title ||
             prettyPrintMeta?.title
-        // using this so collabs dont fuck lyrics up    
-        const titleForLyrics = details.title || prettyPrintMeta?.title;
         const artist =
             prettyPrintMeta?.artist ||
             AuthorNameComposed ||
@@ -3518,22 +3516,6 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             details.album_url ||
             liveInfo.albumUrl ||
             domInfo.albumUrl;
-        let lyrics;
-        if (loopPreferences.showLyrics) {
-            lyrics = await getLyricsFromTrackInfo(
-                trackId,
-                titleForLyrics,
-                AuthorNameComposed,
-                getCurrentTrackDurationInSeconds()
-            ) || {
-                meta: null,
-                syncedLyrics: null,
-                plainLyrics: null,
-            };
-            console.log("[loop.mp3] Lyrics metadata:", lyrics.meta);
-            console.log("[loop.mp3] Synced lyrics:", lyrics.syncedLyrics);
-            console.log("[loop.mp3] Plain lyrics:", lyrics.plainLyrics);
-        }
         return {
             title,
             artist,
@@ -3541,11 +3523,6 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             album,
             albumUrl,
             TrackWriters,
-            lyrics: lyrics ? {
-                meta: lyrics.meta,
-                syncedLyrics: lyrics.syncedLyrics,
-                plainLyrics: lyrics.plainLyrics
-            } : undefined
         };
     } catch (error) {
         showLoopNotification("Could not fetch track metadata. Information might not load correctly press F5 to try again", 4000);
@@ -4320,6 +4297,14 @@ async function updateForCurrentTrack(playerBar) {
     if (requestId !== metadataRequest || trackSignature !== currentSignature) return;
     updateLoop(artworkURL, trackInfo);
     syncRecordMotion();
+    if (loopPreferences.showLyrics) {
+        // Metadata should not wait for a potentially slow lyrics provider. The
+        // lyrics request has its own request id and will update the panel when
+        // it completes, as long as this is still the active track.
+        fetchLoopLyricsForCurrentTrack().catch((error) => {
+            console.warn("[loop.mp3] Could not fetch lyrics for the current track:", error);
+        });
+    }
     console.log("[loop.mp3] Current track metadata:", trackInfo);
 }
 
