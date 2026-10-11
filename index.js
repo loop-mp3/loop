@@ -236,6 +236,7 @@ let loopPreferences = {
     showAlbum: false,
     showLyrics: false,
     showWriterCredits: true,
+    useLyricsCache: true,
     lyricsProviderOrder: ["groove", "lrclib"],
     loopUpdateInterval: 500,
     volume: 1,
@@ -1479,6 +1480,7 @@ async function resetLoopData() {
         showAlbum: false,
         showLyrics: false,
         showWriterCredits: true,
+        useLyricsCache: true,
         lyricsProviderOrder: ["groove", "lrclib"],
         loopUpdateInterval: defaultLoopUpdateInterval,
         volume: 1,
@@ -1518,6 +1520,8 @@ function applyLoopPreferences() {
     if (lyricsToggle) lyricsToggle.checked = Boolean(loopPreferences.showLyrics);
     const writerCreditsToggle = loop.querySelector("#loop-writer-credits-toggle");
     if (writerCreditsToggle) writerCreditsToggle.checked = loopPreferences.showWriterCredits !== false;
+    const lyricsCacheToggle = loop.querySelector("#loop-lyrics-cache-toggle");
+    if (lyricsCacheToggle) lyricsCacheToggle.checked = loopPreferences.useLyricsCache !== false;
     updateLoopPollingPreferenceUI();
     const lyricsProviderSelect = loop.querySelector("#loop-lyrics-provider-select");
     if (lyricsProviderSelect) {
@@ -2341,7 +2345,9 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
         : baseOrder;
 
     if (!forceRefresh) {
-        const cachedLyrics = restoreCachedLyrics(await getCachedLyrics(trackId));
+        const cachedLyrics = loopPreferences.useLyricsCache !== false
+            ? restoreCachedLyrics(await getCachedLyrics(trackId))
+            : null;
         if (cachedLyrics && (!preferredProvider || cachedLyrics.meta.provider === preferredProvider)) {
             currentTrackLyricsProvider = { trackId, providerId: cachedLyrics.meta.provider };
             console.log("[loop.mp3] Using cached lyrics:", { trackId, provider: cachedLyrics.meta.provider });
@@ -2359,7 +2365,9 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
                 console.warn(`[loop.mp3] ${providerId} had no lyrics after ${(performance.now() - providerStartedAt).toFixed(1)} ms; trying the next provider.`);
                 continue;
             }
-            await cacheLyrics(trackId, title, artist, trackDurationInSeconds, lyrics);
+            if (loopPreferences.useLyricsCache !== false) {
+                await cacheLyrics(trackId, title, artist, trackDurationInSeconds, lyrics);
+            }
             console.log(`[loop.mp3] Fetched lyrics from ${providerId} in ${(performance.now() - providerStartedAt).toFixed(1)} ms (total ${(performance.now() - resolutionStartedAt).toFixed(1)} ms):`, { trackId, title, artist });
             return lyrics;
         } catch (error) {
@@ -3638,6 +3646,10 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-writer-credits-toggle" type="checkbox">
                         Show writer credits
                     </label>
+                    <label class="loop-navigation-toggle">
+                        <input id="loop-lyrics-cache-toggle" type="checkbox">
+                        Use lyrics cache
+                    </label>
                     <div class="loop-setting-warning" role="note">
                         Lyrics try providers in priority order and fall back when one fails.
                     </div>
@@ -3800,6 +3812,11 @@ function updateLoop(artworkURL, trackInfo) {
         });
         loop.querySelector("#loop-writer-credits-toggle").addEventListener("change", (event) => {
             loopPreferences.showWriterCredits = event.target.checked;
+            saveLoopPreferences();
+            if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
+        });
+        loop.querySelector("#loop-lyrics-cache-toggle").addEventListener("change", (event) => {
+            loopPreferences.useLyricsCache = event.target.checked;
             saveLoopPreferences();
             if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
         });
