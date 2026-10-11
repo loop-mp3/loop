@@ -578,6 +578,31 @@
     line-height: 1.35;
 }
 
+.loop-polling-setting {
+    display: block;
+    margin-top: 10px;
+    color: #fff;
+}
+
+.loop-polling-setting > span {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: #fff;
+}
+
+.loop-polling-setting output {
+    color: rgba(255, 255, 255, 0.7);
+    font-variant-numeric: tabular-nums;
+}
+
+#loop-update-interval-slider {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    accent-color: #fff;
+}
+
 #loop.loop-hide-album #loop-track-album {
     visibility: hidden;
 }

@@ -236,6 +236,7 @@ let loopPreferences = {
     showAlbum: false,
     showLyrics: false,
     lyricsProviderOrder: ["groove", "lrclib"],
+    loopUpdateInterval: 500,
     volume: 1,
     theme: "default",
 };
@@ -254,8 +255,13 @@ let notificationAnimationFrame;
 let authWarningShown = false;
 let loopUpdateBlocked = false;
 let loopVisible = false;
+let loopUpdateIntervalId;
+let loopUpdatePlayerBar;
 
 const loopPreferencesKey = "loop.mp3.preferences";
+const defaultLoopUpdateInterval = 500;
+const minimumLoopUpdateInterval = 100;
+const maximumLoopUpdateInterval = 1000;
 const kawarpConfigKey = "loop.mp3.kawarp-config";
 const kawarpCustomPresetsKey = "loop.mp3.kawarp-custom-presets";
 const lyricsCacheKeyPrefix = "lyrics_";
@@ -283,6 +289,54 @@ function setLyricsProviderOrder(providerId) {
     loopPreferences.lyricsProviderOrder = [providerId, ...order.filter((id) => id !== providerId)];
     saveLoopPreferences();
     applyLoopPreferences();
+}
+
+function normalizeLoopUpdateInterval(value) {
+    const interval = Number(value);
+    if (!Number.isFinite(interval)) return defaultLoopUpdateInterval;
+    return Math.min(
+        maximumLoopUpdateInterval,
+        Math.max(minimumLoopUpdateInterval, Math.round(interval / 50) * 50)
+    );
+}
+
+function getLoopUpdateIntervalWarning(interval) {
+    if (interval < defaultLoopUpdateInterval) {
+        return "Low intervals can increase CPU usage and cause performance issues.";
+    }
+    if (interval > defaultLoopUpdateInterval) {
+        return "Intervals above 500 ms can make Loop updates feel very slow.";
+    }
+    return "";
+}
+
+function updateLoopPollingPreferenceUI() {
+    const loop = document.querySelector("#loop");
+    if (!loop) return;
+
+    const interval = normalizeLoopUpdateInterval(loopPreferences.loopUpdateInterval);
+    loopPreferences.loopUpdateInterval = interval;
+    const slider = loop.querySelector("#loop-update-interval-slider");
+    if (slider) slider.value = String(interval);
+    const value = loop.querySelector("#loop-update-interval-value");
+    if (value) value.textContent = `${interval} ms`;
+    const warning = loop.querySelector("#loop-update-interval-warning");
+    if (warning) {
+        warning.textContent = getLoopUpdateIntervalWarning(interval);
+        warning.hidden = !warning.textContent;
+    }
+}
+
+function startLoopUpdatePolling(playerBar) {
+    loopUpdatePlayerBar = playerBar || loopUpdatePlayerBar;
+    if (!loopUpdatePlayerBar) return;
+    window.clearInterval(loopUpdateIntervalId);
+    loopUpdateIntervalId = window.setInterval(() => {
+        if (loopUpdateBlocked) return;
+        ensureLoopRecordButton();
+        updateForCurrentTrack(loopUpdatePlayerBar);
+        watchPlaybackState();
+    }, normalizeLoopUpdateInterval(loopPreferences.loopUpdateInterval));
 }
 
 function getOnboardingStorageKey() {
@@ -1420,6 +1474,7 @@ async function resetLoopData() {
         showAlbum: false,
         showLyrics: false,
         lyricsProviderOrder: ["groove", "lrclib"],
+        loopUpdateInterval: defaultLoopUpdateInterval,
         volume: 1,
         theme: "default",
     };
@@ -1427,6 +1482,7 @@ async function resetLoopData() {
     kawarpSettings = { ...defaultKawarpSettings };
     kawarpEnabled = true;
     lyricsRequestId++;
+    startLoopUpdatePolling(loopUpdatePlayerBar);
 
     return true;
 }
@@ -1454,6 +1510,7 @@ function applyLoopPreferences() {
     if (albumToggle) albumToggle.checked = Boolean(loopPreferences.showAlbum);
     const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
     if (lyricsToggle) lyricsToggle.checked = Boolean(loopPreferences.showLyrics);
+    updateLoopPollingPreferenceUI();
     const lyricsProviderSelect = loop.querySelector("#loop-lyrics-provider-select");
     if (lyricsProviderSelect) {
         const order = getLyricsProviderOrder();
@@ -3046,8 +3103,10 @@ function showKawarpConfigEditor() {
 
 async function loadLoopPreferences() {
     loopPreferences = { ...loopPreferences, ...(await getStoredLoopPreferences()) };
+    loopPreferences.loopUpdateInterval = normalizeLoopUpdateInterval(loopPreferences.loopUpdateInterval);
     applyKawarpSettings(kawarpSettings);
     applyLoopPreferences();
+    startLoopUpdatePolling(loopUpdatePlayerBar);
 }
 
 function setKawarpEnabled(enabled) {
@@ -3446,6 +3505,11 @@ function updateLoop(artworkURL, trackInfo) {
                     <div class="loop-setting-warning" role="note">
                         Lyrics try providers in priority order and fall back when one fails.
                     </div>
+                    <label class="loop-polling-setting">
+                        <span>Update interval <output id="loop-update-interval-value" for="loop-update-interval-slider">500 ms</output></span>
+                        <input id="loop-update-interval-slider" type="range" min="100" max="1000" step="50" value="500" aria-label="Loop update interval in milliseconds">
+                    </label>
+                    <div id="loop-update-interval-warning" class="loop-setting-warning" role="note" hidden></div>
                     <label class="loop-navigation-toggle loop-lyrics-provider-setting">
                         Lyrics provider
                         <select id="loop-lyrics-provider-select" aria-label="Preferred lyrics provider"></select>
@@ -3597,6 +3661,12 @@ function updateLoop(artworkURL, trackInfo) {
             saveLoopPreferences();
             applyLoopPreferences();
             if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
+        });
+        loop.querySelector("#loop-update-interval-slider").addEventListener("input", (event) => {
+            loopPreferences.loopUpdateInterval = normalizeLoopUpdateInterval(event.target.value);
+            saveLoopPreferences();
+            updateLoopPollingPreferenceUI();
+            startLoopUpdatePolling(playerBar);
         });
         loop.querySelector("#loop-lyrics-provider-select").addEventListener("change", (event) => {
             setLyricsProviderOrder(event.target.value);
@@ -4565,12 +4635,7 @@ async function init(playerBar) {
         };
         showNoticeWhenReady();
     });
-    setInterval(() => {
-        if (loopUpdateBlocked) return;
-        ensureLoopRecordButton();
-        updateForCurrentTrack(playerBar);
-        watchPlaybackState();
-    }, 500);
+    startLoopUpdatePolling(playerBar);
 }
 // yeah we do that here
 // we are rasist to those button
