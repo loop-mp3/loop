@@ -278,6 +278,7 @@ export function createLyricsRenderer(rendererOptions) {
                 loaderVisible: options?.loaderVisible ?? false,
                 noLyrics: options?.noLyrics ?? false,
                 songwriters: options?.songwriters,
+                showCredits: options?.showCredits,
             });
             syncImagePaint();
             currentLyrics = lyrics;

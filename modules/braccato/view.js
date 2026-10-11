@@ -101,7 +101,7 @@ export function setLyrics(engine, mount, lyrics, options) {
         container.appendChild(lyricElement);
     }
     const songwriters = options.songwriters ?? [];
-    if (songwriters.length > 0 && !options.noLyrics && !hideCredits.getBooleanValue()) {
+    if (songwriters.length > 0 && !options.noLyrics && options.showCredits !== false && !hideCredits.getBooleanValue()) {
         container.appendChild(buildCredits(doc, songwriters));
     }
     engine.skipScrolls = INITIAL_SKIP_SCROLLS;

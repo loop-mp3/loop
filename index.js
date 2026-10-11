@@ -235,6 +235,7 @@ let loopPreferences = {
     useLegacyFallbackArtwork: false,
     showAlbum: false,
     showLyrics: false,
+    showWriterCredits: true,
     lyricsProviderOrder: ["groove", "lrclib"],
     loopUpdateInterval: 500,
     volume: 1,
@@ -449,6 +450,7 @@ function showOnboarding() {
             <div class="loop-onboarding-step" data-step="3" hidden>
                 <p class="loop-onboarding-description">Would you like to enable experimental lyrics? Lyrics are fetched from LRCLIB. You can change this later from the Loop menu.</p>
                 <label class="loop-onboarding-check"><input class="loop-onboarding-lyrics" type="checkbox"> Enable lyrics (experimental)</label>
+                <label class="loop-onboarding-check"><input class="loop-onboarding-writer-credits" type="checkbox"> Show writer credits</label>
             </div>
             <div class="loop-onboarding-footer">
                 <span class="loop-onboarding-progress" aria-live="polite">1 / 4</span>
@@ -471,6 +473,7 @@ function showOnboarding() {
             loopPreferences.autoOpenMiniPlayer = modal.querySelector(".loop-onboarding-mini-player").checked;
             loopPreferences.showNavigationButtons = modal.querySelector(".loop-onboarding-navigation").checked;
             loopPreferences.showLyrics = modal.querySelector(".loop-onboarding-lyrics").checked;
+            loopPreferences.showWriterCredits = modal.querySelector(".loop-onboarding-writer-credits").checked;
             saveLoopPreferences();
             applyLoopPreferences();
             if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
@@ -514,6 +517,7 @@ function showOnboarding() {
     modal.querySelector(".loop-onboarding-mini-player").checked = loopPreferences.autoOpenMiniPlayer !== false;
     modal.querySelector(".loop-onboarding-navigation").checked = Boolean(loopPreferences.showNavigationButtons);
     modal.querySelector(".loop-onboarding-lyrics").checked = Boolean(loopPreferences.showLyrics);
+    modal.querySelector(".loop-onboarding-writer-credits").checked = loopPreferences.showWriterCredits !== false;
     modal.addEventListener("keydown", (event) => { if (event.key === "Escape") finish({ save: false }); });
     renderStep();
 
@@ -1474,6 +1478,7 @@ async function resetLoopData() {
         useLegacyFallbackArtwork: false,
         showAlbum: false,
         showLyrics: false,
+        showWriterCredits: true,
         lyricsProviderOrder: ["groove", "lrclib"],
         loopUpdateInterval: defaultLoopUpdateInterval,
         volume: 1,
@@ -1511,6 +1516,8 @@ function applyLoopPreferences() {
     if (albumToggle) albumToggle.checked = Boolean(loopPreferences.showAlbum);
     const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
     if (lyricsToggle) lyricsToggle.checked = Boolean(loopPreferences.showLyrics);
+    const writerCreditsToggle = loop.querySelector("#loop-writer-credits-toggle");
+    if (writerCreditsToggle) writerCreditsToggle.checked = loopPreferences.showWriterCredits !== false;
     updateLoopPollingPreferenceUI();
     const lyricsProviderSelect = loop.querySelector("#loop-lyrics-provider-select");
     if (lyricsProviderSelect) {
@@ -2795,7 +2802,11 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
             braccatoLyricsMount = view;
         }
         braccatoLyricsRenderer.setTheme(braccatoLyricsTheme);
-        braccatoLyricsRenderer.setLyrics(parsedLyrics, { noLyrics: false });
+        braccatoLyricsRenderer.setLyrics(parsedLyrics, {
+            noLyrics: false,
+            songwriters,
+            showCredits: loopPreferences.showWriterCredits !== false,
+        });
         loading.hidden = true;
         view.hidden = false;
         updateLyricsFooter(
@@ -3623,6 +3634,10 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-lyrics-toggle" type="checkbox">
                         Show lyrics <span>(experimental)</span>
                     </label>
+                    <label class="loop-navigation-toggle">
+                        <input id="loop-writer-credits-toggle" type="checkbox">
+                        Show writer credits
+                    </label>
                     <div class="loop-setting-warning" role="note">
                         Lyrics try providers in priority order and fall back when one fails.
                     </div>
@@ -3781,6 +3796,11 @@ function updateLoop(artworkURL, trackInfo) {
             loopPreferences.showLyrics = event.target.checked;
             saveLoopPreferences();
             applyLoopPreferences();
+            if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
+        });
+        loop.querySelector("#loop-writer-credits-toggle").addEventListener("change", (event) => {
+            loopPreferences.showWriterCredits = event.target.checked;
+            saveLoopPreferences();
             if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
         });
         loop.querySelector("#loop-update-interval-slider").addEventListener("input", (event) => {
