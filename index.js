@@ -2617,7 +2617,7 @@ function bindLyricsFooterScroll(shadow) {
     }
 }
 
-function updateLyricsFooter(shadow, lyrics, songwriters = []) {
+function updateLyricsFooter(shadow, lyrics, songwriters = [], hasSungLyrics = true) {
     const footer = ensureLyricsFooter(shadow);
     const lyricsContainer = shadow.querySelector(".blyrics-container");
     if (lyricsContainer) {
@@ -2629,7 +2629,8 @@ function updateLyricsFooter(shadow, lyrics, songwriters = []) {
             writers.hidden = true;
             lyricsContainer.insertBefore(writers, footer);
         }
-        const safeNames = songwriters
+        const safeNames = !lyrics?.meta?.instrumental && hasSungLyrics
+            ? songwriters
             .filter(Boolean)
             .map((name) => String(name).replace(/[&<>"']/g, (character) => ({
                 "&": "&amp;",
@@ -2638,7 +2639,8 @@ function updateLyricsFooter(shadow, lyrics, songwriters = []) {
                 '"': "&quot;",
                 "'": "&#39;",
             }[character])))
-            .join(", ");
+            .join(", ")
+            : "";
         writers.innerHTML = safeNames
             ? '<span class="loop-track-writers-label">Written by</span><span class="loop-track-writers-names">' + safeNames + "</span>"
             : "";
@@ -2796,7 +2798,12 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         braccatoLyricsRenderer.setLyrics(parsedLyrics, { noLyrics: false });
         loading.hidden = true;
         view.hidden = false;
-        updateLyricsFooter(shadow, lyrics, songwriters);
+        updateLyricsFooter(
+            shadow,
+            lyrics,
+            songwriters,
+            parsedLyrics.some((line) => !line.isInstrumental && line.words?.trim())
+        );
         updatePlaybackControls();
     }).catch((error) => {
         console.warn("[loop.mp3] Could not load Braccato lyrics renderer:", error);
