@@ -1,6 +1,17 @@
 
 All notable changes to Loop are documented here.
 
+### [1.6.1] - 2026-10-11
+
+### Highlights
+
+* Added track writer credits at the end of the lyrics
+* Made rest of the metadata load befoure lyrics making metadata resolution faster
+
+### Fixed 
+* fixed lyrics footer bar not rendering in some cases
+* fixed lyrics footer bar having extra height 
+
 ## [1.6.0] - 2026-10-11
 
 ### Highlights
