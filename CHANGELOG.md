@@ -254,8 +254,9 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [1.0.0]: https://github.com/loop-mp3/loop/releases/tag/v1.0.0
 [1.1.0]: https://github.com/loop-mp3/loop/releases/tag/v1.1.0
 [1.1.1]: https://github.com/loop-mp3/loop/releases/tag/v1.1.1
-[1.1.2]: https://github.com/loop-mp3/loop/releases/tag/v1.2.0
+[1.2.0]: https://github.com/loop-mp3/loop/releases/tag/v1.2.0
 [1.3.0]: https://github.com/loop-mp3/loop/releases/tag/v1.3.0
 [1.4.0]: https://github.com/loop-mp3/loop/releases/tag/v1.4.0
 [1.5.0]: https://github.com/loop-mp3/loop/releases/tag/v1.5.0
 [1.6.0]: https://github.com/loop-mp3/loop/releases/tag/v1.6.0
+[1.6.1]: https://github.com/loop-mp3/loop/releases/tag/v1.6.1
