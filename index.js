@@ -249,6 +249,7 @@ let braccatoLyricsRenderer;
 let braccatoLyricsMount;
 let lyricsRequestId = 0;
 let currentTrackLyricsProvider = { trackId: null, providerId: null };
+let currentTrackWriters = [];
 let notificationTimer;
 let notificationAnimationTimer;
 let notificationAnimationFrame;
@@ -2463,7 +2464,11 @@ const braccatoLyricsShadowCSS = `
     .blyrics-container { --blyrics-font-family: Satoshi, system-ui, sans-serif; --blyrics-font-size: 3rem; --blyrics-line-height: 1.333; --blyrics-padding: 2rem; --blyrics-word-wobble-transform-from: scaleX(1); --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025); --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1); --blyrics-word-wobble-transform-to: scaleX(1); }
     #loop-lyrics-view .blyrics-container { display: flex; flex-direction: column; min-height: 100%; }
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
-    .blyrics-container > #loop-lyrics-footer { display: flex; justify-content: flex-start; gap: 8px; width: 100%; box-sizing: border-box; margin: auto 0 0; padding: 12px 0 16px .25em !important; border-top: 1px solid rgba(255,255,255,.12); visibility: hidden; opacity: 0; pointer-events: none; cursor: default; transform: none !important; transition: opacity 150ms ease; }
+    .blyrics-container > #loop-track-writers { display: block; box-sizing: border-box; width: 100%; margin: 0; padding: calc(var(--blyrics-line-height) * var(--blyrics-font-size) * 1.5) .25em; color: #fff; text-align: center; opacity: 0; transform: translateY(.5em); transition: opacity 700ms cubic-bezier(.22,1,.36,1), transform 700ms cubic-bezier(.22,1,.36,1); }
+    .blyrics-container > #loop-track-writers.is-visible { opacity: 1; transform: translateY(0); }
+    .loop-track-writers-label { display: block; color: rgba(255,255,255,.72); font: 400 max(0.5em, 16px)/1.2 Satoshi, system-ui, sans-serif; margin-bottom: .45em; }
+    .loop-track-writers-names { display: block; color: #fff; font: 400 1.25em/1.25 Satoshi, system-ui, sans-serif; text-wrap: balance; }
+    .blyrics-container > #loop-lyrics-footer { display: flex; justify-content: flex-start; gap: 8px; width: 100%; box-sizing: border-box; margin: auto 0 0; padding: calc(var(--blyrics-line-height) * var(--blyrics-font-size) * 2) 0 16px .25em !important; border-top: 1px solid rgba(255,255,255,.12); visibility: hidden; opacity: 0; pointer-events: none; cursor: default; transform: none !important; transition: opacity 150ms ease; }
     .blyrics-container > #loop-lyrics-footer.is-visible { position: sticky; bottom: 0; z-index: 2; visibility: visible; opacity: 1; pointer-events: auto; background: rgba(12, 20, 19, .92); backdrop-filter: blur(10px); }
     .blyrics-container > #loop-lyrics-footer[hidden] { display: none; }
     .loop-lyrics-footer-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: auto; height: 34px; min-width: 0; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 0 13px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; }
@@ -2588,6 +2593,11 @@ function syncLyricsFooterVisibility(shadow) {
     const endThreshold = Math.max(footer.offsetHeight + 24, view.clientHeight * 0.08);
     const reachedEnd = view.scrollTop + view.clientHeight >= view.scrollHeight - endThreshold;
     footer.classList.toggle("is-visible", reachedEnd);
+    const writers = shadow.querySelector("#loop-track-writers");
+    if (writers) {
+        writers.classList.toggle("is-visible", reachedEnd);
+        writers.hidden = !reachedEnd;
+    }
 }
 
 function bindLyricsFooterScroll(shadow) {
@@ -2597,10 +2607,33 @@ function bindLyricsFooterScroll(shadow) {
     view.addEventListener("scroll", () => syncLyricsFooterVisibility(shadow), { passive: true });
 }
 
-function updateLyricsFooter(shadow, lyrics) {
+function updateLyricsFooter(shadow, lyrics, songwriters = []) {
     const footer = ensureLyricsFooter(shadow);
     const lyricsContainer = shadow.querySelector(".blyrics-container");
-    if (lyricsContainer) lyricsContainer.appendChild(footer);
+    if (lyricsContainer) {
+        lyricsContainer.appendChild(footer);
+        let writers = lyricsContainer.querySelector("#loop-track-writers");
+        if (!writers) {
+            writers = document.createElement("div");
+            writers.id = "loop-track-writers";
+            writers.hidden = true;
+            lyricsContainer.insertBefore(writers, footer);
+        }
+        const safeNames = songwriters
+            .filter(Boolean)
+            .map((name) => String(name).replace(/[&<>"']/g, (character) => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;",
+            }[character])))
+            .join(", ");
+        writers.innerHTML = safeNames
+            ? '<span class="loop-track-writers-label">Written by</span><span class="loop-track-writers-names">' + safeNames + "</span>"
+            : "";
+        writers.hidden = !safeNames;
+    }
     bindLyricsFooterScroll(shadow);
     const sourceLink = footer.querySelector("a");
     const providerSelect = footer.querySelector("select");
@@ -2624,7 +2657,7 @@ function updateLyricsFooter(shadow, lyrics) {
     syncLyricsFooterVisibility(shadow);
 }
 
-function updateLoopLyrics(lyrics, empty = false) {
+function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWriters) {
     const panel = document.querySelector("#loop-lyrics-panel");
     const host = panel?.querySelector("#loop-lyrics-host");
     if (!panel || !host) return;
@@ -2753,7 +2786,7 @@ function updateLoopLyrics(lyrics, empty = false) {
         braccatoLyricsRenderer.setLyrics(parsedLyrics, { noLyrics: false });
         loading.hidden = true;
         view.hidden = false;
-        updateLyricsFooter(shadow, lyrics);
+        updateLyricsFooter(shadow, lyrics, songwriters);
         updatePlaybackControls();
     }).catch((error) => {
         console.warn("[loop.mp3] Could not load Braccato lyrics renderer:", error);
@@ -3490,6 +3523,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             artistUrl,
             album,
             albumUrl,
+            TrackWriters,
             lyrics: lyrics ? {
                 meta: lyrics.meta,
                 syncedLyrics: lyrics.syncedLyrics,
@@ -3525,6 +3559,8 @@ function goBackToNormal() {
 
 function updateLoop(artworkURL, trackInfo) {
     loopVisible = true;
+    if (Array.isArray(trackInfo.TrackWriters)) currentTrackWriters = trackInfo.TrackWriters;
+    if (trackInfo.empty) currentTrackWriters = [];
     let loop = document.getElementById("loop");
     if (!loop) {
         loop = document.createElement("div");
@@ -3893,7 +3929,7 @@ function updateLoop(artworkURL, trackInfo) {
     syncTrackFeedbackState();
     scheduleTrackFeedbackSync();
     updateKawarpArtwork(artwork.src);
-    updateLoopLyrics(trackInfo.lyrics, Boolean(trackInfo.empty));
+    updateLoopLyrics(trackInfo.lyrics, Boolean(trackInfo.empty), currentTrackWriters);
     updatePlaybackControls(getCurrentMedia());
     publishDiscordActivity({ force: true });
 }
