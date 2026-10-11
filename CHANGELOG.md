@@ -8,7 +8,7 @@ All notable changes to Loop are documented here.
 * Added track writer credits at the end of the lyrics
 * Made rest of the metadata load befoure lyrics making metadata resolution faster
 
-### Fixed 
+### Fixes 
 * fixed lyrics footer bar not rendering in some cases
 * fixed lyrics footer bar having extra height 
 
