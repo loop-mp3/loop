@@ -2591,7 +2591,12 @@ function syncLyricsFooterVisibility(shadow) {
     const footer = shadow.querySelector("#loop-lyrics-footer");
     if (!view || !footer || footer.hidden) return;
     const endThreshold = Math.max(footer.offsetHeight + 24, view.clientHeight * 0.08);
-    const reachedEnd = view.scrollTop + view.clientHeight >= view.scrollHeight - endThreshold;
+    const lyricLines = view.querySelectorAll(".blyrics-container > .blyrics--line");
+    const lastLyric = lyricLines[lyricLines.length - 1];
+    const lastLyricFocused = lastLyric?.classList.contains("blyrics--active") ||
+        lastLyric?.getAttribute("aria-current") === "true";
+    const reachedEnd = Boolean(lastLyricFocused) ||
+        view.scrollTop + view.clientHeight >= view.scrollHeight - endThreshold;
     footer.classList.toggle("is-visible", reachedEnd);
     const writers = shadow.querySelector("#loop-track-writers");
     if (writers) {
@@ -2605,6 +2610,11 @@ function bindLyricsFooterScroll(shadow) {
     if (!view || view.dataset.loopLyricsFooterScrollBound) return;
     view.dataset.loopLyricsFooterScrollBound = "true";
     view.addEventListener("scroll", () => syncLyricsFooterVisibility(shadow), { passive: true });
+    const lyricsContainer = view.querySelector(".blyrics-container");
+    if (lyricsContainer) {
+        const observer = new MutationObserver(() => syncLyricsFooterVisibility(shadow));
+        observer.observe(lyricsContainer, { subtree: true, attributes: true, attributeFilter: ["class", "aria-current"] });
+    }
 }
 
 function updateLyricsFooter(shadow, lyrics, songwriters = []) {
