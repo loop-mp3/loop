@@ -1,6 +1,31 @@
 
 All notable changes to Loop are documented here.
 
+## [1.6.0] - 2026-10-11
+
+### Highlights
+
+* Added multi-provider lyrics support with Groove and LRCLIB integrations, configurable provider priority, and provider switching for the current track.
+* Added lyrics caching with automatic reuse, a cached-lyrics viewer, and controls to refresh or delete cached entries.
+* Added lyric footer actions for reloading lyrics and opening the provider's source page.
+* Improved lyrics matching by using track duration, waiting for media metadata when necessary, rejecting results that extend beyond the current track, and handling instrumental tracks and trailing empty lines.
+* Added fallback resolution across lyrics providers when a provider fails or returns no usable lyrics.
+
+### Fixes
+
+* Fixed lyrics requests being made before the current track duration was available.
+* Fixed inaccurate lyrics selection by checking multiple LRCLIB results for usable synchronized lyrics and applying duration-based validation.
+* Fixed repeated feedback synchronization retries from restarting while an existing retry sequence was still active.
+* Fixed lyrics controls being positioned outside the lyrics renderer and made them appear when the lyrics view reaches the end.
+
+### Internal and maintenance changes
+
+* Added normalized lyrics response handling for different provider payload formats and provider metadata tracking.
+* Added performance logging for lyrics resolution and provider requests.
+* Reduced Loop update polling from 100 ms to 500 ms.
+* Updated the lyrics renderer theme and styling, including the lyrics footer, provider controls, and cached-lyrics modal.
+* Bumped the Loop extension version to `1.6.0`.
+
 ## [1.5] - 2026-10-06
 
 ### Highlights
@@ -222,3 +247,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [1.3.0]: https://github.com/loop-mp3/loop/releases/tag/v1.3.0
 [1.4.0]: https://github.com/loop-mp3/loop/releases/tag/v1.4.0
 [1.5.0]: https://github.com/loop-mp3/loop/releases/tag/v1.5.0
+[1.6.0]: https://github.com/loop-mp3/loop/releases/tag/v1.6.0
