@@ -2499,13 +2499,14 @@ const braccatoLyricsShadowCSS = `
     .blyrics-container { --blyrics-font-family: Satoshi, system-ui, sans-serif; --blyrics-font-size: 3rem; --blyrics-line-height: 1.333; --blyrics-padding: 2rem; --blyrics-word-wobble-transform-from: scaleX(1); --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025); --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1); --blyrics-word-wobble-transform-to: scaleX(1); }
     #loop-lyrics-view .blyrics-container { display: flex; flex-direction: column; min-height: 100%; }
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
-    .blyrics-container > #loop-track-writers { display: block; box-sizing: border-box; width: 100%; margin: 0; padding: calc(var(--blyrics-line-height) * var(--blyrics-font-size) * 1.5) .25em; color: #fff; text-align: center; opacity: 0; transform: translateY(.5em); transition: opacity 700ms cubic-bezier(.22,1,.36,1), transform 700ms cubic-bezier(.22,1,.36,1); }
-    .blyrics-container > #loop-track-writers.is-visible { opacity: 1; transform: translateY(0); }
-    .loop-track-writers-label { display: block; color: rgba(255,255,255,.72); font: 400 max(0.5em, 16px)/1.2 Satoshi, system-ui, sans-serif; margin-bottom: .45em; }
+    .loop-track-writers-label { display: block; color: rgba(255,255,255,.72); font: 400 16px/1.2 Satoshi, system-ui, sans-serif; margin-bottom: .45em; }
     .loop-track-writers-names { display: block; color: #fff; font: 400 1.25em/1.25 Satoshi, system-ui, sans-serif; text-wrap: balance; }
-    .blyrics-container > #loop-lyrics-footer { display: flex; justify-content: flex-start; gap: 8px; width: 100%; box-sizing: border-box; margin: auto 0 0; padding: 12px 0 16px .25em !important; border-top: 1px solid rgba(255,255,255,.12); visibility: hidden; opacity: 0; pointer-events: none; cursor: default; transform: none !important; transition: opacity 150ms ease; }
-    .blyrics-container > #loop-lyrics-footer.is-visible { position: sticky; bottom: 0; z-index: 2; visibility: visible; opacity: 1; pointer-events: auto; background: rgba(12, 20, 19, .92); backdrop-filter: blur(10px); }
-    .blyrics-container > #loop-lyrics-footer[hidden] { display: none; }
+    #loop-lyrics-footer { display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; box-sizing: border-box; margin: 0; padding: 12px 0 16px .25em !important; border-top: 1px solid rgba(255,255,255,.12); visibility: hidden; opacity: 0; pointer-events: none; cursor: default; transform: none !important; transition: opacity 150ms ease; }
+    #loop-lyrics-footer.is-visible { visibility: visible; opacity: 1; pointer-events: auto; background: rgba(12, 20, 19, .92); backdrop-filter: blur(10px); }
+    .loop-lyrics-footer-actions { display: flex; align-items: center; justify-content: flex-start; gap: 8px; }
+    #loop-track-writers { display: block; box-sizing: border-box; width: 100%; margin: 0; padding: 0 0 12px; color: #fff; text-align: center; font-size: 2.5rem; opacity: 0; transform: translateY(.5em); transition: opacity 700ms cubic-bezier(.22,1,.36,1), transform 700ms cubic-bezier(.22,1,.36,1); }
+    #loop-track-writers.is-visible { opacity: 1; transform: translateY(0); }
+    #loop-lyrics-footer[hidden] { display: none; }
     .loop-lyrics-footer-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: auto; height: 34px; min-width: 0; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 0 13px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; }
     .loop-lyrics-footer-button .fa-solid { font-family: "Font Awesome 6 Free"; font-weight: 900; }
     .loop-lyrics-footer-button .fa-arrows-rotate::before { content: "\\f021"; }
@@ -2560,6 +2561,43 @@ function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs, instrument
         durationMs: lineDurationMs,
         words,
     }));
+}
+
+function normalizeWriterCreditText(value) {
+    return String(value || "")
+        .replace(/^written\s+by\s*/i, "")
+        .replace(/&/g, " and ")
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .trim()
+        .toLocaleLowerCase();
+}
+
+function removeTrailingWriterCreditLines(lines, songwriters) {
+    const names = songwriters.filter(Boolean).map((name) => String(name).trim()).filter(Boolean);
+    if (!names.length || !lines.length) return lines;
+
+    const fullCredit = normalizeWriterCreditText(names.join(" "));
+    const individualCredits = new Set(names.map(normalizeWriterCreditText));
+    let end = lines.length;
+    while (end > 0) {
+        const rawLine = String(lines[end - 1].words || "").trim();
+        const line = normalizeWriterCreditText(rawLine);
+        if (!line) {
+            end--;
+            continue;
+        }
+        if (
+            line === fullCredit ||
+            line.startsWith(fullCredit + " ") ||
+            individualCredits.has(line) ||
+            /^written\s+by\b/i.test(rawLine)
+        ) {
+            end--;
+            continue;
+        }
+        break;
+    }
+    return end === lines.length ? lines : lines.slice(0, end);
 }
 
 function loadBraccatoLyrics() {
@@ -2626,7 +2664,10 @@ function ensureLyricsFooter(shadow) {
         fetchLoopLyricsForCurrentTrack();
     });
 
-    footer.append(reloadButton, providerSelect, sourceLink, wrongLyricsLink);
+    const actions = document.createElement("div");
+    actions.className = "loop-lyrics-footer-actions";
+    actions.append(reloadButton, providerSelect, sourceLink, wrongLyricsLink);
+    footer.append(actions);
     shadow.appendChild(footer);
     return footer;
 }
@@ -2666,15 +2707,13 @@ function updateLyricsFooter(shadow, lyrics, songwriters = [], hasSungLyrics = tr
     const footer = ensureLyricsFooter(shadow);
     const lyricsContainer = shadow.querySelector(".blyrics-container");
     if (lyricsContainer) {
-        lyricsContainer.appendChild(footer);
-        let writers = lyricsContainer.querySelector("#loop-track-writers");
+        let writers = shadow.querySelector("#loop-track-writers");
         if (!writers) {
             writers = document.createElement("div");
             writers.id = "loop-track-writers";
-            writers.hidden = true;
-            lyricsContainer.insertBefore(writers, footer);
+            footer.parentElement.insertBefore(writers, footer);
         }
-        const safeNames = !lyrics?.meta?.instrumental && hasSungLyrics
+        const safeNames = loopPreferences.showWriterCredits !== false && !lyrics?.meta?.instrumental && hasSungLyrics
             ? songwriters
             .filter(Boolean)
             .map((name) => String(name).replace(/[&<>"']/g, (character) => ({
@@ -2774,12 +2813,12 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
     const metadataDurationMs = Number.isFinite(metadataDuration) && metadataDuration > 0
         ? metadataDuration * 1_000
         : 0;
-    const parsedLyrics = parseSyncedLyrics(
+    const parsedLyrics = removeTrailingWriterCreditLines(parseSyncedLyrics(
         lyrics?.syncedLyrics,
         lyrics?.plainLyrics,
         mediaDurationMs > 0 ? mediaDurationMs : metadataDurationMs,
         lyrics?.meta?.instrumental === true
-    );
+    ), songwriters);
     if (!parsedLyrics.length) {
         braccatoLyricsRenderer?.clear();
         loading.querySelector(".loop-lyrics-loading-label").textContent = "Lyrics unavailable";
@@ -2852,7 +2891,8 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         braccatoLyricsRenderer.setLyrics(parsedLyrics, {
             noLyrics: false,
             songwriters,
-            showCredits: loopPreferences.showWriterCredits !== false,
+            // Songwriter credits belong to the shell footer, not the scrollable lyric content.
+            showCredits: false,
         });
         loading.hidden = true;
         view.hidden = false;
