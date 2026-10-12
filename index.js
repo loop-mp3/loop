@@ -237,6 +237,7 @@ let loopPreferences = {
     showLyrics: false,
     showWriterCredits: true,
     useLyricsCache: true,
+    useGrooveOverrides: true,
     lyricsProviderOrder: ["groove", "lrclib"],
     loopUpdateInterval: 500,
     volume: 1,
@@ -269,6 +270,7 @@ const kawarpConfigKey = "loop.mp3.kawarp-config";
 const kawarpCustomPresetsKey = "loop.mp3.kawarp-custom-presets";
 const lyricsCacheKeyPrefix = "lyrics_";
 const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
+const grooveEditorURL = "https://loop.mizucode.qzz.io/groove/";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
 const lyricsProviders = [
     { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/v1/track" },
@@ -730,6 +732,7 @@ function cacheLyrics(trackId, title, artist, duration, lyrics) {
             : Number.isFinite(responseDuration) ? responseDuration : null,
         syncedLyrics: lyrics.syncedLyrics || null,
         plainLyrics: lyrics.plainLyrics || null,
+        override: lyrics.meta.override === true,
         cachedAt: Date.now(),
     };
 
@@ -768,6 +771,7 @@ function restoreCachedLyrics(cachedLyrics) {
             title: cachedLyrics.title,
             artist: cachedLyrics.artist,
             duration: cachedLyrics.duration,
+            override: cachedLyrics.override === true,
             cachedAt: cachedLyrics.cachedAt,
         },
         syncedLyrics: cachedLyrics.syncedLyrics || null,
@@ -1481,6 +1485,7 @@ async function resetLoopData() {
         showLyrics: false,
         showWriterCredits: true,
         useLyricsCache: true,
+        useGrooveOverrides: true,
         lyricsProviderOrder: ["groove", "lrclib"],
         loopUpdateInterval: defaultLoopUpdateInterval,
         volume: 1,
@@ -1522,6 +1527,8 @@ function applyLoopPreferences() {
     if (writerCreditsToggle) writerCreditsToggle.checked = loopPreferences.showWriterCredits !== false;
     const lyricsCacheToggle = loop.querySelector("#loop-lyrics-cache-toggle");
     if (lyricsCacheToggle) lyricsCacheToggle.checked = loopPreferences.useLyricsCache !== false;
+    const grooveOverridesToggle = loop.querySelector("#loop-groove-overrides-toggle");
+    if (grooveOverridesToggle) grooveOverridesToggle.checked = loopPreferences.useGrooveOverrides !== false;
     updateLoopPollingPreferenceUI();
     const lyricsProviderSelect = loop.querySelector("#loop-lyrics-provider-select");
     if (lyricsProviderSelect) {
@@ -2250,7 +2257,7 @@ function normalizeLyricsResponse(payload, providerId) {
         .filter((candidate) => candidate && typeof candidate === "object");
     const source = candidates.find((candidate) =>
         candidate.syncedLyrics || candidate.synced_lyrics || candidate.lrc ||
-        candidate.plainLyrics || candidate.plain_lyrics || candidate.lyrics
+        candidate.plainLyrics || candidate.plain_lyrics || candidate.lyrics || candidate.instrumental === true
     );
     if (!source) return null;
     const nestedLyrics = source.lyrics && typeof source.lyrics === "object" ? source.lyrics : {};
@@ -2276,15 +2283,22 @@ function normalizeLyricsResponse(payload, providerId) {
 
 async function getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds) {
     if (!trackId) throw new Error("Groove requires a track ID");
-    const query = Number.isFinite(trackDurationInSeconds)
-        ? `?duration=${encodeURIComponent(trackDurationInSeconds)}`
-        : "";
-    const response = await fetch(`${lyricsProviders[0].endpoint}/${encodeURIComponent(trackId)}${query}`, {
+    const queryParams = new URLSearchParams();
+    if (Number.isFinite(trackDurationInSeconds)) {
+        queryParams.set("duration", String(trackDurationInSeconds));
+    }
+    if (loopPreferences.useGrooveOverrides !== false) {
+        queryParams.set("overrides", "true");
+    }
+    const query = queryParams.toString();
+    const response = await fetch(`${lyricsProviders[0].endpoint}/${encodeURIComponent(trackId)}${query ? `?${query}` : ""}`, {
         cache: "no-store",
     });
     if (!response.ok) throw new Error(`Groove returned ${response.status}`);
     const lyrics = normalizeLyricsResponse(await response.json(), "groove");
     if (!lyrics) throw new Error("Groove returned no usable lyrics");
+    // Keep override-enabled and override-disabled cache entries distinguishable.
+    lyrics.meta.override = loopPreferences.useGrooveOverrides !== false;
     return lyrics;
 }
 
@@ -2348,7 +2362,8 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
         const cachedLyrics = loopPreferences.useLyricsCache !== false
             ? restoreCachedLyrics(await getCachedLyrics(trackId))
             : null;
-        if (cachedLyrics && (!preferredProvider || cachedLyrics.meta.provider === preferredProvider)) {
+        if (cachedLyrics && (!preferredProvider || cachedLyrics.meta.provider === preferredProvider) &&
+            (loopPreferences.useGrooveOverrides !== false || cachedLyrics.meta.override !== true)) {
             currentTrackLyricsProvider = { trackId, providerId: cachedLyrics.meta.provider };
             console.log("[loop.mp3] Using cached lyrics:", { trackId, provider: cachedLyrics.meta.provider });
             return cachedLyrics;
@@ -2490,6 +2505,7 @@ const braccatoLyricsShadowCSS = `
     .loop-lyrics-footer-button .fa-solid { font-family: "Font Awesome 6 Free"; font-weight: 900; }
     .loop-lyrics-footer-button .fa-arrows-rotate::before { content: "\\f021"; }
     .loop-lyrics-footer-button .fa-up-right-from-square::before { content: "\\f35d"; }
+    .loop-lyrics-submit-link, .loop-lyrics-instrumental-link { display: inline-block; margin: 8px 8px 0 0; color: rgba(255,255,255,.82); text-decoration: underline; cursor: pointer; }
     .loop-lyrics-footer-button:hover, .loop-lyrics-footer-button:focus-visible { border-color: rgba(255,255,255,.6); background: rgba(255,255,255,.16); color: #fff; }
     .loop-lyrics-footer-button:disabled { cursor: wait; opacity: .55; }
     .loop-lyrics-footer-provider { height: 34px; max-width: 115px; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 0 8px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; cursor: pointer; }
@@ -2578,13 +2594,22 @@ function ensureLyricsFooter(shadow) {
     });
 
     const sourceLink = document.createElement("a");
-    sourceLink.className = "loop-lyrics-footer-button";
+    sourceLink.className = "loop-lyrics-footer-button loop-lyrics-source-link";
     sourceLink.target = "_blank";
     sourceLink.rel = "noopener noreferrer";
     sourceLink.setAttribute("aria-label", "Open lyrics sync");
     sourceLink.title = "Open lyrics sync";
     sourceLink.innerHTML = '<i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i><span>Open lyrics sync</span>';
     sourceLink.hidden = true;
+
+    const wrongLyricsLink = document.createElement("a");
+    wrongLyricsLink.className = "loop-lyrics-footer-button loop-lyrics-wrong-link";
+    wrongLyricsLink.target = "_blank";
+    wrongLyricsLink.rel = "noopener noreferrer";
+    wrongLyricsLink.href = grooveEditorURL;
+    wrongLyricsLink.setAttribute("aria-label", "Report wrong lyrics");
+    wrongLyricsLink.title = "Correct these lyrics in Groove";
+    wrongLyricsLink.innerHTML = '<span>Wrong lyrics?</span>';
 
     const providerSelect = document.createElement("select");
     providerSelect.className = "loop-lyrics-footer-provider";
@@ -2596,7 +2621,7 @@ function ensureLyricsFooter(shadow) {
         fetchLoopLyricsForCurrentTrack();
     });
 
-    footer.append(reloadButton, providerSelect, sourceLink);
+    footer.append(reloadButton, providerSelect, sourceLink, wrongLyricsLink);
     shadow.appendChild(footer);
     return footer;
 }
@@ -2662,7 +2687,7 @@ function updateLyricsFooter(shadow, lyrics, songwriters = [], hasSungLyrics = tr
         writers.hidden = !safeNames;
     }
     bindLyricsFooterScroll(shadow);
-    const sourceLink = footer.querySelector("a");
+    const sourceLink = footer.querySelector(".loop-lyrics-source-link");
     const providerSelect = footer.querySelector("select");
     if (providerSelect) {
         const selectedProvider = lyrics?.meta?.provider || getLyricsProviderOrder()[0];
@@ -2680,6 +2705,8 @@ function updateLyricsFooter(shadow, lyrics, songwriters = [], hasSungLyrics = tr
             : "");
     sourceLink.hidden = !sourceURL;
     if (sourceURL) sourceLink.href = sourceURL;
+    const wrongLyricsLink = footer.querySelector(".loop-lyrics-wrong-link");
+    if (wrongLyricsLink) wrongLyricsLink.href = grooveEditorURL;
     footer.hidden = false;
     syncLyricsFooterVisibility(shadow);
 }
@@ -2728,6 +2755,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
     footer.hidden = true;
     shadow.querySelector("#loop-lyrics-view")?.setAttribute("hidden", "");
     loading.querySelector(".loop-lyrics-submit-link")?.remove();
+    loading.querySelector(".loop-lyrics-instrumental-link")?.remove();
     if (lyrics === undefined) {
         loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
         return;
@@ -2758,7 +2786,13 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
             event.preventDefault();
             showLyricsSubmissionModal();
         });
-        loading.appendChild(submitLink);
+        const instrumentalLink = document.createElement("a");
+        instrumentalLink.className = "loop-lyrics-instrumental-link";
+        instrumentalLink.href = grooveEditorURL;
+        instrumentalLink.target = "_blank";
+        instrumentalLink.rel = "noopener noreferrer";
+        instrumentalLink.textContent = "Did we miss the lyrics?";
+        loading.append(submitLink, instrumentalLink);
         
         showLoopNotification("Lyrics unavailable", 3000);
         return;
@@ -3650,6 +3684,10 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-lyrics-cache-toggle" type="checkbox">
                         Use lyrics cache
                     </label>
+                    <label class="loop-navigation-toggle">
+                        <input id="loop-groove-overrides-toggle" type="checkbox" checked>
+                        Use Groove lyric overrides
+                    </label>
                     <div class="loop-setting-warning" role="note">
                         Lyrics try providers in priority order and fall back when one fails.
                     </div>
@@ -3819,6 +3857,11 @@ function updateLoop(artworkURL, trackInfo) {
             loopPreferences.useLyricsCache = event.target.checked;
             saveLoopPreferences();
             if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
+        });
+        loop.querySelector("#loop-groove-overrides-toggle").addEventListener("change", (event) => {
+            loopPreferences.useGrooveOverrides = event.target.checked;
+            saveLoopPreferences();
+            if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack(true);
         });
         loop.querySelector("#loop-update-interval-slider").addEventListener("input", (event) => {
             loopPreferences.loopUpdateInterval = normalizeLoopUpdateInterval(event.target.value);
