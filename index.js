@@ -277,6 +277,7 @@ const lyricsProviders = [
     { id: "lrclib", label: "LRCLIB", endpoint: "https://lrclib.net/api/search" },
     { id: "groove-dev", label: "Groove (dev)", endpoint: "http://127.0.0.1:8787/api/v1/track" },
 ];
+const defaultLyricsProviderIds = ["groove", "lrclib"];
 
 function getLyricsProviderOrder() {
     const storedOrder = Array.isArray(loopPreferences.lyricsProviderOrder)
@@ -285,13 +286,13 @@ function getLyricsProviderOrder() {
     const knownIds = new Set(lyricsProviders.map((provider) => provider.id));
     return [...new Set([
         ...storedOrder.filter((providerId) => knownIds.has(providerId)),
-        ...lyricsProviders.map((provider) => provider.id),
+        ...defaultLyricsProviderIds,
     ])];
 }
 
 function setLyricsProviderOrder(providerId) {
     const order = getLyricsProviderOrder();
-    if (!order.includes(providerId)) return;
+    if (!lyricsProviders.some((provider) => provider.id === providerId)) return;
     loopPreferences.lyricsProviderOrder = [providerId, ...order.filter((id) => id !== providerId)];
     saveLoopPreferences();
     applyLoopPreferences();
@@ -1534,7 +1535,10 @@ function applyLoopPreferences() {
     const lyricsProviderSelect = loop.querySelector("#loop-lyrics-provider-select");
     if (lyricsProviderSelect) {
         const order = getLyricsProviderOrder();
-        lyricsProviderSelect.replaceChildren(...order.map((providerId, index) => {
+        const displayOrder = [...order, ...lyricsProviders
+            .map((provider) => provider.id)
+            .filter((providerId) => !order.includes(providerId))];
+        lyricsProviderSelect.replaceChildren(...displayOrder.map((providerId, index) => {
             const provider = lyricsProviders.find((entry) => entry.id === providerId);
             const option = new Option(`${provider.label} (priority ${index + 1})`, provider.id);
             return option;
