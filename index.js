@@ -2486,9 +2486,8 @@ const braccatoLyricsTheme = `
 
 const braccatoLyricsShadowCSS = `
     :host { display: block; width: 100%; height: 100%; color: #fff; font-family: Satoshi, system-ui, sans-serif; }
-    #loop-lyrics-shell { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
+    #loop-lyrics-shell { position: relative; display: block; width: 100%; height: 100%; min-height: 0; }
     #loop-lyrics-view { display: block; width: 100%; height: 100%; overflow: auto; scrollbar-width: none; }
-    #loop-lyrics-shell #loop-lyrics-view { flex: 1 1 auto; min-height: 0; height: auto; }
     #loop-lyrics-view::-webkit-scrollbar { display: none; }
     #loop-lyrics-view[hidden], #loop-lyrics-loading[hidden], #loop-lyrics-footer[hidden] { display: none; }
     .blyrics--line:not(.blyrics--active) { filter: blur(2px); transition: filter 250ms ease; }
@@ -2501,10 +2500,10 @@ const braccatoLyricsShadowCSS = `
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
     .loop-track-writers-label { display: block; color: rgba(255,255,255,.72); font: 400 16px/1.2 Satoshi, system-ui, sans-serif; margin-bottom: .45em; }
     .loop-track-writers-names { display: block; color: #fff; font: 400 1.25em/1.25 Satoshi, system-ui, sans-serif; text-wrap: balance; }
-    #loop-lyrics-footer { display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; box-sizing: border-box; margin: 0; padding: 12px 0 16px .25em !important; border-top: 1px solid rgba(255,255,255,.12); visibility: hidden; opacity: 0; pointer-events: none; cursor: default; transform: none !important; transition: opacity 150ms ease; }
+    #loop-lyrics-footer { position: absolute; right: 0; bottom: 0; left: 0; z-index: 2; display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; box-sizing: border-box; margin: 0; padding: 12px 0 16px .25em !important; border-top: 1px solid rgba(255,255,255,.12); visibility: hidden; opacity: 0; pointer-events: none; cursor: default; transform: none !important; transition: opacity 150ms ease; }
     #loop-lyrics-footer.is-visible { visibility: visible; opacity: 1; pointer-events: auto; background: rgba(12, 20, 19, .92); backdrop-filter: blur(10px); }
     .loop-lyrics-footer-actions { display: flex; align-items: center; justify-content: flex-start; gap: 8px; }
-    #loop-track-writers { display: block; box-sizing: border-box; width: 100%; margin: 0; padding: 0 0 12px; color: #fff; text-align: center; font-size: 2.5rem; opacity: 0; transform: translateY(.5em); transition: opacity 700ms cubic-bezier(.22,1,.36,1), transform 700ms cubic-bezier(.22,1,.36,1); }
+    #loop-track-writers { position: absolute; right: 0; bottom: 64px; left: 0; z-index: 2; display: block; box-sizing: border-box; width: 100%; margin: 0; padding: 0 0 12px; color: #fff; text-align: center; font-size: 2.5rem; opacity: 0; transform: translateY(.5em); transition: opacity 700ms cubic-bezier(.22,1,.36,1), transform 700ms cubic-bezier(.22,1,.36,1); }
     #loop-track-writers.is-visible { opacity: 1; transform: translateY(0); }
     #loop-lyrics-footer[hidden] { display: none; }
     .loop-lyrics-footer-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: auto; height: 34px; min-width: 0; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 0 13px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; }
