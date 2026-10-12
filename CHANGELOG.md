@@ -1,6 +1,13 @@
 
 All notable changes to Loop are documented here.
 
+## [1.6.2.1] (hotfix) - 2026-10-12
+
+### Fixes
+
+* Fixed Writer's names being shown in the end of the lyrics
+* Fixed Lyrics scroll area's height
+
 ## [1.6.2] - 2026-10-12
 
 ### Highlights
@@ -280,3 +287,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [1.6.0]: https://github.com/loop-mp3/loop/releases/tag/v1.6.0
 [1.6.1]: https://github.com/loop-mp3/loop/releases/tag/v1.6.1
 [1.6.2]: https://github.com/loop-mp3/loop/releases/tag/v1.6.2
+[1.6.2.1]: https://github.com/loop-mp3/loop/releases/tag/v1.6.2.1
