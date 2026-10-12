@@ -1,7 +1,7 @@
 
 All notable changes to Loop are documented here.
 
-## [1.6.2.1] (hotfix) - 2026-10-12
+## [1.6.3] (hotfix) - 2026-10-12
 
 ### Fixes
 
@@ -287,4 +287,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [1.6.0]: https://github.com/loop-mp3/loop/releases/tag/v1.6.0
 [1.6.1]: https://github.com/loop-mp3/loop/releases/tag/v1.6.1
 [1.6.2]: https://github.com/loop-mp3/loop/releases/tag/v1.6.2
-[1.6.2.1]: https://github.com/loop-mp3/loop/releases/tag/v1.6.2.1
+[1.6.3]: https://github.com/loop-mp3/loop/releases/tag/v1.6.3
