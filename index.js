@@ -275,7 +275,7 @@ const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/
 const lyricsProviders = [
     { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/v1/track" },
     { id: "lrclib", label: "LRCLIB", endpoint: "https://lrclib.net/api/search" },
-    { id: "groove-dev", label: "Groove (dev)", endpoint: "http://127.0.0.1:8787" },
+    { id: "groove-dev", label: "Groove (dev)", endpoint: "http://127.0.0.1:8787/api/v1/track" },
 ];
 
 function getLyricsProviderOrder() {
