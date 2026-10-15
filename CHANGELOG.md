@@ -1,6 +1,19 @@
 
 All notable changes to Loop are documented here.
 
+## [Unreleased]
+
+### Highlights
+
+* Added a persisted Kawarp FPS cap control with `15`, `30`, `60`, `120`, `144`, and `Dynamic` options.
+* Added high-FPS warnings for settings above 60 FPS and for Dynamic mode, which follows the display refresh rate.
+* Added live Kawarp canvas FPS reporting in the console, disabled by default and controllable from the Loop menu.
+
+### Fixes
+
+* Applied the Kawarp FPS cap to both the main background and mini-player renderers.
+* Expanded the Kawarp FPS slider to use the full width of the Loop menu.
+
 ## [1.6.4] (minor) - 2026-10-15
 
 ### Highlights
