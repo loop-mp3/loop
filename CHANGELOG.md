@@ -1,6 +1,18 @@
 
 All notable changes to Loop are documented here.
 
+## [1.6.4] (minor) - 2026-10-15
+
+### Highlights
+
+* Added a "Resume auto scroll" control that returns the lyrics view to the active lyric after manual scrolling.
+
+### Fixes
+
+* Added automatic retries for lyrics that temporarily fail to fetch.
+* Prevented automatic retries when a provider confirms that lyrics are unavailable, including tracks where lyrics have not been submitted.
+
+
 ## [1.6.3] (hotfix) - 2026-10-12
 
 ### Fixes
