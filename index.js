@@ -241,6 +241,7 @@ let loopPreferences = {
     lyricsProviderOrder: ["groove", "lrclib"],
     loopUpdateInterval: 500,
     kawarpFpsCap: 60,
+    kawarpFpsLogging: false,
     volume: 1,
     theme: "default",
 };
@@ -1539,6 +1540,7 @@ async function resetLoopData() {
         lyricsProviderOrder: ["groove", "lrclib"],
         loopUpdateInterval: defaultLoopUpdateInterval,
         kawarpFpsCap: defaultKawarpFpsCap,
+        kawarpFpsLogging: false,
         volume: 1,
         theme: "default",
     };
@@ -1581,7 +1583,12 @@ function applyLoopPreferences() {
     const grooveOverridesToggle = loop.querySelector("#loop-groove-overrides-toggle");
     if (grooveOverridesToggle) grooveOverridesToggle.checked = loopPreferences.useGrooveOverrides !== false;
     updateLoopPollingPreferenceUI();
-    kawarpBackground?.setOptions({ fpsCap: loopPreferences.kawarpFpsCap });
+    kawarpBackground?.setOptions({
+        fpsCap: loopPreferences.kawarpFpsCap,
+        fpsLogging: loopPreferences.kawarpFpsLogging,
+    });
+    const kawarpFpsLoggingToggle = loop.querySelector("#loop-kawarp-fps-logging-toggle");
+    if (kawarpFpsLoggingToggle) kawarpFpsLoggingToggle.checked = loopPreferences.kawarpFpsLogging;
     miniPlayerBridge?.syncEffects();
     const lyricsProviderSelect = loop.querySelector("#loop-lyrics-provider-select");
     if (lyricsProviderSelect) {
@@ -2026,6 +2033,7 @@ async function openMiniPlayer() {
                     dithering: kawarpSettings.kawarpDithering,
                     scale: kawarpSettings.scale,
                     fpsCap: loopPreferences.kawarpFpsCap,
+                    fpsLogging: loopPreferences.kawarpFpsLogging,
                 });
                 miniKawarpBackground.start();
             } else {
@@ -2038,6 +2046,7 @@ async function openMiniPlayer() {
                     dithering: kawarpSettings.kawarpDithering,
                     scale: kawarpSettings.scale,
                     fpsCap: loopPreferences.kawarpFpsCap,
+                    fpsLogging: loopPreferences.kawarpFpsLogging,
                 });
             }
             if (artworkURL && artworkURL !== miniKawarpArtwork) {
@@ -3370,6 +3379,7 @@ async function loadLoopPreferences() {
     loopPreferences = { ...loopPreferences, ...(await getStoredLoopPreferences()) };
     loopPreferences.loopUpdateInterval = normalizeLoopUpdateInterval(loopPreferences.loopUpdateInterval);
     loopPreferences.kawarpFpsCap = normalizeKawarpFpsCap(loopPreferences.kawarpFpsCap);
+    loopPreferences.kawarpFpsLogging = loopPreferences.kawarpFpsLogging === true;
     applyKawarpSettings(kawarpSettings);
     applyLoopPreferences();
     startLoopUpdatePolling(loopUpdatePlayerBar);
@@ -3464,6 +3474,7 @@ function updateKawarpArtwork(artworkURL) {
                 dithering: kawarpSettings.kawarpDithering,
                 scale: kawarpSettings.scale,
                 fpsCap: loopPreferences.kawarpFpsCap,
+                fpsLogging: loopPreferences.kawarpFpsLogging,
             });
             canvas.style.opacity = String(kawarpSettings.opacity ?? kawarpSettings.kawarpOpacity);
             setKawarpCanvasVisibility(kawarpEnabled);
@@ -3868,6 +3879,10 @@ function updateLoop(artworkURL, trackInfo) {
                         </datalist>
                     </label>
                     <div id="loop-kawarp-fps-warning" class="loop-setting-warning" role="note" hidden></div>
+                    <label class="loop-navigation-toggle">
+                        <input id="loop-kawarp-fps-logging-toggle" type="checkbox">
+                        Log Kawarp FPS to console
+                    </label>
                     <label class="loop-polling-setting">
                         <span>Update interval <output id="loop-update-interval-value" for="loop-update-interval-slider">500 ms</output></span>
                         <input id="loop-update-interval-slider" type="range" min="100" max="1000" step="50" value="500" aria-label="Loop update interval in milliseconds">
@@ -4051,7 +4066,16 @@ function updateLoop(artworkURL, trackInfo) {
             loopPreferences.kawarpFpsCap = kawarpFpsOptions[optionIndex];
             saveLoopPreferences();
             updateKawarpFpsPreferenceUI();
-            kawarpBackground?.setOptions({ fpsCap: loopPreferences.kawarpFpsCap });
+            kawarpBackground?.setOptions({
+                fpsCap: loopPreferences.kawarpFpsCap,
+                fpsLogging: loopPreferences.kawarpFpsLogging,
+            });
+            miniPlayerBridge?.syncEffects();
+        });
+        loop.querySelector("#loop-kawarp-fps-logging-toggle").addEventListener("change", (event) => {
+            loopPreferences.kawarpFpsLogging = event.target.checked;
+            saveLoopPreferences();
+            kawarpBackground?.setOptions({ fpsLogging: loopPreferences.kawarpFpsLogging });
             miniPlayerBridge?.syncEffects();
         });
         loop.querySelector("#loop-lyrics-provider-select").addEventListener("change", (event) => {

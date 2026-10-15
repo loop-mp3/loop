@@ -212,6 +212,7 @@ export class Kawarp {
     _animationSpeed;
     _targetAnimationSpeed;
     _fpsCap;
+    _fpsLogging;
     _saturation;
     _tintColor;
     _tintIntensity;
@@ -235,6 +236,7 @@ export class Kawarp {
         this._animationSpeed = options.animationSpeed ?? 1.0;
         this._targetAnimationSpeed = this._animationSpeed;
         this.fpsCap = options.fpsCap ?? 60;
+        this.fpsLogging = options.fpsLogging ?? false;
         this._transitionDuration = options.transitionDuration ?? 1000;
         this._saturation = options.saturation ?? 1.5;
         this._tintColor = options.tintColor ?? [0.157, 0.157, 0.235];
@@ -331,6 +333,17 @@ export class Kawarp {
         const numericValue = Number(value);
         this._fpsCap = Number.isFinite(numericValue) && numericValue > 0 ? numericValue : 0;
     }
+    get fpsLogging() {
+        return this._fpsLogging;
+    }
+    set fpsLogging(value) {
+        const enabled = value === true;
+        if (enabled && !this._fpsLogging) {
+            this.fpsReportStartTime = performance.now();
+            this.fpsReportFrameCount = 0;
+        }
+        this._fpsLogging = enabled;
+    }
     get transitionDuration() {
         return this._transitionDuration;
     }
@@ -389,6 +402,8 @@ export class Kawarp {
             this.animationSpeed = options.animationSpeed;
         if (options.fpsCap !== undefined)
             this.fpsCap = options.fpsCap;
+        if (options.fpsLogging !== undefined)
+            this.fpsLogging = options.fpsLogging;
         if (options.transitionDuration !== undefined)
             this.transitionDuration = options.transitionDuration;
         if (options.saturation !== undefined)
@@ -408,6 +423,7 @@ export class Kawarp {
             blurPasses: this._blurPasses,
             animationSpeed: this._targetAnimationSpeed,
             fpsCap: this._fpsCap,
+            fpsLogging: this._fpsLogging,
             transitionDuration: this._transitionDuration,
             saturation: this._saturation,
             tintColor: this._tintColor,
@@ -615,6 +631,8 @@ export class Kawarp {
         this.animationId = requestAnimationFrame(this.renderLoop);
     };
     reportCanvasFPS(timestamp) {
+        if (!this._fpsLogging)
+            return;
         this.fpsReportFrameCount++;
         const elapsed = timestamp - this.fpsReportStartTime;
         if (elapsed < 1000)
