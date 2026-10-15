@@ -251,6 +251,7 @@ let braccatoLyricsPromise;
 let braccatoLyricsRenderer;
 let braccatoLyricsMount;
 let lyricsRequestId = 0;
+let lyricsRetryTimer;
 let currentTrackLyricsProvider = { trackId: null, providerId: null };
 let currentTrackWriters = [];
 let notificationTimer;
@@ -264,6 +265,7 @@ let loopUpdatePlayerBar;
 
 const loopPreferencesKey = "loop.mp3.preferences";
 const defaultLoopUpdateInterval = 500;
+const LYRICS_RETRY_INTERVAL_MS = 5000;
 const minimumLoopUpdateInterval = 100;
 const maximumLoopUpdateInterval = 1000;
 const kawarpConfigKey = "loop.mp3.kawarp-config";
@@ -2196,6 +2198,24 @@ function hasSyncedLyricTimestamps(syncedLyrics) {
         .some((line) => /^\[\d+:\d+(?:\.\d+)?\]/.test(line));
 }
 
+function clearLyricsRetryTimer() {
+    clearTimeout(lyricsRetryTimer);
+    lyricsRetryTimer = undefined;
+}
+
+function scheduleLyricsRetry(trackId) {
+    if (lyricsRetryTimer || !trackId || !loopPreferences.showLyrics) return;
+    lyricsRetryTimer = setTimeout(() => {
+        lyricsRetryTimer = undefined;
+        const currentTrackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
+        if (loopPreferences.showLyrics && currentTrackId === trackId) {
+            fetchLoopLyricsForCurrentTrack(true).catch((error) => {
+                console.warn("[loop.mp3] Could not retry lyrics for the current track:", error);
+            });
+        }
+    }, LYRICS_RETRY_INTERVAL_MS);
+}
+
 function getCurrentTrackDurationInSeconds() {
     const duration = Number(getCurrentMedia()?.duration);
     return Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null;
@@ -2759,6 +2779,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
     const host = panel?.querySelector("#loop-lyrics-host");
     if (!panel || !host) return;
     if (!loopPreferences.showLyrics) {
+        clearLyricsRetryTimer();
         panel.hidden = true;
         braccatoLyricsRenderer?.clear();
         return;
@@ -2787,6 +2808,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
     const footer = ensureLyricsFooter(shadow);
 
     if (empty) {
+        clearLyricsRetryTimer();
         panel.hidden = true;
         footer.hidden = true;
         braccatoLyricsRenderer?.clear();
@@ -2836,11 +2858,12 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         instrumentalLink.rel = "noopener noreferrer";
         instrumentalLink.textContent = "Did we miss the lyrics?";
         loading.append(submitLink, instrumentalLink);
-        
+        scheduleLyricsRetry(trackId);
         showLoopNotification("Lyrics unavailable", 3000);
         return;
     }
 
+    clearLyricsRetryTimer();
     loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
     loadBraccatoLyrics().then(({ createLyricsRenderer, styles }) => {
         if (
@@ -2909,6 +2932,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
 }
 
 async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
+    clearLyricsRetryTimer();
     const requestId = ++lyricsRequestId;
     const trackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
     const loop = document.querySelector("#loop");
@@ -4367,6 +4391,7 @@ async function updateForCurrentTrack(playerBar) {
         artworkURL,
     ].join("|");
     if (!trackId && !getCurrentMedia()) {
+        clearLyricsRetryTimer();
         lyricsRequestId += 1;
         const loop = document.getElementById("loop");
         if (!emptyScreenDismissed) {
@@ -4404,6 +4429,7 @@ async function updateForCurrentTrack(playerBar) {
     lastTrackId = trackId;
     lastTrackKey = trackSignature;
     const requestId = ++metadataRequest;
+    clearLyricsRetryTimer();
     lyricsRequestId += 1;
     updateLoop(artworkURL, liveTrackInfo);
     syncRecordMotion();
