@@ -200,6 +200,8 @@ export class Kawarp {
     lastFrameTime = 0;
     accumulatedTime = 0;
     isPlaying = false;
+    fpsReportStartTime = 0;
+    fpsReportFrameCount = 0;
     // Transition state
     isTransitioning = false;
     transitionStartTime = 0;
@@ -209,6 +211,7 @@ export class Kawarp {
     _blurPasses;
     _animationSpeed;
     _targetAnimationSpeed;
+    _fpsCap;
     _saturation;
     _tintColor;
     _tintIntensity;
@@ -231,6 +234,7 @@ export class Kawarp {
         this._blurPasses = options.blurPasses ?? 8;
         this._animationSpeed = options.animationSpeed ?? 1.0;
         this._targetAnimationSpeed = this._animationSpeed;
+        this.fpsCap = options.fpsCap ?? 60;
         this._transitionDuration = options.transitionDuration ?? 1000;
         this._saturation = options.saturation ?? 1.5;
         this._tintColor = options.tintColor ?? [0.157, 0.157, 0.235];
@@ -320,6 +324,13 @@ export class Kawarp {
     set animationSpeed(value) {
         this._targetAnimationSpeed = Math.max(0.1, Math.min(5, value));
     }
+    get fpsCap() {
+        return this._fpsCap;
+    }
+    set fpsCap(value) {
+        const numericValue = Number(value);
+        this._fpsCap = Number.isFinite(numericValue) && numericValue > 0 ? numericValue : 0;
+    }
     get transitionDuration() {
         return this._transitionDuration;
     }
@@ -376,6 +387,8 @@ export class Kawarp {
             this.blurPasses = options.blurPasses;
         if (options.animationSpeed !== undefined)
             this.animationSpeed = options.animationSpeed;
+        if (options.fpsCap !== undefined)
+            this.fpsCap = options.fpsCap;
         if (options.transitionDuration !== undefined)
             this.transitionDuration = options.transitionDuration;
         if (options.saturation !== undefined)
@@ -394,6 +407,7 @@ export class Kawarp {
             warpIntensity: this._warpIntensity,
             blurPasses: this._blurPasses,
             animationSpeed: this._targetAnimationSpeed,
+            fpsCap: this._fpsCap,
             transitionDuration: this._transitionDuration,
             saturation: this._saturation,
             tintColor: this._tintColor,
@@ -542,6 +556,8 @@ export class Kawarp {
             return;
         this.isPlaying = true;
         this.lastFrameTime = performance.now();
+        this.fpsReportStartTime = this.lastFrameTime;
+        this.fpsReportFrameCount = 0;
         requestAnimationFrame(this.renderLoop);
     }
     stop() {
@@ -585,14 +601,30 @@ export class Kawarp {
     renderLoop = (timestamp) => {
         if (!this.isPlaying)
             return;
+        if (this._fpsCap > 0 && timestamp - this.lastFrameTime < 1000 / this._fpsCap) {
+            this.animationId = requestAnimationFrame(this.renderLoop);
+            return;
+        }
         const dt = (timestamp - this.lastFrameTime) / 1000;
         this.lastFrameTime = timestamp;
         this._animationSpeed +=
             (this._targetAnimationSpeed - this._animationSpeed) * 0.05;
         this.accumulatedTime += dt * this._animationSpeed;
         this.render(this.accumulatedTime, timestamp);
+        this.reportCanvasFPS(timestamp);
         this.animationId = requestAnimationFrame(this.renderLoop);
     };
+    reportCanvasFPS(timestamp) {
+        this.fpsReportFrameCount++;
+        const elapsed = timestamp - this.fpsReportStartTime;
+        if (elapsed < 1000)
+            return;
+        const actualFPS = (this.fpsReportFrameCount * 1000) / elapsed;
+        const capLabel = this._fpsCap > 0 ? `${this._fpsCap} FPS` : "Dynamic";
+        console.info(`[Kawarp] Canvas FPS: ${actualFPS.toFixed(1)} (cap: ${capLabel})`);
+        this.fpsReportStartTime = timestamp;
+        this.fpsReportFrameCount = 0;
+    }
     /**
      * Main render loop - very efficient!
      * Just: blend album FBOs → domain warp → output

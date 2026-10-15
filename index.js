@@ -240,6 +240,7 @@ let loopPreferences = {
     useGrooveOverrides: true,
     lyricsProviderOrder: ["groove", "lrclib"],
     loopUpdateInterval: 500,
+    kawarpFpsCap: 60,
     volume: 1,
     theme: "default",
 };
@@ -265,6 +266,8 @@ let loopUpdatePlayerBar;
 
 const loopPreferencesKey = "loop.mp3.preferences";
 const defaultLoopUpdateInterval = 500;
+const defaultKawarpFpsCap = 60;
+const kawarpFpsOptions = [15, 30, 60, 120, 144, 0];
 const LYRICS_RETRY_INTERVAL_MS = 5000;
 const minimumLoopUpdateInterval = 100;
 const maximumLoopUpdateInterval = 1000;
@@ -319,6 +322,48 @@ function getLoopUpdateIntervalWarning(interval) {
     return "";
 }
 
+function normalizeKawarpFpsCap(value) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return defaultKawarpFpsCap;
+    return kawarpFpsOptions.reduce((closest, option) =>
+        Math.abs(option - numericValue) < Math.abs(closest - numericValue) ? option : closest
+    );
+}
+
+function getKawarpFpsLabel(fpsCap) {
+    return fpsCap === 0 ? "Dynamic" : `${fpsCap} FPS`;
+}
+
+function getKawarpFpsWarning(fpsCap) {
+    if (fpsCap === 0) {
+        return "Dynamic follows the display refresh rate and may increase GPU usage and battery drain.";
+    }
+    if (fpsCap > 60) {
+        return "FPS above 60 can increase GPU usage, battery drain, and heat.";
+    }
+    return "";
+}
+
+function updateKawarpFpsPreferenceUI() {
+    const loop = document.querySelector("#loop");
+    if (!loop) return;
+
+    const fpsCap = normalizeKawarpFpsCap(loopPreferences.kawarpFpsCap);
+    loopPreferences.kawarpFpsCap = fpsCap;
+    const slider = loop.querySelector("#loop-kawarp-fps-slider");
+    if (slider) {
+        slider.value = String(kawarpFpsOptions.indexOf(fpsCap));
+        slider.setAttribute("aria-valuetext", getKawarpFpsLabel(fpsCap));
+    }
+    const value = loop.querySelector("#loop-kawarp-fps-value");
+    if (value) value.textContent = getKawarpFpsLabel(fpsCap);
+    const warning = loop.querySelector("#loop-kawarp-fps-warning");
+    if (warning) {
+        warning.textContent = getKawarpFpsWarning(fpsCap);
+        warning.hidden = !warning.textContent;
+    }
+}
+
 function updateLoopPollingPreferenceUI() {
     const loop = document.querySelector("#loop");
     if (!loop) return;
@@ -334,6 +379,7 @@ function updateLoopPollingPreferenceUI() {
         warning.textContent = getLoopUpdateIntervalWarning(interval);
         warning.hidden = !warning.textContent;
     }
+    updateKawarpFpsPreferenceUI();
 }
 
 function startLoopUpdatePolling(playerBar) {
@@ -1492,6 +1538,7 @@ async function resetLoopData() {
         useGrooveOverrides: true,
         lyricsProviderOrder: ["groove", "lrclib"],
         loopUpdateInterval: defaultLoopUpdateInterval,
+        kawarpFpsCap: defaultKawarpFpsCap,
         volume: 1,
         theme: "default",
     };
@@ -1534,6 +1581,8 @@ function applyLoopPreferences() {
     const grooveOverridesToggle = loop.querySelector("#loop-groove-overrides-toggle");
     if (grooveOverridesToggle) grooveOverridesToggle.checked = loopPreferences.useGrooveOverrides !== false;
     updateLoopPollingPreferenceUI();
+    kawarpBackground?.setOptions({ fpsCap: loopPreferences.kawarpFpsCap });
+    miniPlayerBridge?.syncEffects();
     const lyricsProviderSelect = loop.querySelector("#loop-lyrics-provider-select");
     if (lyricsProviderSelect) {
         const order = getLyricsProviderOrder();
@@ -1976,6 +2025,7 @@ async function openMiniPlayer() {
                     saturation: kawarpSettings.kawarpSaturation,
                     dithering: kawarpSettings.kawarpDithering,
                     scale: kawarpSettings.scale,
+                    fpsCap: loopPreferences.kawarpFpsCap,
                 });
                 miniKawarpBackground.start();
             } else {
@@ -1987,6 +2037,7 @@ async function openMiniPlayer() {
                     saturation: kawarpSettings.kawarpSaturation,
                     dithering: kawarpSettings.kawarpDithering,
                     scale: kawarpSettings.scale,
+                    fpsCap: loopPreferences.kawarpFpsCap,
                 });
             }
             if (artworkURL && artworkURL !== miniKawarpArtwork) {
@@ -3318,6 +3369,7 @@ function showKawarpConfigEditor() {
 async function loadLoopPreferences() {
     loopPreferences = { ...loopPreferences, ...(await getStoredLoopPreferences()) };
     loopPreferences.loopUpdateInterval = normalizeLoopUpdateInterval(loopPreferences.loopUpdateInterval);
+    loopPreferences.kawarpFpsCap = normalizeKawarpFpsCap(loopPreferences.kawarpFpsCap);
     applyKawarpSettings(kawarpSettings);
     applyLoopPreferences();
     startLoopUpdatePolling(loopUpdatePlayerBar);
@@ -3411,6 +3463,7 @@ function updateKawarpArtwork(artworkURL) {
                 saturation: kawarpSettings.kawarpSaturation,
                 dithering: kawarpSettings.kawarpDithering,
                 scale: kawarpSettings.scale,
+                fpsCap: loopPreferences.kawarpFpsCap,
             });
             canvas.style.opacity = String(kawarpSettings.opacity ?? kawarpSettings.kawarpOpacity);
             setKawarpCanvasVisibility(kawarpEnabled);
@@ -3803,6 +3856,19 @@ function updateLoop(artworkURL, trackInfo) {
                         Lyrics try providers in priority order and fall back when one fails.
                     </div>
                     <label class="loop-polling-setting">
+                        <span>Kawarp FPS cap <output id="loop-kawarp-fps-value" for="loop-kawarp-fps-slider">60 FPS</output></span>
+                        <input id="loop-kawarp-fps-slider" type="range" min="0" max="5" step="1" value="2" list="loop-kawarp-fps-options" aria-label="Kawarp frames per second cap">
+                        <datalist id="loop-kawarp-fps-options">
+                            <option value="0" label="15"></option>
+                            <option value="1" label="30"></option>
+                            <option value="2" label="60"></option>
+                            <option value="3" label="120"></option>
+                            <option value="4" label="144"></option>
+                            <option value="5" label="Dynamic"></option>
+                        </datalist>
+                    </label>
+                    <div id="loop-kawarp-fps-warning" class="loop-setting-warning" role="note" hidden></div>
+                    <label class="loop-polling-setting">
                         <span>Update interval <output id="loop-update-interval-value" for="loop-update-interval-slider">500 ms</output></span>
                         <input id="loop-update-interval-slider" type="range" min="100" max="1000" step="50" value="500" aria-label="Loop update interval in milliseconds">
                     </label>
@@ -3979,6 +4045,14 @@ function updateLoop(artworkURL, trackInfo) {
             saveLoopPreferences();
             updateLoopPollingPreferenceUI();
             startLoopUpdatePolling(playerBar);
+        });
+        loop.querySelector("#loop-kawarp-fps-slider").addEventListener("input", (event) => {
+            const optionIndex = Math.min(kawarpFpsOptions.length - 1, Math.max(0, Number(event.target.value)));
+            loopPreferences.kawarpFpsCap = kawarpFpsOptions[optionIndex];
+            saveLoopPreferences();
+            updateKawarpFpsPreferenceUI();
+            kawarpBackground?.setOptions({ fpsCap: loopPreferences.kawarpFpsCap });
+            miniPlayerBridge?.syncEffects();
         });
         loop.querySelector("#loop-lyrics-provider-select").addEventListener("change", (event) => {
             setLyricsProviderOrder(event.target.value);
