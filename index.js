@@ -2541,6 +2541,9 @@ const braccatoLyricsShadowCSS = `
     .loop-lyrics-footer-provider { height: 34px; max-width: 115px; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 0 8px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; cursor: pointer; }
     .loop-lyrics-footer-provider:focus-visible { outline: 2px solid rgba(255,255,255,.8); outline-offset: 1px; }
     .loop-lyrics-footer-provider option { color: #fff; background: #181818; }
+    #loop-lyrics-resume { position: absolute; top: 16px; left: 50%; z-index: 3; display: inline-flex; align-items: center; justify-content: center; min-height: 34px; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; padding: 0 14px; color: #fff; background: rgba(12,20,19,.88); box-shadow: 0 8px 24px rgba(0,0,0,.24); backdrop-filter: blur(10px); font: inherit; font-size: 12px; cursor: pointer; transform: translateX(-50%); transition: border-color 150ms ease, background 150ms ease; }
+    #loop-lyrics-resume:hover, #loop-lyrics-resume:focus-visible { border-color: rgba(255,255,255,.68); background: rgba(255,255,255,.16); }
+    #loop-lyrics-resume[hidden] { display: none; }
 `;
 
 function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs, instrumental = false) {
@@ -2696,6 +2699,33 @@ function ensureLyricsFooter(shadow) {
     return footer;
 }
 
+function ensureLyricsResumeButton(shadow) {
+    let button = shadow.querySelector("#loop-lyrics-resume");
+    if (button) return button;
+
+    const shell = shadow.querySelector("#loop-lyrics-shell");
+    if (!shell) return null;
+
+    button = document.createElement("button");
+    button.id = "loop-lyrics-resume";
+    button.type = "button";
+    button.hidden = true;
+    button.textContent = "Resume auto scroll";
+    button.setAttribute("aria-label", "Resume auto scroll to the active lyric");
+    button.addEventListener("click", () => {
+        button.hidden = true;
+        braccatoLyricsRenderer?.resumeAutoscroll();
+        updatePlaybackControls();
+    });
+    shell.appendChild(button);
+    return button;
+}
+
+function setLyricsResumeAffordanceVisible(shadow, visible) {
+    const button = ensureLyricsResumeButton(shadow);
+    if (button) button.hidden = !visible;
+}
+
 function syncLyricsFooterVisibility(shadow) {
     const view = shadow.querySelector("#loop-lyrics-view");
     const footer = shadow.querySelector("#loop-lyrics-footer");
@@ -2816,6 +2846,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         clearLyricsRetryTimer();
         panel.hidden = true;
         footer.hidden = true;
+        setLyricsResumeAffordanceVisible(shadow, false);
         braccatoLyricsRenderer?.clear();
         return;
     }
@@ -2823,6 +2854,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
     panel.hidden = false;
     loading.hidden = false;
     footer.hidden = true;
+    setLyricsResumeAffordanceVisible(shadow, false);
     shadow.querySelector("#loop-lyrics-view")?.setAttribute("hidden", "");
     loading.querySelector(".loop-lyrics-submit-link")?.remove();
     loading.querySelector(".loop-lyrics-instrumental-link")?.remove();
@@ -2895,6 +2927,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
             shell.appendChild(footer);
             shadow.appendChild(shell);
         }
+        ensureLyricsResumeButton(shadow);
         if (braccatoLyricsMount !== view) {
             braccatoLyricsRenderer?.destroy();
             braccatoLyricsRenderer = createLyricsRenderer({
@@ -2903,6 +2936,9 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
                 mount: view,
                 layout: "scroll",
                 host: {
+                    setResumeAffordanceVisible(visible) {
+                        setLyricsResumeAffordanceVisible(shadow, visible);
+                    },
                     seek(timeS) {
                         const media = getCurrentMedia();
                         if (!media) {
