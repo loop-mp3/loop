@@ -2298,6 +2298,7 @@ function normalizeLyricsResponse(payload, providerId) {
             provider: providerId,
             instrumental: source.instrumental === true,
             duration: source.duration,
+            lyricsUnavailable: !syncedLyrics && !plainLyrics && source.instrumental !== true,
         },
         syncedLyrics: source.instrumental && !syncedLyrics && !plainLyrics
             ? "[00:00.00] Instrumental only\n[99:99.99] ♪"
@@ -2356,7 +2357,11 @@ async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSecond
             continue;
         }
         const resultLyrics = {
-            meta: { ...lyricsMeta, provider: "lrclib" },
+            meta: {
+                ...lyricsMeta,
+                provider: "lrclib",
+                lyricsUnavailable: !syncedLyrics && !plainLyrics && !lyricsMeta?.instrumental,
+            },
             syncedLyrics: lyricsMeta?.instrumental && !syncedLyrics && !plainLyrics
                 ? "[00:00.00] Instrumental only\n[99:99.99] ♪"
                 : syncedLyrics,
@@ -2858,7 +2863,9 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         instrumentalLink.rel = "noopener noreferrer";
         instrumentalLink.textContent = "Did we miss the lyrics?";
         loading.append(submitLink, instrumentalLink);
-        scheduleLyricsRetry(trackId);
+        if (lyrics?.meta?.lyricsUnavailable !== true) {
+            scheduleLyricsRetry(trackId);
+        }
         showLoopNotification("Lyrics unavailable", 3000);
         return;
     }
