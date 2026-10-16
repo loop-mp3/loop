@@ -2330,9 +2330,9 @@ async function waitForCurrentTrackDuration(timeoutMs = 3000) {
     });
 }
 
-function lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDurationInSeconds, syncedLyrics) {
+function lyricsDurationExceedsTrack(lyricsResult, lyricsQueryResult, trackDurationInSeconds, syncedLyrics) {
     if (!Number.isFinite(trackDurationInSeconds)) return false;
-    const duration = Number(lyricsMeta?.duration ?? lyricsQueryResult?.duration);
+    const duration = Number(lyricsResult?.duration ?? lyricsQueryResult?.duration);
     const durationExceeds = Number.isFinite(duration) && Math.round(duration + 30) > trackDurationInSeconds;
     if (!durationExceeds) return false;
 
@@ -2348,8 +2348,8 @@ function lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDuration
     return lyricEnd > trackDurationInSeconds;
 }
 // no longer needed its causing more inaccuracy :sob:
-function LyricsTitleMatchesTrack(lyricsMeta, lyricsQueryResult, title) {
-    const lyricsTitle = String(lyricsMeta?.title ?? lyricsQueryResult?.title ?? "").trim().toLowerCase();
+function LyricsTitleMatchesTrack(lyricsResult, lyricsQueryResult, title) {
+    const lyricsTitle = String(lyricsResult?.title ?? lyricsQueryResult?.title ?? "").trim().toLowerCase();
     const trackTitle = String(title ?? "").trim().toLowerCase();
     return lyricsTitle && trackTitle && lyricsTitle === trackTitle;
 }
@@ -2423,7 +2423,6 @@ async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSecond
     for (const [resultIndex, lyricsQueryResult] of lyricsQueryResults.entries()) {
         const syncedLyrics = lyricsQueryResult.syncedLyrics || null;
         const plainLyrics = lyricsQueryResult.plainLyrics || null;
-        const lyricsMeta = lyricsQueryResult;
         if (lyricsDurationExceedsTrack(lyricsQueryResult, lyricsQueryResult, trackDurationInSeconds, syncedLyrics)) {
             console.log(`[loop.mp3] Skipping LRCLIB search result ${resultIndex + 1} because its duration exceeds the track duration.`, {
                 trackDurationInSeconds,
@@ -2433,21 +2432,21 @@ async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSecond
         }
         const resultLyrics = {
             meta: {
-                ...lyricsMeta,
+                ...lyricsQueryResult,
                 provider: "lrclib",
-                lyricsUnavailable: !syncedLyrics && !plainLyrics && !lyricsMeta?.instrumental,
+                lyricsUnavailable: !syncedLyrics && !plainLyrics && !lyricsQueryResult?.instrumental,
             },
-            syncedLyrics: lyricsMeta?.instrumental && !syncedLyrics && !plainLyrics
+            syncedLyrics: lyricsQueryResult?.instrumental && !syncedLyrics && !plainLyrics
                 ? "[00:00.00] Instrumental only\n[99:99.99] ♪"
                 : syncedLyrics,
             plainLyrics,
         };
         firstResultLyrics ||= resultLyrics;
-        if (hasSyncedLyricTimestamps(resultLyrics.syncedLyrics) || lyricsMeta?.instrumental) {
+        if (hasSyncedLyricTimestamps(resultLyrics.syncedLyrics) || lyricsQueryResult?.instrumental) {
             if (resultIndex > 0) console.log(`[loop.mp3] Using LRCLIB search result ${resultIndex + 1} because earlier results had no usable sync.`);
             return resultLyrics;
         }
-        if ((lyricsMeta?.hasWordSync ?? lyricsQueryResult.hasWordSync) === false) continue;
+        if (lyricsQueryResult?.hasWordSync === false) continue;
     }
     return firstResultLyrics;
 }
@@ -2523,12 +2522,11 @@ async function getLegacyLyricsFromTrackInfo(trackId, title, artist) {
 
         let firstResultLyrics = null;
         for (const [resultIndex, lyricsQueryResult] of lyricsQueryResults.entries()) {
-            const lyricsMeta = lyricsQueryResult;
-            const syncedLyrics = lyricsMeta?.syncedLyrics || lyricsQueryResult.syncedLyrics || null;
-            const plainLyrics = lyricsMeta?.plainLyrics || lyricsQueryResult.plainLyrics || null;
+            const syncedLyrics = lyricsQueryResult?.syncedLyrics || null;
+            const plainLyrics = lyricsQueryResult?.plainLyrics || null;
             const resultLyrics = {
-                meta: lyricsMeta,
-                syncedLyrics: lyricsMeta?.instrumental && !syncedLyrics && !plainLyrics
+                meta: lyricsQueryResult,
+                syncedLyrics: lyricsQueryResult?.instrumental && !syncedLyrics && !plainLyrics
                     ? `[00:00.00] Instrumental only
 [99:99.99] ${["♪", "♫", "♪"][Math.floor(Math.random() * 3)]}`
                     : syncedLyrics,
@@ -2536,8 +2534,8 @@ async function getLegacyLyricsFromTrackInfo(trackId, title, artist) {
             };
 
             firstResultLyrics ||= resultLyrics;
-            const hasWordSync = lyricsMeta?.hasWordSync ?? lyricsQueryResult.hasWordSync;
-            if (hasSyncedLyricTimestamps(resultLyrics.syncedLyrics) || lyricsMeta?.instrumental) {
+            const hasWordSync = lyricsQueryResult?.hasWordSync;
+            if (hasSyncedLyricTimestamps(resultLyrics.syncedLyrics) || lyricsQueryResult?.instrumental) {
                 if (resultIndex > 0) {
                     console.log(`[loop.mp3] Using lyrics search result ${resultIndex + 1} because earlier results had no usable sync:`, {
                         trackId,
