@@ -2595,6 +2595,7 @@ const braccatoLyricsShadowCSS = `
     .blyrics--line:not(.blyrics--active) { filter: blur(2px); transition: filter 250ms ease; }
     .blyrics--line.blyrics--active { filter: none; }
     #loop-lyrics-loading { position: absolute; top: 50%; left: 50%; display: flex; align-items: center; gap: 12px; transform: translate(-50%, -50%); color: rgba(255,255,255,.7); font-size: 15px; white-space: nowrap; }
+    .loop-lyrics-loading-content { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
     .loop-lyrics-spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.22); border-top-color: #fff; border-radius: 50%; animation: loop-lyrics-spin 800ms linear infinite; }
     @keyframes loop-lyrics-spin { to { transform: rotate(360deg); } }
     .blyrics-container { --blyrics-font-family: Satoshi, system-ui, sans-serif; --blyrics-font-size: 3rem; --blyrics-line-height: 1.333; --blyrics-padding: 2rem; --blyrics-word-wobble-transform-from: scaleX(1); --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025); --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1); --blyrics-word-wobble-transform-to: scaleX(1); }
@@ -2612,7 +2613,7 @@ const braccatoLyricsShadowCSS = `
     .loop-lyrics-footer-button .fa-solid { font-family: "Font Awesome 6 Free"; font-weight: 900; }
     .loop-lyrics-footer-button .fa-arrows-rotate::before { content: "\\f021"; }
     .loop-lyrics-footer-button .fa-up-right-from-square::before { content: "\\f35d"; }
-    .loop-lyrics-submit-link, .loop-lyrics-instrumental-link { display: inline-block; margin: 8px 8px 0 0; color: rgba(255,255,255,.82); text-decoration: underline; cursor: pointer; }
+    .loop-lyrics-submit-link, .loop-lyrics-instrumental-link { display: inline-block; margin: 0 8px 0 0; color: rgba(255,255,255,.82); text-decoration: underline; cursor: pointer; }
     .loop-lyrics-footer-button:hover, .loop-lyrics-footer-button:focus-visible { border-color: rgba(255,255,255,.6); background: rgba(255,255,255,.16); color: #fff; }
     .loop-lyrics-footer-button:disabled { cursor: wait; opacity: .55; }
     .loop-lyrics-footer-provider { height: 34px; max-width: 115px; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 0 8px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; cursor: pointer; }
@@ -2955,7 +2956,10 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         const loadingLabel = document.createElement("span");
         loadingLabel.className = "loop-lyrics-loading-label";
         loadingLabel.textContent = "Resolving lyrics";
-        loading.append(spinner, loadingLabel);
+        const loadingContent = document.createElement("div");
+        loadingContent.className = "loop-lyrics-loading-content";
+        loadingContent.appendChild(loadingLabel);
+        loading.append(spinner, loadingContent);
         shadow.appendChild(loading);
     }
     const loading = shadow.querySelector("#loop-lyrics-loading");
@@ -3004,8 +3008,8 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         instrumentalLink.href = grooveEditorURL;
         instrumentalLink.target = "_blank";
         instrumentalLink.rel = "noopener noreferrer";
-        instrumentalLink.textContent = "Know the correct ones?";
-        loading.append(instrumentalLink);
+        instrumentalLink.textContent = "Know the correct lyrics?";
+        loading.querySelector(".loop-lyrics-loading-content")?.append(instrumentalLink);
         if (lyrics?.meta?.lyricsUnavailable !== true) {
             scheduleLyricsRetry(trackId);
         }
