@@ -49,7 +49,7 @@
 	--blyrics-font-weight: 700;
 	--blyrics-line-height: 1.333;
 
-	--blyrics-translated-font-size: 2rem;
+	--blyrics-translated-font-size: 1rem;
 	--blyrics-translated-font-weight: 600;
 	--blyrics-translated-color: color(
 		display-p3 1 1 1 / var(--blyrics-translated-opacity, 0.6)

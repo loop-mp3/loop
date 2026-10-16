@@ -238,6 +238,8 @@ let loopPreferences = {
     showWriterCredits: true,
     useLyricsCache: true,
     useGrooveOverrides: true,
+    enableLyricsTranslation: false,
+    lyricsTranslationLanguage: "en",
     lyricsProviderOrder: ["groove", "lrclib"],
     loopUpdateInterval: 500,
     kawarpFpsCap: 60,
@@ -276,6 +278,7 @@ const kawarpConfigKey = "loop.mp3.kawarp-config";
 const kawarpCustomPresetsKey = "loop.mp3.kawarp-custom-presets";
 const lyricsCacheKeyPrefix = "lyrics_";
 const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
+const lyricsTranslationEndpoint = "https://unison.boidu.dev/translate";
 const grooveEditorURL = "https://loop.mizucode.qzz.io/groove/";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
 const lyricsProviders = [
@@ -284,6 +287,14 @@ const lyricsProviders = [
     { id: "groove-dev", label: "Groove (dev)", endpoint: "http://127.0.0.1:8787/api/v1/track" },
 ];
 const defaultLyricsProviderIds = ["groove", "lrclib"];
+const supportedLyricsTranslationLanguages = new Set([
+    "ar", "bn", "de", "en", "es", "fr", "hi", "id", "it", "ja", "ko", "pt", "ru", "tr", "vi", "zh",
+]);
+
+function normalizeLyricsTranslationLanguage(value) {
+    const language = String(value || "en").trim().toLowerCase();
+    return supportedLyricsTranslationLanguages.has(language) ? language : "en";
+}
 
 function getLyricsProviderOrder() {
     const storedOrder = Array.isArray(loopPreferences.lyricsProviderOrder)
@@ -1537,6 +1548,8 @@ async function resetLoopData() {
         showWriterCredits: true,
         useLyricsCache: true,
         useGrooveOverrides: true,
+        enableLyricsTranslation: false,
+        lyricsTranslationLanguage: "en",
         lyricsProviderOrder: ["groove", "lrclib"],
         loopUpdateInterval: defaultLoopUpdateInterval,
         kawarpFpsCap: defaultKawarpFpsCap,
@@ -1582,6 +1595,10 @@ function applyLoopPreferences() {
     if (lyricsCacheToggle) lyricsCacheToggle.checked = loopPreferences.useLyricsCache !== false;
     const grooveOverridesToggle = loop.querySelector("#loop-groove-overrides-toggle");
     if (grooveOverridesToggle) grooveOverridesToggle.checked = loopPreferences.useGrooveOverrides !== false;
+    const translationToggle = loop.querySelector("#loop-lyrics-translation-toggle");
+    if (translationToggle) translationToggle.checked = loopPreferences.enableLyricsTranslation === true;
+    const translationLanguage = loop.querySelector("#loop-lyrics-translation-language");
+    if (translationLanguage) translationLanguage.value = normalizeLyricsTranslationLanguage(loopPreferences.lyricsTranslationLanguage);
     updateLoopPollingPreferenceUI();
     kawarpBackground?.setOptions({
         fpsCap: loopPreferences.kawarpFpsCap,
@@ -2689,9 +2706,14 @@ function removeTrailingWriterCreditLines(lines, songwriters) {
 
 function loadBraccatoLyrics() {
     if (!braccatoLyricsPromise) {
-        braccatoLyricsPromise = import(getExtensionURL("modules/braccato/renderer.js"))
-            .then(async ({ createLyricsRenderer }) => ({
+        braccatoLyricsPromise = Promise.all([
+            import(getExtensionURL("modules/braccato/renderer.js")),
+            import(getExtensionURL("modules/braccato/inject.js")),
+        ])
+            .then(async ([{ createLyricsRenderer }, { injectRomanization, injectTranslation }]) => ({
                 createLyricsRenderer,
+                injectRomanization,
+                injectTranslation,
                 styles: await Promise.all(["variables.css", "lyrics.css", "instrumental.css"].map(async (file) => {
                     const response = await fetch(getExtensionURL(`modules/braccato/styles/${file}`));
                     if (!response.ok) throw new Error(`Could not load Braccato stylesheet ${file}`);
@@ -2869,6 +2891,46 @@ function updateLyricsFooter(shadow, lyrics, songwriters = [], hasSungLyrics = tr
     syncLyricsFooterVisibility(shadow);
 }
 
+async function translateLyricsLines(parsedLyrics) {
+    const targetLanguage = normalizeLyricsTranslationLanguage(loopPreferences.lyricsTranslationLanguage);
+    const lines = parsedLyrics.map((line) => String(line.words || ""));
+    if (!lines.some((line) => line.trim()) || lines.length > 200) return null;
+
+    const response = await fetch(lyricsTranslationEndpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ lines, to: targetLanguage }),
+    });
+    if (!response.ok) throw new Error(`Unison returned ${response.status}`);
+    const result = await response.json();
+    if (!Array.isArray(result?.lines) || result.lines.length !== parsedLyrics.length) {
+        throw new Error("Unison returned an invalid line mapping");
+    }
+    return result;
+}
+
+function applyTranslatedLyrics(shadow, parsedLyrics, result, injectRomanization, injectTranslation) {
+    const renderedLines = braccatoLyricsRenderer?.lines || [];
+    const targetLanguage = normalizeLyricsTranslationLanguage(loopPreferences.lyricsTranslationLanguage);
+    result.lines.forEach((translated, index) => {
+        const line = renderedLines[index];
+        if (!line?.lyricElement || !translated || translated.needsTranslation === false && !translated.romanization) return;
+        const sourceLanguage = result.detectedLang || "und";
+        line.lyricElement.lang = sourceLanguage;
+        const romanization = typeof translated.romanization === "string" ? translated.romanization.trim() : "";
+        const translation = translated.needsTranslation && typeof translated.translation === "string"
+            ? translated.translation.trim()
+            : "";
+        if (romanization) injectRomanization(document, line.lyricElement, line, romanization);
+        if (translation) injectTranslation(document, line.lyricElement, translation, targetLanguage);
+        line.lyricElement.dataset.translationSource = sourceLanguage;
+    });
+    braccatoLyricsRenderer?.scheduleLyricPositionUpdate(
+        () => true,
+        () => updatePlaybackControls()
+    );
+}
+
 function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWriters) {
     const panel = document.querySelector("#loop-lyrics-panel");
     const host = panel?.querySelector("#loop-lyrics-host");
@@ -2964,7 +3026,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
 
     clearLyricsRetryTimer();
     loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
-    loadBraccatoLyrics().then(({ createLyricsRenderer, styles }) => {
+    loadBraccatoLyrics().then(async ({ createLyricsRenderer, injectRomanization, injectTranslation, styles }) => {
         if (
             requestId !== lyricsRequestId ||
             !loopPreferences.showLyrics ||
@@ -3019,6 +3081,18 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
             // Songwriter credits belong to the shell footer, not the scrollable lyric content.
             showCredits: false,
         });
+        if (loopPreferences.enableLyricsTranslation === true && lyrics?.meta?.instrumental !== true) {
+            try {
+                loading.querySelector(".loop-lyrics-loading-label").textContent = "Translating lyrics";
+                const translated = await translateLyricsLines(parsedLyrics);
+                if (translated && requestId === lyricsRequestId && loopPreferences.showLyrics) {
+                    applyTranslatedLyrics(shadow, parsedLyrics, translated, injectRomanization, injectTranslation);
+                }
+            } catch (error) {
+                console.warn("[loop.mp3] Could not translate lyrics; showing originals:", error);
+            }
+        }
+        if (requestId !== lyricsRequestId || !loopPreferences.showLyrics) return;
         loading.hidden = true;
         view.hidden = false;
         updateLyricsFooter(
@@ -3377,6 +3451,8 @@ function showKawarpConfigEditor() {
 
 async function loadLoopPreferences() {
     loopPreferences = { ...loopPreferences, ...(await getStoredLoopPreferences()) };
+    loopPreferences.enableLyricsTranslation = loopPreferences.enableLyricsTranslation === true;
+    loopPreferences.lyricsTranslationLanguage = normalizeLyricsTranslationLanguage(loopPreferences.lyricsTranslationLanguage);
     loopPreferences.loopUpdateInterval = normalizeLoopUpdateInterval(loopPreferences.loopUpdateInterval);
     loopPreferences.kawarpFpsCap = normalizeKawarpFpsCap(loopPreferences.kawarpFpsCap);
     loopPreferences.kawarpFpsLogging = loopPreferences.kawarpFpsLogging === true;
@@ -3863,8 +3939,33 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-groove-overrides-toggle" type="checkbox" checked>
                         Use Groove lyric overrides
                     </label>
+                    <label class="loop-navigation-toggle">
+                        <input id="loop-lyrics-translation-toggle" type="checkbox">
+                        Translate lyrics
+                    </label>
+                    <label class="loop-navigation-toggle loop-lyrics-translation-setting">
+                        Translation language
+                        <select id="loop-lyrics-translation-language" aria-label="Lyrics translation language">
+                            <option value="en">English</option>
+                            <option value="hi">Hindi</option>
+                            <option value="ja">Japanese</option>
+                            <option value="ko">Korean</option>
+                            <option value="zh">Chinese</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="pt">Portuguese</option>
+                            <option value="ru">Russian</option>
+                            <option value="ar">Arabic</option>
+                            <option value="bn">Bengali</option>
+                            <option value="id">Indonesian</option>
+                            <option value="it">Italian</option>
+                            <option value="tr">Turkish</option>
+                            <option value="vi">Vietnamese</option>
+                        </select>
+                    </label>
                     <div class="loop-setting-warning" role="note">
-                        Lyrics try providers in priority order and fall back when one fails.
+                        Lyrics try providers in priority order and fall back when one fails. Translation uses Unison and is optional.
                     </div>
                     <label class="loop-polling-setting">
                         <span>Kawarp FPS cap <output id="loop-kawarp-fps-value" for="loop-kawarp-fps-slider">60 FPS</output></span>
@@ -4054,6 +4155,16 @@ function updateLoop(artworkURL, trackInfo) {
             loopPreferences.useGrooveOverrides = event.target.checked;
             saveLoopPreferences();
             if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack(true);
+        });
+        loop.querySelector("#loop-lyrics-translation-toggle").addEventListener("change", (event) => {
+            loopPreferences.enableLyricsTranslation = event.target.checked;
+            saveLoopPreferences();
+            if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
+        });
+        loop.querySelector("#loop-lyrics-translation-language").addEventListener("change", (event) => {
+            loopPreferences.lyricsTranslationLanguage = normalizeLyricsTranslationLanguage(event.target.value);
+            saveLoopPreferences();
+            if (loopPreferences.showLyrics && loopPreferences.enableLyricsTranslation) fetchLoopLyricsForCurrentTrack();
         });
         loop.querySelector("#loop-update-interval-slider").addEventListener("input", (event) => {
             loopPreferences.loopUpdateInterval = normalizeLoopUpdateInterval(event.target.value);

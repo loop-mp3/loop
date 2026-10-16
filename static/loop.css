@@ -774,6 +774,22 @@
     color: #fff;
 }
 
+#loop-lyrics-translation-language {
+    min-width: 120px;
+    padding: 5px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+
+#loop-lyrics-translation-language option {
+    background: #181818;
+    color: #fff;
+}
+
 #loop-lyrics-host {
     display: block;
     width: 100%;
