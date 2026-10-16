@@ -2710,9 +2710,8 @@ function loadBraccatoLyrics() {
             import(getExtensionURL("modules/braccato/renderer.js")),
             import(getExtensionURL("modules/braccato/inject.js")),
         ])
-            .then(async ([{ createLyricsRenderer }, { injectRomanization, injectTranslation }]) => ({
+            .then(async ([{ createLyricsRenderer }, { injectTranslation }]) => ({
                 createLyricsRenderer,
-                injectRomanization,
                 injectTranslation,
                 styles: await Promise.all(["variables.css", "lyrics.css", "instrumental.css"].map(async (file) => {
                     const response = await fetch(getExtensionURL(`modules/braccato/styles/${file}`));
@@ -2909,19 +2908,17 @@ async function translateLyricsLines(parsedLyrics) {
     return result;
 }
 
-function applyTranslatedLyrics(shadow, parsedLyrics, result, injectRomanization, injectTranslation) {
+function applyTranslatedLyrics(shadow, parsedLyrics, result, injectTranslation) {
     const renderedLines = braccatoLyricsRenderer?.lines || [];
     const targetLanguage = normalizeLyricsTranslationLanguage(loopPreferences.lyricsTranslationLanguage);
     result.lines.forEach((translated, index) => {
         const line = renderedLines[index];
-        if (!line?.lyricElement || !translated || translated.needsTranslation === false && !translated.romanization) return;
+        if (!line?.lyricElement || !translated || !translated.needsTranslation) return;
         const sourceLanguage = result.detectedLang || "und";
         line.lyricElement.lang = sourceLanguage;
-        const romanization = typeof translated.romanization === "string" ? translated.romanization.trim() : "";
         const translation = translated.needsTranslation && typeof translated.translation === "string"
             ? translated.translation.trim()
             : "";
-        if (romanization) injectRomanization(document, line.lyricElement, line, romanization);
         if (translation) injectTranslation(document, line.lyricElement, translation, targetLanguage);
         line.lyricElement.dataset.translationSource = sourceLanguage;
     });
@@ -3026,7 +3023,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
 
     clearLyricsRetryTimer();
     loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
-    loadBraccatoLyrics().then(async ({ createLyricsRenderer, injectRomanization, injectTranslation, styles }) => {
+    loadBraccatoLyrics().then(async ({ createLyricsRenderer, injectTranslation, styles }) => {
         if (
             requestId !== lyricsRequestId ||
             !loopPreferences.showLyrics ||
@@ -3086,7 +3083,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
                 loading.querySelector(".loop-lyrics-loading-label").textContent = "Translating lyrics";
                 const translated = await translateLyricsLines(parsedLyrics);
                 if (translated && requestId === lyricsRequestId && loopPreferences.showLyrics) {
-                    applyTranslatedLyrics(shadow, parsedLyrics, translated, injectRomanization, injectTranslation);
+                    applyTranslatedLyrics(shadow, parsedLyrics, translated, injectTranslation);
                 }
             } catch (error) {
                 console.warn("[loop.mp3] Could not translate lyrics; showing originals:", error);
