@@ -279,6 +279,7 @@ const kawarpCustomPresetsKey = "loop.mp3.kawarp-custom-presets";
 const lyricsCacheKeyPrefix = "lyrics_";
 const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
 const lyricsTranslationEndpoint = "https://unison.boidu.dev/translate";
+const unisonTranslationRetryDelaysMs = [3_000, 5_000, 10_000, 15_000];
 const grooveEditorURL = "https://loop.mizucode.qzz.io/groove/";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
 const lyricsProviders = [
@@ -2895,12 +2896,44 @@ async function translateLyricsLines(parsedLyrics) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ lines, to: targetLanguage }),
     });
-    if (!response.ok) throw new Error(`Unison returned ${response.status}`);
+    if (!response.ok) {
+        const error = new Error(`Unison returned ${response.status}`);
+        error.status = response.status;
+        throw error;
+    }
     const result = await response.json();
     if (!Array.isArray(result?.lines) || result.lines.length !== parsedLyrics.length) {
         throw new Error("Unison returned an invalid line mapping");
     }
     return result;
+}
+
+function waitForUnisonTranslationRetry(delayMs) {
+    return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+async function translateLyricsLinesWithRetry(
+    parsedLyrics,
+    shouldContinue = () => true,
+    onRetry = () => {}
+) {
+    for (let attempt = 0; ; attempt += 1) {
+        if (!shouldContinue()) return null;
+        try {
+            return await translateLyricsLines(parsedLyrics);
+        } catch (error) {
+            const retryDelayMs = error?.status !== 200
+                ? unisonTranslationRetryDelaysMs[attempt]
+                : undefined;
+            if (retryDelayMs === undefined) throw error;
+            if (!shouldContinue()) return null;
+            onRetry(attempt);
+            console.warn(
+                `[loop.mp3] Unison is unavailable; retrying translation in ${retryDelayMs / 1_000} seconds.`
+            );
+            await waitForUnisonTranslationRetry(retryDelayMs);
+        }
+    }
 }
 
 function applyTranslatedLyrics(shadow, parsedLyrics, result, injectTranslation) {
@@ -3013,7 +3046,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
 
     clearLyricsRetryTimer();
     loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
-    loadBraccatoLyrics().then(async ({ createLyricsRenderer, injectTranslation, styles }) => {
+    loadBraccatoLyrics().then(({ createLyricsRenderer, injectTranslation, styles }) => {
         if (
             requestId !== lyricsRequestId ||
             !loopPreferences.showLyrics ||
@@ -3068,17 +3101,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
             // Songwriter credits belong to the shell footer, not the scrollable lyric content.
             showCredits: false,
         });
-        if (loopPreferences.enableLyricsTranslation === true && lyrics?.meta?.instrumental !== true) {
-            try {
-                loading.querySelector(".loop-lyrics-loading-label").textContent = "Translating lyrics";
-                const translated = await translateLyricsLines(parsedLyrics);
-                if (translated && requestId === lyricsRequestId && loopPreferences.showLyrics) {
-                    applyTranslatedLyrics(shadow, parsedLyrics, translated, injectTranslation);
-                }
-            } catch (error) {
-                console.warn("[loop.mp3] Could not translate lyrics; showing originals:", error);
-            }
-        }
+
         if (requestId !== lyricsRequestId || !loopPreferences.showLyrics) return;
         loading.hidden = true;
         view.hidden = false;
@@ -3089,6 +3112,26 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
             parsedLyrics.some((line) => !line.isInstrumental && line.words?.trim())
         );
         updatePlaybackControls();
+
+        if (loopPreferences.enableLyricsTranslation === true && lyrics?.meta?.instrumental !== true) {
+            loading.querySelector(".loop-lyrics-loading-label").textContent = "Translating lyrics";
+            const isCurrentLyricsRequest = () => requestId === lyricsRequestId &&
+                loopPreferences.showLyrics &&
+                trackId === (getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId);
+            let translationRetried = false;
+            translateLyricsLinesWithRetry(parsedLyrics, isCurrentLyricsRequest, () => {
+                if (translationRetried) return;
+                translationRetried = true;
+                showLoopNotification("Hmm… not quite there, still finding the translation.", 4000);
+            }).then((translated) => {
+                if (translated && isCurrentLyricsRequest()) {
+                    applyTranslatedLyrics(shadow, parsedLyrics, translated, injectTranslation);
+                    if (translationRetried) showLoopNotification("Translation found.", 3000);
+                }
+            }).catch((error) => {
+                console.warn("[loop.mp3] Could not translate lyrics; showing originals:", error);
+            });
+        }
     }).catch((error) => {
         console.warn("[loop.mp3] Could not load Braccato lyrics renderer:", error);
         loading.querySelector(".loop-lyrics-loading-label").textContent = "Lyrics could not load";
