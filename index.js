@@ -2407,15 +2407,35 @@ async function getLyricsFromGroove(trackId, title, artist, trackDurationInSecond
 }
 
 async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSeconds) {
-    const query = new URLSearchParams({ q: `${title} ${artist}` }).toString();
-    const res = await fetch(`${lyricsProviders[1].endpoint}?${query}`);
-    if (!res.ok) throw new Error(`LRCLIB search returned ${res.status}`);
-    let data = await res.json();
-    if (!data?.[0] && artist.trim()) {
-        const titleOnlyQuery = new URLSearchParams({ q: title }).toString();
-        const titleOnlyResponse = await fetch(`${lyricsProviders[1].endpoint}?${titleOnlyQuery}`);
-        if (!titleOnlyResponse.ok) throw new Error(`LRCLIB search returned ${titleOnlyResponse.status}`);
-        data = await titleOnlyResponse.json();
+    const searchLrclib = async (searchText) => {
+        const query = new URLSearchParams({ q: searchText }).toString();
+        const response = await fetch(`${lyricsProviders[1].endpoint}?${query}`);
+        if (!response.ok) throw new Error(`LRCLIB search returned ${response.status}`);
+        return response.json();
+    };
+
+    // Try the displayed artist first, then the canonical YouTube oEmbed author.
+    // Topic channels append "- Topic", which LRCLIB generally does not index.
+    let data = await searchLrclib(`${title} ${artist}`);
+    if (!data?.[0] && trackId) {
+        try {
+            const oEmbedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://youtube.com/watch?v=${trackId}`)}&format=json`;
+            const oEmbedResponse = await fetch(oEmbedUrl);
+            if (oEmbedResponse.ok) {
+                const oEmbed = await oEmbedResponse.json();
+                const oEmbedArtist = String(oEmbed.author_name || "")
+                    .replace(/\s*[-–—]\s*Topic$/i, "")
+                    .trim();
+                if (oEmbedArtist) {
+                    data = await searchLrclib(`${title} ${oEmbedArtist}`);
+                }
+            }
+        } catch (error) {
+            console.warn("[loop.mp3] LRCLIB oEmbed artist retry failed; trying title only:", error);
+        }
+    }
+    if (!data?.[0]) {
+        data = await searchLrclib(title);
     }
     const lyricsQueryResults = data?.filter((result) => result && typeof result === "object") || [];
     if (!lyricsQueryResults.length) return null;
