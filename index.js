@@ -2416,20 +2416,18 @@ async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSecond
         if (!titleOnlyResponse.ok) throw new Error(`LRCLIB search returned ${titleOnlyResponse.status}`);
         data = await titleOnlyResponse.json();
     }
-    const lyricsQueryResults = data?.filter((result) => result?.id) || [];
+    const lyricsQueryResults = data?.filter((result) => result && typeof result === "object") || [];
     if (!lyricsQueryResults.length) return null;
 
     let firstResultLyrics = null;
     for (const [resultIndex, lyricsQueryResult] of lyricsQueryResults.entries()) {
-        const lyricsResponse = await fetch(`https://lrclib.net/api/get/${lyricsQueryResult.id}`);
-        if (!lyricsResponse.ok) throw new Error(`LRCLIB returned ${lyricsResponse.status}`);
-        const lyricsMeta = await lyricsResponse.json();
-        const syncedLyrics = lyricsMeta?.syncedLyrics || lyricsQueryResult.syncedLyrics || null;
-        const plainLyrics = lyricsMeta?.plainLyrics || lyricsQueryResult.plainLyrics || null;
-        if (lyricsDurationExceedsTrack(lyricsMeta, lyricsQueryResult, trackDurationInSeconds, syncedLyrics)) {
+        const syncedLyrics = lyricsQueryResult.syncedLyrics || null;
+        const plainLyrics = lyricsQueryResult.plainLyrics || null;
+        const lyricsMeta = lyricsQueryResult;
+        if (lyricsDurationExceedsTrack(lyricsQueryResult, lyricsQueryResult, trackDurationInSeconds, syncedLyrics)) {
             console.log(`[loop.mp3] Skipping LRCLIB search result ${resultIndex + 1} because its duration exceeds the track duration.`, {
                 trackDurationInSeconds,
-                lyricsDuration: (Number(lyricsMeta?.duration + 15 ?? lyricsQueryResult.duration) + 15),
+                lyricsDuration: Number(lyricsQueryResult.duration),
             });
             continue;
         }
@@ -2525,9 +2523,7 @@ async function getLegacyLyricsFromTrackInfo(trackId, title, artist) {
 
         let firstResultLyrics = null;
         for (const [resultIndex, lyricsQueryResult] of lyricsQueryResults.entries()) {
-            const lyricsResponse = await fetch(`https://lrclib.net/api/get/${lyricsQueryResult.id}`);
-            if (!lyricsResponse.ok) throw new Error(`LRCLIB returned ${lyricsResponse.status}`);
-            const lyricsMeta = await lyricsResponse.json();
+            const lyricsMeta = lyricsQueryResult;
             const syncedLyrics = lyricsMeta?.syncedLyrics || lyricsQueryResult.syncedLyrics || null;
             const plainLyrics = lyricsMeta?.plainLyrics || lyricsQueryResult.plainLyrics || null;
             const resultLyrics = {
