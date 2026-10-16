@@ -1,6 +1,25 @@
 
 All notable changes to Loop are documented here.
 
+## [1.6.6] (minor) - 2026-10-16
+
+### Highlights
+
+* Added optional lyrics translation with selectable target languages, including English, Hindi, Japanese, Korean, Chinese, Spanish, French, German, Portuguese, Russian, Arabic, Bengali, Indonesian, Italian, Turkish, and Vietnamese.
+* Added automatic translation retries with progress notifications when the translation service is temporarily unavailable.
+* Added an oEmbed artist fallback for LRCLIB searches, including normalization of YouTube Topic channel names.
+
+### Fixes
+
+* Improved LRCLIB lyric matching by using search results directly, avoiding redundant detail requests, and preserving instrumental and word-synchronized lyric handling.
+* Improved the unavailable-lyrics view with clearer searching and correction-link messaging.
+* Displayed translated lyric lines in a smaller, parenthesized style for better readability.
+
+### Internal and maintenance changes
+
+* Simplified lyrics fetching and removed obsolete romanization handling.
+* Added safeguards so translation results are only applied to the active track and lyrics request.
+
 ## [1.6.5] (minor) - 2026-10-15
 
 ### Highlights
@@ -313,3 +332,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [1.6.1]: https://github.com/loop-mp3/loop/releases/tag/v1.6.1
 [1.6.2]: https://github.com/loop-mp3/loop/releases/tag/v1.6.2
 [1.6.3]: https://github.com/loop-mp3/loop/releases/tag/v1.6.3
+[1.6.6]: https://github.com/loop-mp3/loop/releases/tag/v1.6.6
