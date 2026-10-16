@@ -2998,22 +2998,14 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
     ), songwriters);
     if (!parsedLyrics.length) {
         braccatoLyricsRenderer?.clear();
-        loading.querySelector(".loop-lyrics-loading-label").textContent = "Lyrics unavailable";
-        const submitLink = document.createElement("a");
-        submitLink.className = "loop-lyrics-submit-link";
-        submitLink.href = "#";
-        submitLink.textContent = "Submit lyrics here";
-        submitLink.addEventListener("click", (event) => {
-            event.preventDefault();
-            showLyricsSubmissionModal();
-        });
+        loading.querySelector(".loop-lyrics-loading-label").textContent = "Hmm.. we arent quite there still searching for them";
         const instrumentalLink = document.createElement("a");
         instrumentalLink.className = "loop-lyrics-instrumental-link";
         instrumentalLink.href = grooveEditorURL;
         instrumentalLink.target = "_blank";
         instrumentalLink.rel = "noopener noreferrer";
-        instrumentalLink.textContent = "Did we miss the lyrics?";
-        loading.append(submitLink, instrumentalLink);
+        instrumentalLink.textContent = "Know the correct ones?";
+        loading.append(instrumentalLink);
         if (lyrics?.meta?.lyricsUnavailable !== true) {
             scheduleLyricsRetry(trackId);
         }
