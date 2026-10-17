@@ -1,6 +1,13 @@
 
 All notable changes to Loop are documented here.
 
+## [0.6.7] (minor) - 2026-10-17
+
+### Fixes
+
+* Fixed Double warping in translated lyrics
+
+
 ## [0.6.6] (minor) - 2026-10-16
 
 ### Highlights
@@ -336,3 +343,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [0.1.1.1]: https://github.com/loop-mp3/loop/releases/tag/v0.1.1.1
 [0.1.0]: https://github.com/loop-mp3/loop/releases/tag/v0.1.0
 [0.0.0]: https://github.com/loop-mp3/loop/releases/tag/v0.0.0
+[0.6.7]: https://github.com/loop-mp3/loop/releases/tag/v0.6.7
