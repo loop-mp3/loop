@@ -1,6 +1,21 @@
 
 All notable changes to Loop are documented here.
 
+## [0.6.8] (minor) - 2026-10-17
+
+### Highlights
+
+* Made lyrics providers resolve concurrently so the first usable result can be displayed without waiting for providers sequentially.
+* Preserved configured provider priority by replacing an early lower-priority result when a higher-priority provider resolves later.
+
+### Fixes
+
+* Added abort-signal support to lyrics provider requests and ignored stale provider results when the active track changes.
+
+### Internal and maintenance changes
+
+* Added support for resolving configured Groove endpoints, including the Groove development provider, with the correct provider metadata.
+
 ## [0.6.7] (minor) - 2026-10-17
 
 ### Fixes
@@ -344,3 +359,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [0.1.0]: https://github.com/loop-mp3/loop/releases/tag/v0.1.0
 [0.0.0]: https://github.com/loop-mp3/loop/releases/tag/v0.0.0
 [0.6.7]: https://github.com/loop-mp3/loop/releases/tag/v0.6.7
+[0.6.8]: https://github.com/loop-mp3/loop/releases/tag/v0.6.8
