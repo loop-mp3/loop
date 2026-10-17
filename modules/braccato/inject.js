@@ -435,7 +435,7 @@ export function injectRomanization(doc, lyricElement, lineData, text, timedRoman
 export function injectTranslation(doc, lyricElement, text, language) {
     if (lyricElement.querySelector(`.${TRANSLATED_LYRICS_CLASS}`))
         return;
-    const translatedText = `(${text})`;
+    const translatedText = text.startsWith("(") && text.endsWith(")") ? text : `(${text})`;
     const translatedLine = doc.createElement("div");
     translatedLine.classList.add(TRANSLATED_LYRICS_CLASS, CONTENT_LINE_CLASS);
     translatedLine.dir = "auto";
