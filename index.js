@@ -2385,8 +2385,9 @@ function normalizeLyricsResponse(payload, providerId) {
     };
 }
 
-async function getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds) {
+async function getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds, providerId = "groove", signal) {
     if (!trackId) throw new Error("Groove requires a track ID");
+    const provider = lyricsProviders.find((entry) => entry.id === providerId) || lyricsProviders[0];
     const queryParams = new URLSearchParams();
     if (Number.isFinite(trackDurationInSeconds)) {
         queryParams.set("duration", String(trackDurationInSeconds));
@@ -2395,21 +2396,22 @@ async function getLyricsFromGroove(trackId, title, artist, trackDurationInSecond
         queryParams.set("overrides", "true");
     }
     const query = queryParams.toString();
-    const response = await fetch(`${lyricsProviders[0].endpoint}/${encodeURIComponent(trackId)}${query ? `?${query}` : ""}`, {
+    const response = await fetch(`${provider.endpoint}/${encodeURIComponent(trackId)}${query ? `?${query}` : ""}`, {
         cache: "no-store",
+        signal,
     });
-    if (!response.ok) throw new Error(`Groove returned ${response.status}`);
-    const lyrics = normalizeLyricsResponse(await response.json(), "groove");
-    if (!lyrics) throw new Error("Groove returned no usable lyrics");
+    if (!response.ok) throw new Error(`${provider.label} returned ${response.status}`);
+    const lyrics = normalizeLyricsResponse(await response.json(), providerId);
+    if (!lyrics) throw new Error(`${provider.label} returned no usable lyrics`);
     // Keep override-enabled and override-disabled cache entries distinguishable.
     lyrics.meta.override = loopPreferences.useGrooveOverrides !== false;
     return lyrics;
 }
 
-async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSeconds) {
+async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSeconds, signal) {
     const searchLrclib = async (searchText) => {
         const query = new URLSearchParams({ q: searchText }).toString();
-        const response = await fetch(`${lyricsProviders[1].endpoint}?${query}`);
+        const response = await fetch(`${lyricsProviders.find((provider) => provider.id === "lrclib").endpoint}?${query}`, { signal });
         if (!response.ok) throw new Error(`LRCLIB search returned ${response.status}`);
         return response.json();
     };
@@ -2420,7 +2422,7 @@ async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSecond
     if (!data?.[0] && trackId) {
         try {
             const oEmbedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://youtube.com/watch?v=${trackId}`)}&format=json`;
-            const oEmbedResponse = await fetch(oEmbedUrl);
+            const oEmbedResponse = await fetch(oEmbedUrl, { signal });
             if (oEmbedResponse.ok) {
                 const oEmbed = await oEmbedResponse.json();
                 const oEmbedArtist = String(oEmbed.author_name || "")
@@ -2472,7 +2474,7 @@ async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSecond
     return firstResultLyrics;
 }
 
-async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSeconds = getCurrentTrackDurationInSeconds(), forceRefresh = false) {
+async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSeconds = getCurrentTrackDurationInSeconds(), forceRefresh = false, onLyricsResolved = null) {
     trackDurationInSeconds ??= await waitForCurrentTrackDuration();
     const resolutionStartedAt = performance.now();
     const preferredProvider = currentTrackLyricsProvider.trackId === trackId
@@ -2495,28 +2497,72 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
         }
     }
 
-    for (const providerId of order) {
+    let resolveFirstLyrics;
+    let rejectFirstLyrics;
+    let firstLyricsDelivered = false;
+    let bestProviderIndex = Infinity;
+    const firstLyricsPromise = new Promise((resolve, reject) => {
+        resolveFirstLyrics = resolve;
+        rejectFirstLyrics = reject;
+    });
+
+    const providerRequests = order.map((providerId, providerIndex) => {
         const providerStartedAt = performance.now();
-        try {
-            const lyrics = providerId === "groove"
-                ? await getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds)
-                : await getLyricsFromLrclib(trackId, title, artist, trackDurationInSeconds);
-            if (!lyrics) {
-                console.warn(`[loop.mp3] ${providerId} had no lyrics after ${(performance.now() - providerStartedAt).toFixed(1)} ms; trying the next provider.`);
-                continue;
+        const controller = new AbortController();
+        const request = providerId === "lrclib"
+            ? getLyricsFromLrclib(trackId, title, artist, trackDurationInSeconds, controller.signal)
+            : getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds, providerId, controller.signal);
+
+        const promise = request.then((lyrics) => {
+            if (!lyrics) throw new Error(`${providerId} returned no usable lyrics`);
+            return { lyrics, providerId, controller, elapsedMs: performance.now() - providerStartedAt };
+        }).catch((error) => {
+            if (error?.name !== "AbortError") {
+                console.warn(`[loop.mp3] ${providerId} lyrics provider failed after ${(performance.now() - providerStartedAt).toFixed(1)} ms:`, error);
             }
+            throw error;
+        });
+
+        promise.then((result) => {
+            if (providerIndex >= bestProviderIndex) return;
+            bestProviderIndex = providerIndex;
+            if (!firstLyricsDelivered) {
+                firstLyricsDelivered = true;
+                resolveFirstLyrics(result);
+                return;
+            }
+            currentTrackLyricsProvider = { trackId, providerId: result.providerId };
             if (loopPreferences.useLyricsCache !== false) {
-                await cacheLyrics(trackId, title, artist, trackDurationInSeconds, lyrics);
+                cacheLyrics(trackId, title, artist, trackDurationInSeconds, result.lyrics).catch((error) => {
+                    console.warn("[loop.mp3] Could not cache preferred lyrics result:", error);
+                });
             }
-            console.log(`[loop.mp3] Fetched lyrics from ${providerId} in ${(performance.now() - providerStartedAt).toFixed(1)} ms (total ${(performance.now() - resolutionStartedAt).toFixed(1)} ms):`, { trackId, title, artist });
-            return lyrics;
-        } catch (error) {
-            console.warn(`[loop.mp3] ${providerId} lyrics provider failed after ${(performance.now() - providerStartedAt).toFixed(1)} ms; trying the next provider:`, error);
+            onLyricsResolved?.(result.lyrics, result.providerId);
+            console.log(`[loop.mp3] Replaced lyrics with higher-priority ${result.providerId} result after ${result.elapsedMs.toFixed(1)} ms:`, { trackId, title, artist });
+        }).catch(() => {});
+
+        return promise;
+    });
+
+    Promise.allSettled(providerRequests).then((results) => {
+        if (results.every((result) => result.status === "rejected")) {
+            rejectFirstLyrics(new Error("All lyrics providers failed"));
         }
+    });
+
+    try {
+        const winner = await firstLyricsPromise;
+        currentTrackLyricsProvider = { trackId, providerId: winner.providerId };
+        if (loopPreferences.useLyricsCache !== false) {
+            await cacheLyrics(trackId, title, artist, trackDurationInSeconds, winner.lyrics);
+        }
+        console.log(`[loop.mp3] Fetched lyrics from ${winner.providerId} in ${winner.elapsedMs.toFixed(1)} ms (total ${(performance.now() - resolutionStartedAt).toFixed(1)} ms):`, { trackId, title, artist });
+        return winner.lyrics;
+    } catch (error) {
+        console.warn(`[loop.mp3] Lyrics resolution failed after ${(performance.now() - resolutionStartedAt).toFixed(1)} ms.`, { trackId, title, artist, error });
+        showLoopNotification("Could not fetch lyrics", 3000);
+        return null;
     }
-    console.warn(`[loop.mp3] Lyrics resolution failed after ${(performance.now() - resolutionStartedAt).toFixed(1)} ms.`, { trackId, title, artist });
-    showLoopNotification("Could not fetch lyrics", 3000);
-    return null;
 }
 
 /* Legacy single-provider implementation retained below for reference during updates. */
@@ -3175,7 +3221,22 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
     }
 
     updateLoopLyrics(undefined);
-    const lyrics = await getLyricsFromTrackInfo(trackId, title, artist, getCurrentTrackDurationInSeconds(), forceRefresh);
+    const lyrics = await getLyricsFromTrackInfo(
+        trackId,
+        title,
+        artist,
+        getCurrentTrackDurationInSeconds(),
+        forceRefresh,
+        (replacement) => {
+            if (
+                requestId === lyricsRequestId &&
+                loopPreferences.showLyrics &&
+                trackId === (getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId)
+            ) {
+                updateLoopLyrics(replacement);
+            }
+        }
+    );
     if (
         requestId !== lyricsRequestId ||
         !loopPreferences.showLyrics ||
