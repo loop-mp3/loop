@@ -253,7 +253,7 @@ All notable changes to Loop are documented here.
 - Fixed manifest version mismatches which caused update popups in updated clients
 - Fixed inverted shortcuts for track navigation
 
-## [0.1.1] - 2026-09-14
+## [0.1.0] - 2026-09-14
 
 ### Highlights
 
@@ -334,5 +334,5 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [0.3]: https://github.com/loop-mp3/loop/releases/tag/v0.3
 [0.2]: https://github.com/loop-mp3/loop/releases/tag/v0.2
 [0.1.1.1]: https://github.com/loop-mp3/loop/releases/tag/v0.1.1.1
-[0.1.1]: https://github.com/loop-mp3/loop/releases/tag/v0.1.0
+[0.1.0]: https://github.com/loop-mp3/loop/releases/tag/v0.1.0
 [0.0.0]: https://github.com/loop-mp3/loop/releases/tag/v0.0.0
