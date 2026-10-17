@@ -1,7 +1,7 @@
 
 All notable changes to Loop are documented here.
 
-## [1.6.6] (minor) - 2026-10-16
+## [0.6.6] (minor) - 2026-10-16
 
 ### Highlights
 
@@ -20,7 +20,7 @@ All notable changes to Loop are documented here.
 * Simplified lyrics fetching and removed obsolete romanization handling.
 * Added safeguards so translation results are only applied to the active track and lyrics request.
 
-## [1.6.5] (minor) - 2026-10-15
+## [0.6.5] (minor) - 2026-10-15
 
 ### Highlights
 
@@ -33,7 +33,7 @@ All notable changes to Loop are documented here.
 * Applied the Kawarp FPS cap to both the main background and mini-player renderers.
 * Expanded the Kawarp FPS slider to use the full width of the Loop menu.
 
-## [1.6.4] (minor) - 2026-10-15
+## [0.6.4] (minor) - 2026-10-15
 
 ### Highlights
 
@@ -45,14 +45,14 @@ All notable changes to Loop are documented here.
 * Prevented automatic retries when a provider confirms that lyrics are unavailable, including tracks where lyrics have not been submitted.
 
 
-## [1.6.3] (hotfix) - 2026-10-12
+## [0.6.3] (hotfix) - 2026-10-12
 
 ### Fixes
 
 * Fixed Writer's names being shown in the end of the lyrics
 * Fixed Lyrics scroll area's height
 
-## [1.6.2] - 2026-10-12
+## [0.6.2] - 2026-10-12
 
 ### Highlights
 
@@ -71,7 +71,7 @@ All notable changes to Loop are documented here.
 * Added lyrics-provider metadata to cached entries so cached override results can be identified correctly.
 * Added writer-credit visibility handling to the lyrics renderer and onboarding flow.
 
-### [1.6.1] - 2026-10-11
+### [0.6.1] - 2026-10-11
 
 ### Highlights
 
@@ -82,7 +82,7 @@ All notable changes to Loop are documented here.
 * fixed lyrics footer bar not rendering in some cases
 * fixed lyrics footer bar having extra height 
 
-## [1.6.0] - 2026-10-11
+## [0.6.0] - 2026-10-11
 
 ### Highlights
 
@@ -107,7 +107,7 @@ All notable changes to Loop are documented here.
 * Updated the lyrics renderer theme and styling, including the lyrics footer, provider controls, and cached-lyrics modal.
 * Bumped the Loop extension version to `1.6.0`.
 
-## [1.5] - 2026-10-06
+## [0.5.0] - 2026-10-06
 
 ### Highlights
 
@@ -155,7 +155,7 @@ All notable changes to Loop are documented here.
 * Made the reset operation clear only Loop data from local storage and moved hold-to-confirm reset handling into the confirmation modal.
 * Closed the search panel when clicking outside it.
 
-## [1.4.0] - 2026-09-29
+## [0.4.0] - 2026-09-29
 
 ### Highlights
 
@@ -196,7 +196,7 @@ All notable changes to Loop are documented here.
 * Bumped the Loop extension and application versions to `1.4.0`.
 
 
-## [1.3.0] - 2026-09-24
+## [0.3] - 2026-09-24
 
 ### Highlights
 
@@ -218,7 +218,7 @@ All notable changes to Loop are documented here.
 - Enhanced message handling in the preload script.
 - Updated the configuration documentation.
 
-## [1.2.0] - 2026-09-21
+## [0.2] - 2026-09-21
 
 ### Highlights
 
@@ -244,7 +244,7 @@ All notable changes to Loop are documented here.
 - Updated the config editor reference link to the new configuration guide.
 - Added bundled Kawarp preset manifests and configuration documentation.
 
-## [1.1.1] - 2026-9-15
+## [0.1.1.1] - 2026-9-15
 
 ### Fixes
 
@@ -253,7 +253,7 @@ All notable changes to Loop are documented here.
 - Fixed manifest version mismatches which caused update popups in updated clients
 - Fixed inverted shortcuts for track navigation
 
-## [1.1.0] - 2026-09-14
+## [0.1.0] - 2026-09-14
 
 ### Highlights
 
@@ -278,9 +278,9 @@ All notable changes to Loop are documented here.
 - Added dynamic observation for media elements, player state changes, navigation events, and YouTube Music DOM updates.
 - Added bundled fallback artwork, logo, and favicon resources for more resilient extension rendering.
 
-## [1.0.0] - 2026-09-10
+## [0.0.0] - 2026-09-10
 
-Loop v1 is the first complete release of the keyboard-first YouTube Music player extension.
+Loop's initial release of the keyboard-first YouTube Music player extension.
 
 ### Highlights
 
@@ -321,15 +321,18 @@ Loop v1 is the first complete release of the keyboard-first YouTube Music player
 
 Load the extension directory as an unpacked Manifest V3 extension, then open YouTube Music. The extension targets `https://music.youtube.com/*`.
 
-[1.0.0]: https://github.com/loop-mp3/loop/releases/tag/v1.0.0
-[1.1.0]: https://github.com/loop-mp3/loop/releases/tag/v1.1.0
-[1.1.1]: https://github.com/loop-mp3/loop/releases/tag/v1.1.1
-[1.2.0]: https://github.com/loop-mp3/loop/releases/tag/v1.2.0
-[1.3.0]: https://github.com/loop-mp3/loop/releases/tag/v1.3.0
-[1.4.0]: https://github.com/loop-mp3/loop/releases/tag/v1.4.0
-[1.5.0]: https://github.com/loop-mp3/loop/releases/tag/v1.5.0
-[1.6.0]: https://github.com/loop-mp3/loop/releases/tag/v1.6.0
-[1.6.1]: https://github.com/loop-mp3/loop/releases/tag/v1.6.1
-[1.6.2]: https://github.com/loop-mp3/loop/releases/tag/v1.6.2
-[1.6.3]: https://github.com/loop-mp3/loop/releases/tag/v1.6.3
-[1.6.6]: https://github.com/loop-mp3/loop/releases/tag/v1.6.6
+
+[0.6.6]: https://github.com/loop-mp3/loop/releases/tag/v0.6.6
+[0.6.5]: https://github.com/loop-mp3/loop/releases/tag/v0.6.5
+[0.6.4]: https://github.com/loop-mp3/loop/releases/tag/v0.6.4
+[0.6.3]: https://github.com/loop-mp3/loop/releases/tag/v0.6.3
+[0.6.2]: https://github.com/loop-mp3/loop/releases/tag/v0.6.2
+[0.6.1]: https://github.com/loop-mp3/loop/releases/tag/v0.6.1
+[0.6.0]: https://github.com/loop-mp3/loop/releases/tag/v0.6.0
+[0.5.0]: https://github.com/loop-mp3/loop/releases/tag/v0.5.0
+[0.4.0]: https://github.com/loop-mp3/loop/releases/tag/v0.4.0
+[0.3]: https://github.com/loop-mp3/loop/releases/tag/v0.3
+[0.2]: https://github.com/loop-mp3/loop/releases/tag/v0.2
+[0.1.1.1]: https://github.com/loop-mp3/loop/releases/tag/v0.1.1.1
+[0.1.0]: https://github.com/loop-mp3/loop/releases/tag/v0.1.0
+[0.0.0]: https://github.com/loop-mp3/loop/releases/tag/v0.0.0
