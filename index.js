@@ -3386,9 +3386,14 @@ function ensureManualLyricsSelectionLink(loading, trackId) {
     link.className = "loop-lyrics-manual-selection-link";
     link.type = "button";
     link.textContent = "Select lyrics manually";
-    link.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
+    let openedByPointer = false;
+    const openManualSelection = (event) => {
+        event?.preventDefault();
+        event?.stopPropagation();
+        // Once the user chooses manual selection, stale provider responses must
+        // not replace the loading view or steal the interaction from the modal.
+        lyricsRequestId++;
+        clearLyricsRetryTimer();
         const loop = document.querySelector("#loop");
         const currentTrackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId || trackId;
         if (!currentTrackId) return;
@@ -3398,6 +3403,20 @@ function ensureManualLyricsSelectionLink(loading, trackId) {
             loop?.querySelector("#loop-track-artist")?.textContent.trim() || "Unknown artist",
             getCurrentTrackDurationInSeconds()
         );
+    };
+    link.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        openedByPointer = true;
+        openManualSelection(event);
+    });
+    link.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (openedByPointer) {
+            openedByPointer = false;
+            return;
+        }
+        openManualSelection(event);
     });
     loading.querySelector(".loop-lyrics-loading-content")?.append(link);
     return link;
