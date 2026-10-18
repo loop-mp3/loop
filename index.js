@@ -2924,7 +2924,8 @@ const braccatoLyricsShadowCSS = `
     .loop-lyrics-footer-button .fa-arrows-rotate::before { content: "\\f021"; }
     .loop-lyrics-footer-button .fa-up-right-from-square::before { content: "\\f35d"; }
     .loop-lyrics-submit-link, .loop-lyrics-instrumental-link { display: inline-block; margin: 0 8px 0 0; color: rgba(255,255,255,.82); text-decoration: underline; cursor: pointer; }
-    .loop-lyrics-manual-selection-link { display: inline-flex; align-items: center; margin-top: 4px; padding: 6px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 6px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); box-shadow: 0 4px 16px rgba(0,0,0,.18); backdrop-filter: blur(10px); cursor: pointer; font: inherit; font-size: 12px; }
+    #loop-lyrics-loading { z-index: 2; pointer-events: auto; }
+    .loop-lyrics-manual-selection-link { display: inline-flex; align-items: center; margin-top: 4px; padding: 6px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 6px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); box-shadow: 0 4px 16px rgba(0,0,0,.18); backdrop-filter: blur(10px); cursor: pointer; font: inherit; font-size: 12px; pointer-events: auto; }
     .loop-lyrics-manual-selection-link:hover, .loop-lyrics-manual-selection-link:focus-visible { border-color: rgba(255,255,255,.62); background: rgba(255,255,255,.16); }
     .loop-lyrics-footer-button:hover, .loop-lyrics-footer-button:focus-visible { border-color: rgba(255,255,255,.6); background: rgba(255,255,255,.16); color: #fff; }
     .loop-lyrics-footer-button:disabled { cursor: wait; opacity: .55; }
@@ -3384,7 +3385,7 @@ function ensureManualLyricsSelectionLink(loading, trackId) {
     link = document.createElement("button");
     link.className = "loop-lyrics-manual-selection-link";
     link.type = "button";
-    link.textContent = "Fine i would select them myself";
+    link.textContent = "Select lyrics manually";
     link.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
