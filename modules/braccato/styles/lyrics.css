@@ -227,8 +227,12 @@
 	color: var(--blyrics-translated-color);
 	display: block;
 	font-family: var(--blyrics-translated-font-family, var(--blyrics-font-family, var(--blyrics-default-font-family)));
-	font-size: var(--blyrics-translated-font-size);
-	font-weight: var(--blyrics-translated-font-weight);
+/* instead of calling the variables we can just hard code them cuz i dont know for some reason THESE ARE NOT WORKING IF CHANGE THE VALUE OF THE VARIABLES*/
+	font-size: 2rem;
+	font-weight: 600;
+	color: color(
+			display-p3 1 1 1 / var(--blyrics-translated-opacity, 0.6)
+		);	
 	line-height: normal;
 	margin-top: 8px;
 	max-width: 100%;

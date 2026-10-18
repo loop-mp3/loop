@@ -48,13 +48,13 @@
 	--blyrics-font-size: 3rem;
 	--blyrics-font-weight: 700;
 	--blyrics-line-height: 1.333;
-
+/*
 	--blyrics-translated-font-size: 1rem;
 	--blyrics-translated-font-weight: 600;
 	--blyrics-translated-color: color(
 		display-p3 1 1 1 / var(--blyrics-translated-opacity, 0.6)
 	);
-
+*/
 	--blyrics-credits-label: "Written by";
 	--blyrics-credits-font-size: max(0.4em, 12px);
 	--blyrics-credits-opacity: 0.2;
