@@ -127,6 +127,25 @@
     pointer-events: none;
 }
 
+#loop-video-background {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: #000;
+}
+
+#loop-video-background iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    pointer-events: none;
+}
+
 #loop ytmusic-search-box,
 #loop ytmusic-search-box #suggestion-list {
     z-index: 999999999999999 !important;

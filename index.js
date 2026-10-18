@@ -226,6 +226,10 @@ const defaultKawarpSettings = {
 let kawarpSettings = { ...defaultKawarpSettings };
 let kawarpBackground;
 let kawarpEnabled = true;
+let videoBackgroundTrackId;
+let videoBackgroundSyncFrame;
+let videoBackgroundLastSyncedTime;
+let videoBackgroundLastPaused;
 let loopPreferences = {
     animatedBackground: true,
     hideVinyl: true,
@@ -3709,9 +3713,83 @@ function disposeKawarpBackground() {
     kawarpBackground = undefined;
 }
 
+function syncVideoBackgroundPlayback() {
+    const iframe = document.querySelector("#loop-video-background iframe");
+    const media = getCurrentMedia();
+    if (!iframe?.contentWindow || !media) return;
+
+    const send = (func, args = []) => iframe.contentWindow.postMessage(JSON.stringify({
+        event: "command",
+        func,
+        args,
+    }), "https://www.youtube.com");
+
+    send("mute");
+    if (Number.isFinite(media.currentTime) &&
+        (!Number.isFinite(videoBackgroundLastSyncedTime) ||
+            Math.abs(media.currentTime - videoBackgroundLastSyncedTime) > 0.75)) {
+        send("seekTo", [media.currentTime, true]);
+        videoBackgroundLastSyncedTime = media.currentTime;
+    }
+    const paused = media.paused || media.ended;
+    if (paused !== videoBackgroundLastPaused) {
+        send(paused ? "pauseVideo" : "playVideo");
+        videoBackgroundLastPaused = paused;
+    }
+}
+
+function updateVideoBackground(trackId, isVideo) {
+    const canvas = document.querySelector("#loop-kawarp-background");
+    const player = document.querySelector("#loop-player");
+    if (!canvas || !player) return;
+
+    let wrapper = document.querySelector("#loop-video-background");
+    if (!isVideo || !trackId) {
+        videoBackgroundTrackId = undefined;
+        videoBackgroundLastSyncedTime = undefined;
+        videoBackgroundLastPaused = undefined;
+        wrapper?.remove();
+        if (canvas) canvas.style.display = kawarpEnabled ? "block" : "none";
+        return;
+    }
+
+    if (videoBackgroundTrackId === trackId && wrapper) {
+        syncVideoBackgroundPlayback();
+        return;
+    }
+
+    videoBackgroundTrackId = trackId;
+    videoBackgroundLastSyncedTime = undefined;
+    videoBackgroundLastPaused = undefined;
+    disposeKawarpBackground();
+    canvas.style.display = "none";
+    wrapper?.remove();
+    wrapper = document.createElement("div");
+    wrapper.id = "loop-video-background";
+    wrapper.innerHTML = `<iframe
+        src="https://www.youtube.com/embed/${encodeURIComponent(trackId)}?rel=0&enablejsapi=1"
+        title="Track video"
+        allowfullscreen
+        scrolling="no"
+        allow="autoplay; accelerometer *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *;"
+        referrerpolicy="strict-origin"
+    ></iframe>`;
+    player.insertBefore(wrapper, player.firstChild);
+    wrapper.querySelector("iframe").addEventListener("load", () => {
+        window.clearTimeout(videoBackgroundSyncFrame);
+        videoBackgroundSyncFrame = window.setTimeout(syncVideoBackgroundPlayback, 100);
+    }, { once: true });
+}
+
 function updateKawarpArtwork(artworkURL) {
     const canvas = document.querySelector("#loop-kawarp-background");
     if (!canvas) return;
+
+    if (videoBackgroundTrackId) {
+        disposeKawarpBackground();
+        canvas.style.display = "none";
+        return;
+    }
 
     if (!kawarpRendererClass) {
         loadKawarpRenderer()
@@ -4008,6 +4086,8 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             album,
             albumUrl,
             TrackWriters,
+            isVideo: Number(details.width ?? details.thumbnail_width) !== 500 ||
+                Number(details.height ?? details.thumbnail_height) !== 500,
         };
     } catch (error) {
         showLoopNotification("Could not fetch track metadata. Information might not load correctly press F5 to try again", 4000);
@@ -4499,13 +4579,16 @@ function updateLoop(artworkURL, trackInfo) {
     album.toggleAttribute("href", Boolean(trackInfo.albumUrl));
     if (trackInfo.albumUrl) album.href = trackInfo.albumUrl;
     loop.classList.toggle("loop-empty", Boolean(trackInfo.empty));
+    loop.dataset.videoBackground = !trackInfo.empty && trackInfo.isVideo === true ? "true" : "false";
     emptyState.hidden = !trackInfo.empty;
+    updateVideoBackground(lastTrackId, !trackInfo.empty && trackInfo.isVideo === true);
     syncWindowTitle();
     syncTrackFeedbackState();
     scheduleTrackFeedbackSync();
     updateKawarpArtwork(artwork.src);
     updateLoopLyrics(trackInfo.lyrics, Boolean(trackInfo.empty), currentTrackWriters);
     updatePlaybackControls(getCurrentMedia());
+    syncVideoBackgroundPlayback();
     publishDiscordActivity({ force: true });
 }
 
@@ -4568,6 +4651,7 @@ function updatePlaybackControls(media = getCurrentMedia()) {
         isPlaying: Boolean(media && !media.paused && !media.ended),
         playbackRate: media?.playbackRate,
     });
+    syncVideoBackgroundPlayback();
     miniPlayerBridge?.sync(media);
     publishElectronMiniPlayerState();
     publishDiscordActivity();
@@ -4759,7 +4843,7 @@ function observeMediaTrackChanges(playerBar) {
             media.addEventListener(eventName, () => scheduleTrackSync(playerBar));
         });
         media.volume = getPreferredVolume();
-        ["play", "playing", "pause", "seeking", "seeked", "ratechange", "volumechange"].forEach((eventName) => {
+        ["timeupdate", "play", "playing", "pause", "seeking", "seeked", "ratechange", "volumechange"].forEach((eventName) => {
             media.addEventListener(eventName, () => updatePlaybackControls());
         });
         const mediaObserver = new MutationObserver(() => scheduleTrackSync(playerBar));
