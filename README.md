@@ -1,6 +1,11 @@
-# Loop
-<p><img src="./static/dawn-gradient-full.svg" alt="The DAWN of music players."></p>
+<div align="center">
 
-A minimal, keyboard-first music player built around the music instead of everything surrounding it.
+# loop
 
-## Get it [here](https://loop.mizucode.qzz.io/)
+**A minimal, keyboard-first music player built around the music instead of everything surrounding it.**
+
+<br/>
+
+<img src="static/preview.png" />
+
+</div>
