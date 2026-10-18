@@ -132,7 +132,7 @@
     inset: 0;
     z-index: 0;
     overflow: hidden;
-    pointer-events: none;
+    pointer-events: auto;
     background: #000;
 }
 
@@ -144,6 +144,14 @@
     height: 100%;
     border: 0;
     pointer-events: none;
+}
+
+.loop-video-background-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: auto;
+    background: transparent;
 }
 
 #loop ytmusic-search-box,

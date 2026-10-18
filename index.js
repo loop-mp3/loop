@@ -3773,7 +3773,7 @@ function updateVideoBackground(trackId, isVideo) {
         scrolling="no"
         allow="autoplay; accelerometer *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *;"
         referrerpolicy="strict-origin"
-    ></iframe>`;
+    ></iframe><div class="loop-video-background-overlay" aria-hidden="true"></div>`;
     player.insertBefore(wrapper, player.firstChild);
     wrapper.querySelector("iframe").addEventListener("load", () => {
         window.clearTimeout(videoBackgroundSyncFrame);
