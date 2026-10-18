@@ -255,6 +255,8 @@ let loopPreferences = {
     videoUiRearrangement: true,
 };
 let currentArtworkURL = "";
+let forcedVideoMode = false;
+let forcedArtworkMode = false;
 let kawarpRendererClass;
 let kawarpRendererPromise;
 let kawarpWarningTimer;
@@ -1692,10 +1694,11 @@ function applyVideoPresentationPreferences() {
     if (!loop) return;
 
     const isVideo = loop.dataset.videoBackground === "true";
-    const behaviorEnabled = loopPreferences.videoBehaviorEnabled !== false;
+    const behaviorEnabled = forcedVideoMode || loopPreferences.videoBehaviorEnabled !== false;
     const rearrangementEnabled = behaviorEnabled && loopPreferences.videoUiRearrangement === true;
     loop.classList.toggle("loop-video-mode", isVideo && behaviorEnabled);
     loop.classList.toggle("loop-video-ui-rearranged", isVideo && rearrangementEnabled);
+    updateArtworkVideoToggle();
 
     const behaviorToggle = loop.querySelector("#loop-video-behavior-toggle");
     const rearrangementToggle = loop.querySelector("#loop-video-ui-rearrangement-toggle");
@@ -1708,6 +1711,33 @@ function applyVideoPresentationPreferences() {
         window.clearTimeout(videoUiHideTimer);
         loop.classList.remove("loop-video-ui-hidden");
     }
+}
+
+function updateArtworkVideoToggle() {
+    const loop = document.querySelector("#loop");
+    const toggle = loop?.querySelector("#loop-artwork-video-toggle");
+    if (!toggle) return;
+
+    const videoActive = loop.dataset.videoBackground === "true";
+    toggle.dataset.mode = videoActive ? "video" : "artwork";
+    toggle.setAttribute("aria-pressed", String(videoActive));
+    toggle.querySelector('[data-loop-view-mode="artwork"]')?.classList.toggle("is-active", !videoActive);
+    toggle.querySelector('[data-loop-view-mode="video"]')?.classList.toggle("is-active", videoActive);
+}
+
+function setForcedVideoMode(enabled) {
+    const loop = document.querySelector("#loop");
+    if (!loop) return;
+
+    forcedVideoMode = enabled;
+    forcedArtworkMode = !enabled;
+    const trackHasVideo = loop.dataset.trackVideo === "true";
+    const videoActive = trackHasVideo && (enabled || !forcedArtworkMode);
+    loop.dataset.videoForced = String(enabled);
+    loop.dataset.videoBackground = String(videoActive);
+    applyVideoPresentationPreferences();
+    updateVideoBackground(lastTrackId, videoActive);
+    if (videoActive) showVideoUi();
 }
 
 function applyArtworkPreference() {
@@ -4169,6 +4199,16 @@ function updateLoop(artworkURL, trackInfo) {
                 <button id="loop-back-button" type="button" aria-label="Return to YouTube Music">&#215;</button>
                 <button id="loop-shortcuts-button" type="button" aria-label="Open Loop menu" title="Loop menu">?</button>
                 <canvas id="loop-kawarp-background" aria-hidden="true"></canvas>
+                <svg id="loop-glass-filter-definition" aria-hidden="true" focusable="false">
+                    <defs>
+                        <filter id="loop-glass-filter" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+                            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="2" seed="7" result="loop-glass-map"></feTurbulence>
+                            <feDisplacementMap in="SourceGraphic" in2="loop-glass-map" scale="8" xChannelSelector="R" yChannelSelector="G" result="loop-glass-displaced"></feDisplacementMap>
+                            <feGaussianBlur in="loop-glass-displaced" stdDeviation="3" result="loop-glass-blurred"></feGaussianBlur>
+                            <feColorMatrix in="loop-glass-blurred" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"></feColorMatrix>
+                        </filter>
+                    </defs>
+                </svg>
                 <div id="loop-kawarp-toast" role="status" hidden>
                     <span class="loop-notification-message"></span>
                     <button class="loop-notification-close" type="button" aria-label="Dismiss notification">&#215;</button>
@@ -4343,6 +4383,10 @@ function updateLoop(artworkURL, trackInfo) {
                         </svg>
                     </button>
                 </div>
+                <div id="loop-artwork-video-toggle" role="group" aria-label="Choose artwork or video mode">
+                    <button type="button" data-loop-view-mode="artwork" aria-label="Use artwork mode">Lugu</button>
+                    <button type="button" data-loop-view-mode="video" aria-label="Use video mode">Video</button>
+                </div>
                 <img id="loop-artwork" alt="Album artwork" onerror="this.onerror=null; this.src='${getFallbackArtwork()}';">
                 <div id="loop-track-info">
                     <div id="loop-track-title"></div>
@@ -4396,6 +4440,11 @@ function updateLoop(artworkURL, trackInfo) {
             loopPreferences.hideArtwork = !loopPreferences.hideArtwork;
             saveLoopPreferences();
             applyArtworkPreference();
+        });
+        loop.querySelectorAll("#loop-artwork-video-toggle [data-loop-view-mode]").forEach((button) => {
+            button.addEventListener("click", () => {
+                setForcedVideoMode(button.dataset.loopViewMode === "video");
+            });
         });
         loop.querySelector("#loop-screen-disable").addEventListener("click", () => {
             DisableScreen().catch((error) => {
@@ -4645,11 +4694,13 @@ function updateLoop(artworkURL, trackInfo) {
     album.toggleAttribute("href", Boolean(trackInfo.albumUrl));
     if (trackInfo.albumUrl) album.href = trackInfo.albumUrl;
     loop.classList.toggle("loop-empty", Boolean(trackInfo.empty));
-    loop.dataset.videoBackground = !trackInfo.empty && trackInfo.isVideo === true ? "true" : "false";
+    loop.dataset.trackVideo = !trackInfo.empty && trackInfo.isVideo === true ? "true" : "false";
+    loop.dataset.videoBackground = (loop.dataset.trackVideo === "true" &&
+        (forcedVideoMode || !forcedArtworkMode)) ? "true" : "false";
     applyVideoPresentationPreferences();
     if (trackInfo.isVideo === true && loopPreferences.videoBehaviorEnabled !== false) showVideoUi();
     emptyState.hidden = !trackInfo.empty;
-    updateVideoBackground(lastTrackId, !trackInfo.empty && trackInfo.isVideo === true);
+    updateVideoBackground(lastTrackId, loop.dataset.videoBackground === "true");
     syncWindowTitle();
     syncTrackFeedbackState();
     scheduleTrackFeedbackSync();
