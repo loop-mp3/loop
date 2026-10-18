@@ -286,6 +286,7 @@ const maximumLoopUpdateInterval = 1000;
 const kawarpConfigKey = "loop.mp3.kawarp-config";
 const kawarpCustomPresetsKey = "loop.mp3.kawarp-custom-presets";
 const lyricsCacheKeyPrefix = "lyrics_";
+const manualLyricsCacheKeyPrefix = "lyrics_manual_";
 const translationCacheKeyPrefix = "translation_";
 const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
 const lyricsTranslationEndpoint = "https://unison.boidu.dev/translate";
@@ -832,6 +833,57 @@ function getCachedLyrics(trackId) {
     });
 }
 
+function getManualLyricsCacheKey(trackId) {
+    return `${manualLyricsCacheKeyPrefix}${trackId}`;
+}
+
+function getManualCachedLyrics(trackId) {
+    const storage = getLyricsCacheStorage();
+    if (!storage || !trackId) return Promise.resolve(null);
+
+    return new Promise((resolve) => {
+        storage.get(getManualLyricsCacheKey(trackId), (result) => {
+            const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+            if (error) {
+                console.warn("[loop.mp3] Could not read manually selected lyrics:", error.message);
+                resolve(null);
+                return;
+            }
+            resolve(restoreCachedLyrics(result?.[getManualLyricsCacheKey(trackId)] || null));
+        });
+    });
+}
+
+function cacheManuallySelectedLyrics(trackId, title, artist, duration, lyrics) {
+    const storage = getLyricsCacheStorage();
+    if (!storage || !trackId || !lyrics?.meta?.provider) return Promise.resolve();
+
+    const requestDuration = Number(duration);
+    const responseDuration = Number(lyrics.meta.duration);
+    const cachedLyrics = {
+        meta: { ...lyrics.meta, provider: lyrics.meta.provider },
+        provider: lyrics.meta.provider,
+        title,
+        artist,
+        duration: Number.isFinite(requestDuration)
+            ? requestDuration
+            : Number.isFinite(responseDuration) ? responseDuration : null,
+        syncedLyrics: lyrics.syncedLyrics || null,
+        plainLyrics: lyrics.plainLyrics || null,
+        override: lyrics.meta.override === true,
+        manuallySelected: true,
+        cachedAt: Date.now(),
+    };
+
+    return new Promise((resolve) => {
+        storage.set({ [getManualLyricsCacheKey(trackId)]: cachedLyrics }, () => {
+            const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+            if (error) console.warn("[loop.mp3] Could not cache manually selected lyrics:", error.message);
+            resolve();
+        });
+    });
+}
+
 function cacheLyrics(trackId, title, artist, duration, lyrics) {
     const storage = getLyricsCacheStorage();
     if (!storage || !trackId || !lyrics?.meta?.provider) return Promise.resolve();
@@ -882,6 +934,7 @@ function restoreCachedLyrics(cachedLyrics) {
     if (!cachedLyrics.syncedLyrics && !cachedLyrics.plainLyrics) return null;
     return {
         meta: {
+            ...(cachedLyrics.meta || {}),
             provider: cachedLyrics.provider,
             title: cachedLyrics.title,
             artist: cachedLyrics.artist,
@@ -2580,6 +2633,88 @@ async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSecond
     return firstResultLyrics;
 }
 
+async function getLrclibCandidateResults(trackId, title, artist, signal, queryOverride = "") {
+    const searchLrclib = async (searchText) => {
+        const query = new URLSearchParams({ q: searchText }).toString();
+        const response = await fetch(`${lyricsProviders.find((provider) => provider.id === "lrclib").endpoint}?${query}`, { signal });
+        if (!response.ok) throw new Error(`LRCLIB search returned ${response.status}`);
+        return response.json();
+    };
+
+    const searches = [queryOverride || `${title} ${artist}`];
+    try {
+        const oEmbedResponse = await fetch(
+            `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://youtube.com/watch?v=${trackId}`)}&format=json`,
+            { signal }
+        );
+        if (oEmbedResponse.ok) {
+            const oEmbed = await oEmbedResponse.json();
+            const oEmbedArtist = String(oEmbed.author_name || "")
+                .replace(/\s*[-â€“â€”]\s*Topic$/i, "")
+                .trim();
+            if (oEmbedArtist) searches.push(`${title} ${oEmbedArtist}`);
+        }
+    } catch {
+        // The title/artist search below is sufficient when oEmbed is unavailable.
+    }
+    searches.push(title);
+
+    const seen = new Set();
+    const results = [];
+    for (const searchText of [...new Set(searches)]) {
+        const data = await searchLrclib(searchText);
+        for (const result of Array.isArray(data) ? data : []) {
+            const key = String(result?.id ?? `${result?.trackName}|${result?.artistName}|${result?.duration}`);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const lyrics = normalizeLyricsResponse(result, "lrclib") || {
+                meta: {
+                    ...result,
+                    provider: "lrclib",
+                    lyricsUnavailable: true,
+                },
+                syncedLyrics: null,
+                plainLyrics: null,
+            };
+            results.push(lyrics);
+        }
+        if (results.length) break;
+    }
+    return results;
+}
+
+async function getLyricsCandidatesForAllProviders(trackId, title, artist, duration, queryOverride = "") {
+    const providerResults = await Promise.all(lyricsProviders.map(async (provider) => {
+        try {
+            const candidates = provider.id === "lrclib"
+                ? await getLrclibCandidateResults(trackId, title, artist, undefined, queryOverride)
+                : [await getLyricsFromGroove(trackId, title, artist, duration, provider.id)];
+            return { provider, candidates };
+        } catch (error) {
+            console.warn(`[loop.mp3] ${provider.label} candidate search failed:`, error);
+            return { provider, candidates: [], error };
+        }
+    }));
+
+    return providerResults.flatMap(({ provider, candidates }) => candidates.map((lyrics, index) => ({
+        lyrics,
+        provider,
+        index,
+    })));
+}
+
+function applyLyricsTimestampOffset(syncedLyrics, offsetSeconds) {
+    const offset = Number(offsetSeconds);
+    if (!syncedLyrics || !Number.isFinite(offset) || offset === 0) return syncedLyrics || null;
+
+    return String(syncedLyrics).replace(/\[(\d+):(\d+(?:\.\d+)?)\]/g, (match, minutes, seconds) => {
+        const adjustedSeconds = Math.max(0, Number(minutes) * 60 + Number(seconds) + offset);
+        const adjustedMinutes = Math.floor(adjustedSeconds / 60);
+        const remainder = (adjustedSeconds - adjustedMinutes * 60).toFixed(2).padStart(5, "0");
+        return `[${String(adjustedMinutes).padStart(2, "0")}:${remainder}]`;
+    });
+}
+
 async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSeconds = getCurrentTrackDurationInSeconds(), forceRefresh = false, onLyricsResolved = null) {
     trackDurationInSeconds ??= await waitForCurrentTrackDuration();
     const resolutionStartedAt = performance.now();
@@ -2590,6 +2725,13 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
     const order = preferredProvider && baseOrder.includes(preferredProvider)
         ? [preferredProvider, ...baseOrder.filter((providerId) => providerId !== preferredProvider)]
         : baseOrder;
+
+    const manuallySelectedLyrics = await getManualCachedLyrics(trackId);
+    if (manuallySelectedLyrics) {
+        currentTrackLyricsProvider = { trackId, providerId: manuallySelectedLyrics.meta.provider };
+        console.log("[loop.mp3] Using manually selected lyrics:", { trackId, provider: manuallySelectedLyrics.meta.provider });
+        return manuallySelectedLyrics;
+    }
 
     if (!forceRefresh) {
         const cachedLyrics = loopPreferences.useLyricsCache !== false
@@ -2781,6 +2923,8 @@ const braccatoLyricsShadowCSS = `
     .loop-lyrics-footer-button .fa-arrows-rotate::before { content: "\\f021"; }
     .loop-lyrics-footer-button .fa-up-right-from-square::before { content: "\\f35d"; }
     .loop-lyrics-submit-link, .loop-lyrics-instrumental-link { display: inline-block; margin: 0 8px 0 0; color: rgba(255,255,255,.82); text-decoration: underline; cursor: pointer; }
+    .loop-lyrics-manual-selection-link { display: inline-flex; align-items: center; margin-top: 4px; padding: 6px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); box-shadow: 0 4px 16px rgba(0,0,0,.18); backdrop-filter: blur(10px); cursor: pointer; font: inherit; font-size: 12px; }
+    .loop-lyrics-manual-selection-link:hover, .loop-lyrics-manual-selection-link:focus-visible { border-color: rgba(255,255,255,.62); background: rgba(255,255,255,.16); }
     .loop-lyrics-footer-button:hover, .loop-lyrics-footer-button:focus-visible { border-color: rgba(255,255,255,.6); background: rgba(255,255,255,.16); color: #fff; }
     .loop-lyrics-footer-button:disabled { cursor: wait; opacity: .55; }
     .loop-lyrics-footer-provider { height: 34px; max-width: 115px; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 0 8px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; cursor: pointer; }
@@ -2930,6 +3074,24 @@ function ensureLyricsFooter(shadow) {
     wrongLyricsLink.title = "Correct these lyrics in Groove";
     wrongLyricsLink.innerHTML = '<span>Wrong lyrics?</span>';
 
+    const reselectButton = document.createElement("button");
+    reselectButton.className = "loop-lyrics-footer-button loop-lyrics-reselect-button";
+    reselectButton.type = "button";
+    reselectButton.setAttribute("aria-label", "Reselect lyrics");
+    reselectButton.title = "Search and reselect lyrics";
+    reselectButton.textContent = "Reselect lyrics";
+    reselectButton.addEventListener("click", () => {
+        const loop = document.querySelector("#loop");
+        const trackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
+        if (!trackId) return;
+        showLyricsCandidateModal(
+            trackId,
+            loop?.querySelector("#loop-track-title")?.textContent.trim() || "Unknown title",
+            loop?.querySelector("#loop-track-artist")?.textContent.trim() || "Unknown artist",
+            getCurrentTrackDurationInSeconds()
+        );
+    });
+
     const providerSelect = document.createElement("select");
     providerSelect.className = "loop-lyrics-footer-provider";
     providerSelect.setAttribute("aria-label", "Lyrics provider for current track");
@@ -2942,7 +3104,7 @@ function ensureLyricsFooter(shadow) {
 
     const actions = document.createElement("div");
     actions.className = "loop-lyrics-footer-actions";
-    actions.append(reloadButton, providerSelect, sourceLink, wrongLyricsLink);
+    actions.append(reloadButton, reselectButton, providerSelect, sourceLink, wrongLyricsLink);
     footer.append(actions);
     shadow.appendChild(footer);
     return footer;
@@ -2992,6 +3154,242 @@ function syncLyricsFooterVisibility(shadow) {
         writers.classList.toggle("is-visible", reachedEnd);
         writers.hidden = !reachedEnd;
     }
+}
+
+function showLyricsCandidateModal(trackId, title, artist, duration) {
+    document.getElementById("loop-lyrics-candidate-modal")?.remove();
+
+    const modal = document.createElement("div");
+    modal.id = "loop-lyrics-candidate-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "loop-lyrics-candidate-title");
+
+    const card = document.createElement("section");
+    card.className = "loop-lyrics-candidate-card";
+    const header = document.createElement("header");
+    header.className = "loop-lyrics-candidate-header";
+    const heading = document.createElement("div");
+    const kicker = document.createElement("div");
+    kicker.className = "loop-lyrics-candidate-kicker";
+    kicker.textContent = "Manual lyrics selection";
+    const titleElement = document.createElement("h2");
+    titleElement.id = "loop-lyrics-candidate-title";
+    titleElement.textContent = "Choose the correct lyrics";
+    heading.append(kicker, titleElement);
+    const closeButton = document.createElement("button");
+    closeButton.className = "loop-lyrics-candidate-close";
+    closeButton.type = "button";
+    closeButton.setAttribute("aria-label", "Close lyrics candidates");
+    closeButton.textContent = "×";
+    header.append(heading, closeButton);
+
+    const trackLabel = document.createElement("p");
+    trackLabel.className = "loop-lyrics-candidate-track";
+    const queryControls = document.createElement("div");
+    queryControls.className = "loop-lyrics-candidate-query";
+    const queryInput = document.createElement("input");
+    queryInput.type = "search";
+    queryInput.className = "loop-lyrics-candidate-query-input";
+    queryInput.setAttribute("aria-label", "Lyrics search query");
+    queryInput.value = `${title} ${artist}`.trim();
+    queryInput.placeholder = "Search title, artist, or alternate wording";
+    const searchButton = document.createElement("button");
+    searchButton.type = "button";
+    searchButton.className = "loop-lyrics-candidate-search";
+    searchButton.textContent = "Search again";
+    queryControls.append(queryInput, searchButton);
+    trackLabel.textContent = `${title} · ${artist}`;
+    const status = document.createElement("p");
+    status.className = "loop-lyrics-candidate-status";
+    status.textContent = "Searching all lyrics providers…";
+    const list = document.createElement("div");
+    list.className = "loop-lyrics-candidate-list";
+    list.setAttribute("role", "list");
+    card.append(header, trackLabel, queryControls, status, list);
+    modal.appendChild(card);
+    (document.getElementById("loop") || document.body).appendChild(modal);
+
+    const close = () => modal.remove();
+    closeButton.addEventListener("click", close);
+    modal.addEventListener("click", (event) => {
+        if (event.target === modal) close();
+    });
+    modal.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") close();
+    });
+    closeButton.focus();
+
+    const runSearch = () => {
+        searchButton.disabled = true;
+        status.textContent = "Searching all lyrics providersâ€¦";
+        list.replaceChildren();
+        getLyricsCandidatesForAllProviders(trackId, title, artist, duration, queryInput.value.trim()).then((candidates) => {
+        if (!modal.isConnected) return;
+        status.textContent = candidates.length
+            ? `${candidates.length} candidate${candidates.length === 1 ? "" : "s"} found`
+            : "No candidates were returned. Try a different query.";
+        searchButton.disabled = false;
+        if (!candidates.length) return;
+
+        candidates.forEach((candidate, candidateIndex) => {
+            const lyrics = candidate.lyrics;
+            const meta = lyrics.meta || {};
+            const row = document.createElement("article");
+            row.className = "loop-lyrics-candidate-row";
+            row.setAttribute("role", "listitem");
+
+            const provider = document.createElement("div");
+            provider.className = "loop-lyrics-candidate-provider";
+            provider.textContent = candidate.provider.label;
+            const details = document.createElement("div");
+            details.className = "loop-lyrics-candidate-details";
+            const candidateTitle = document.createElement("strong");
+            candidateTitle.textContent = meta.trackName || meta.title || meta.name || "Untitled result";
+            const candidateArtist = document.createElement("span");
+            candidateArtist.textContent = meta.artistName || meta.artist || meta.albumName || "Unknown artist";
+            const candidateMeta = document.createElement("small");
+            const durationText = Number.isFinite(Number(meta.duration)) ? `${Number(meta.duration).toFixed(1)}s` : "duration unknown";
+            const syncText = lyrics.syncedLyrics ? "synced" : lyrics.plainLyrics ? "plain text" : "instrumental";
+            candidateMeta.textContent = `#${candidateIndex + 1} · ${durationText} · ${syncText}${meta.id ? ` · ID ${meta.id}` : ""}`;
+            details.append(candidateTitle, candidateArtist, candidateMeta);
+
+            const metaDetails = document.createElement("details");
+            const metaSummary = document.createElement("summary");
+            metaSummary.textContent = "Metadata";
+            const metaPre = document.createElement("pre");
+            metaPre.textContent = JSON.stringify(meta, null, 2);
+            metaDetails.append(metaSummary, metaPre);
+            const lyricsDetails = document.createElement("details");
+            const lyricsSummary = document.createElement("summary");
+            lyricsSummary.textContent = "View / edit lyrics";
+            const syncedLabel = document.createElement("label");
+            syncedLabel.className = "loop-lyrics-candidate-editor-label";
+            syncedLabel.textContent = "Synced lyrics (LRC)";
+            const syncedEditor = document.createElement("textarea");
+            syncedEditor.className = "loop-lyrics-candidate-editor";
+            syncedEditor.value = lyrics.syncedLyrics || "";
+            syncedEditor.rows = 7;
+            syncedEditor.spellcheck = false;
+            syncedLabel.appendChild(syncedEditor);
+            const plainLabel = document.createElement("label");
+            plainLabel.className = "loop-lyrics-candidate-editor-label";
+            plainLabel.textContent = "Plain lyrics fallback";
+            const plainEditor = document.createElement("textarea");
+            plainEditor.className = "loop-lyrics-candidate-editor";
+            plainEditor.value = lyrics.plainLyrics || "";
+            plainEditor.rows = 4;
+            plainEditor.spellcheck = false;
+            plainLabel.appendChild(plainEditor);
+            const offsetLabel = document.createElement("label");
+            offsetLabel.className = "loop-lyrics-candidate-editor-label loop-lyrics-candidate-offset-label";
+            const offsetHeader = document.createElement("span");
+            offsetHeader.textContent = "Sync offset";
+            const offsetValue = document.createElement("output");
+            offsetValue.textContent = "0.00s";
+            offsetHeader.append(" ", offsetValue);
+            const offsetSlider = document.createElement("input");
+            offsetSlider.className = "loop-lyrics-candidate-offset";
+            offsetSlider.type = "range";
+            offsetSlider.min = "-10";
+            offsetSlider.max = "10";
+            offsetSlider.step = "0.05";
+            offsetSlider.value = "0";
+            offsetSlider.setAttribute("aria-label", "Adjust lyric synchronization offset in seconds");
+            const offsetInput = document.createElement("input");
+            offsetInput.className = "loop-lyrics-candidate-offset-value";
+            offsetInput.type = "number";
+            offsetInput.min = "-10";
+            offsetInput.max = "10";
+            offsetInput.step = "0.05";
+            offsetInput.value = "0";
+            offsetInput.setAttribute("aria-label", "Exact lyric synchronization offset in seconds");
+            offsetSlider.addEventListener("input", () => {
+                const value = Number(offsetSlider.value);
+                offsetInput.value = value.toFixed(2);
+                offsetValue.textContent = `${value >= 0 ? "+" : ""}${value.toFixed(2)}s`;
+            });
+            offsetInput.addEventListener("input", () => {
+                const value = Math.max(-10, Math.min(10, Number(offsetInput.value) || 0));
+                offsetSlider.value = String(value);
+                offsetValue.textContent = `${value >= 0 ? "+" : ""}${value.toFixed(2)}s`;
+            });
+            offsetLabel.append(offsetHeader, offsetInput, offsetSlider);
+            lyricsDetails.append(lyricsSummary, syncedLabel, plainLabel, offsetLabel);
+            const selectButton = document.createElement("button");
+            selectButton.className = "loop-lyrics-candidate-select";
+            selectButton.type = "button";
+            selectButton.textContent = "Use this";
+            selectButton.addEventListener("click", () => {
+                const activeTrackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
+                if (activeTrackId !== trackId) {
+                    status.textContent = "This track has changed; search again for its candidates.";
+                    return;
+                }
+                const editedLyrics = {
+                    ...lyrics,
+                    meta: {
+                        ...lyrics.meta,
+                        manualOffsetSeconds: Number(offsetSlider.value),
+                        manuallyEdited: syncedEditor.value !== (lyrics.syncedLyrics || "") ||
+                            plainEditor.value !== (lyrics.plainLyrics || "") ||
+                            Number(offsetSlider.value) !== 0,
+                    },
+                    syncedLyrics: applyLyricsTimestampOffset(syncedEditor.value.trim(), Number(offsetSlider.value)),
+                    plainLyrics: plainEditor.value.trim() || null,
+                };
+                if (!editedLyrics.syncedLyrics && !editedLyrics.plainLyrics && !editedLyrics.meta.instrumental) {
+                    status.textContent = "Add synced or plain lyrics before selecting this candidate.";
+                    lyricsDetails.open = true;
+                    return;
+                }
+                lyricsRequestId++;
+                clearLyricsRetryTimer();
+                currentTrackLyricsProvider = { trackId, providerId: candidate.provider.id };
+                cacheManuallySelectedLyrics(trackId, title, artist, duration, editedLyrics).catch((error) => {
+                    console.warn("[loop.mp3] Could not store manual lyrics selection:", error);
+                });
+                updateLoopLyrics(editedLyrics);
+                close();
+                showLoopNotification(`Using ${candidate.provider.label} lyrics`, 2500);
+            });
+            row.append(provider, details, metaDetails, lyricsDetails, selectButton);
+            list.appendChild(row);
+        });
+        }).catch((error) => {
+            if (!modal.isConnected) return;
+            searchButton.disabled = false;
+            status.textContent = "Could not search the lyrics providers. Try a different query.";
+            console.warn("[loop.mp3] Could not load lyrics candidates:", error);
+        });
+    };
+    searchButton.addEventListener("click", runSearch);
+    queryInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") runSearch();
+    });
+    runSearch();
+}
+
+function ensureManualLyricsSelectionLink(loading, trackId) {
+    let link = loading.querySelector(".loop-lyrics-manual-selection-link");
+    if (link) return link;
+    link = document.createElement("button");
+    link.className = "loop-lyrics-manual-selection-link";
+    link.type = "button";
+    link.textContent = "Fine i would select them myself";
+    link.addEventListener("click", (event) => {
+        const loop = document.querySelector("#loop");
+        const currentTrackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
+        if (currentTrackId !== trackId) return;
+        showLyricsCandidateModal(
+            trackId,
+            loop?.querySelector("#loop-track-title")?.textContent.trim() || "Unknown title",
+            loop?.querySelector("#loop-track-artist")?.textContent.trim() || "Unknown artist",
+            getCurrentTrackDurationInSeconds()
+        );
+    });
+    loading.querySelector(".loop-lyrics-loading-content")?.append(link);
+    return link;
 }
 
 function bindLyricsFooterScroll(shadow) {
@@ -3207,8 +3605,10 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
     shadow.querySelector("#loop-lyrics-view")?.setAttribute("hidden", "");
     loading.querySelector(".loop-lyrics-submit-link")?.remove();
     loading.querySelector(".loop-lyrics-instrumental-link")?.remove();
+    loading.querySelector(".loop-lyrics-manual-selection-link")?.remove();
     if (lyrics === undefined) {
         loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
+        ensureManualLyricsSelectionLink(loading, trackId);
         return;
     }
 
@@ -3229,6 +3629,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
     if (!parsedLyrics.length) {
         braccatoLyricsRenderer?.clear();
         loading.querySelector(".loop-lyrics-loading-label").textContent = "Hmm.. we arent quite there still searching for them";
+        ensureManualLyricsSelectionLink(loading, trackId);
         const instrumentalLink = document.createElement("a");
         instrumentalLink.className = "loop-lyrics-instrumental-link";
         instrumentalLink.href = grooveEditorURL;

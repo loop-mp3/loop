@@ -1015,6 +1015,272 @@
     animation: loop-lyrics-spin 800ms linear infinite;
 }
 
+#loop-lyrics-candidate-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.78);
+    color: #fff;
+    font: 14px system-ui, sans-serif;
+}
+
+.loop-lyrics-candidate-query {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.loop-lyrics-candidate-query-input {
+    box-sizing: border-box;
+    min-width: 0;
+    flex: 1;
+    padding: 9px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    outline: none;
+    background: rgba(255, 255, 255, 0.07);
+    color: #fff;
+    font: inherit;
+}
+
+.loop-lyrics-candidate-query-input:focus {
+    border-color: rgba(255, 255, 255, 0.65);
+}
+
+.loop-lyrics-candidate-search {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 8px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    font: inherit;
+}
+
+.loop-lyrics-candidate-search:disabled {
+    cursor: wait;
+    opacity: 0.55;
+}
+
+.loop-lyrics-candidate-card {
+    box-sizing: border-box;
+    width: min(1000px, 100%);
+    max-height: min(88vh, 850px);
+    padding: 22px;
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 16px;
+    background: #101010;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
+}
+
+.loop-lyrics-candidate-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.loop-lyrics-candidate-kicker {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.loop-lyrics-candidate-header h2 {
+    margin: 4px 0 0;
+    font-size: 22px;
+}
+
+.loop-lyrics-candidate-close {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.loop-lyrics-candidate-track,
+.loop-lyrics-candidate-status {
+    color: rgba(255, 255, 255, 0.68);
+}
+
+.loop-lyrics-candidate-track {
+    margin: 14px 0 4px;
+    font-weight: 600;
+}
+
+.loop-lyrics-candidate-status {
+    margin: 0 0 14px;
+}
+
+.loop-lyrics-candidate-list {
+    display: grid;
+    gap: 8px;
+}
+
+.loop-lyrics-candidate-row {
+    display: grid;
+    grid-template-columns: 120px minmax(160px, 1fr) minmax(160px, 0.8fr) minmax(240px, 1.2fr) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.045);
+}
+
+.loop-lyrics-candidate-provider {
+    color: rgba(255, 255, 255, 0.82);
+    font-weight: 700;
+}
+
+.loop-lyrics-candidate-details {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.loop-lyrics-candidate-details strong,
+.loop-lyrics-candidate-details span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.loop-lyrics-candidate-details span,
+.loop-lyrics-candidate-details small {
+    color: rgba(255, 255, 255, 0.58);
+}
+
+.loop-lyrics-candidate-row details {
+    min-width: 0;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 12px;
+}
+
+.loop-lyrics-candidate-row summary {
+    cursor: pointer;
+}
+
+.loop-lyrics-candidate-row pre {
+    max-height: 130px;
+    margin: 8px 0 0;
+    padding: 8px;
+    overflow: auto;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(255, 255, 255, 0.68);
+    font: 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.loop-lyrics-candidate-editor-label {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 8px;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 11px;
+}
+
+.loop-lyrics-candidate-editor {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 78px;
+    padding: 8px;
+    resize: vertical;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
+    outline: none;
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(255, 255, 255, 0.82);
+    font: 11px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.loop-lyrics-candidate-editor:focus {
+    border-color: rgba(255, 255, 255, 0.62);
+}
+
+.loop-lyrics-candidate-offset-label span {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.loop-lyrics-candidate-offset-label output {
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+}
+
+.loop-lyrics-candidate-offset {
+    width: 100%;
+    accent-color: #fff;
+    cursor: pointer;
+}
+
+.loop-lyrics-candidate-offset-value {
+    width: 82px;
+    box-sizing: border-box;
+    padding: 5px 7px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 6px;
+    outline: none;
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    font: 11px ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.loop-lyrics-candidate-offset-value:focus {
+    border-color: rgba(255, 255, 255, 0.62);
+}
+
+.loop-lyrics-candidate-select {
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 8px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    font: inherit;
+    white-space: nowrap;
+}
+
+.loop-lyrics-candidate-select:hover,
+.loop-lyrics-candidate-select:focus-visible {
+    border-color: rgba(255, 255, 255, 0.65);
+    background: rgba(255, 255, 255, 0.18);
+}
+
+@media (max-width: 900px) {
+    #loop-lyrics-candidate-modal {
+        padding: 12px;
+    }
+
+    .loop-lyrics-candidate-row {
+        grid-template-columns: minmax(100px, 0.35fr) minmax(0, 1fr);
+    }
+
+    .loop-lyrics-candidate-row > details,
+    .loop-lyrics-candidate-select {
+        grid-column: 1 / -1;
+    }
+}
+
 @keyframes loop-lyrics-spin {
     to { transform: rotate(360deg); }
 }
