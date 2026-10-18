@@ -168,7 +168,7 @@
 }
 
 .blyrics--letter {
-	display: inline-block;
+    display: inline-block;
 }
 
 /* Atomic letter boxes otherwise take their visual ordering from the surrounding

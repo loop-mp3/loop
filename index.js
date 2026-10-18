@@ -277,6 +277,7 @@ const maximumLoopUpdateInterval = 1000;
 const kawarpConfigKey = "loop.mp3.kawarp-config";
 const kawarpCustomPresetsKey = "loop.mp3.kawarp-custom-presets";
 const lyricsCacheKeyPrefix = "lyrics_";
+const translationCacheKeyPrefix = "translation_";
 const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
 const lyricsTranslationEndpoint = "https://unison.boidu.dev/translate";
 const unisonTranslationRetryDelaysMs = [3_000, 5_000, 10_000, 15_000];
@@ -291,10 +292,52 @@ const defaultLyricsProviderIds = ["groove", "lrclib"];
 const supportedLyricsTranslationLanguages = new Set([
     "ar", "bn", "de", "en", "es", "fr", "hi", "id", "it", "ja", "ko", "pt", "ru", "tr", "vi", "zh",
 ]);
+const translationRequestCache = new Map();
 
 function normalizeLyricsTranslationLanguage(value) {
     const language = String(value || "en").trim().toLowerCase();
     return supportedLyricsTranslationLanguages.has(language) ? language : "en";
+}
+
+function getTranslationCacheKey(trackId, targetLanguage) {
+    return `${translationCacheKeyPrefix}${encodeURIComponent(trackId)}_${targetLanguage}`;
+}
+
+function isValidTranslationResult(result, lineCount) {
+    return Array.isArray(result?.lines) && result.lines.length === lineCount;
+}
+
+function getCachedTranslation(trackId, targetLanguage, lineCount) {
+    const key = getTranslationCacheKey(trackId, targetLanguage);
+    const storage = getLyricsCacheStorage();
+    if (!storage || !trackId) return Promise.resolve(null);
+
+    return new Promise((resolve) => {
+        storage.get(key, (result) => {
+            const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+            if (error) {
+                console.warn("[loop.mp3] Could not read cached translation:", error.message);
+                resolve(null);
+                return;
+            }
+            const cachedTranslation = result?.[key];
+            resolve(isValidTranslationResult(cachedTranslation, lineCount) ? cachedTranslation : null);
+        });
+    });
+}
+
+function cacheTranslation(trackId, targetLanguage, result) {
+    const storage = getLyricsCacheStorage();
+    if (!storage || !trackId || !isValidTranslationResult(result, result.lines.length)) return Promise.resolve();
+
+    const key = getTranslationCacheKey(trackId, targetLanguage);
+    return new Promise((resolve) => {
+        storage.set({ [key]: { ...result, cachedAt: Date.now() } }, () => {
+            const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+            if (error) console.warn("[loop.mp3] Could not cache translation:", error.message);
+            resolve();
+        });
+    });
 }
 
 function getLyricsProviderOrder() {
@@ -2952,26 +2995,52 @@ function updateLyricsFooter(shadow, lyrics, songwriters = [], hasSungLyrics = tr
     syncLyricsFooterVisibility(shadow);
 }
 
-async function translateLyricsLines(parsedLyrics) {
+async function translateLyricsLines(parsedLyrics, trackId) {
     const targetLanguage = normalizeLyricsTranslationLanguage(loopPreferences.lyricsTranslationLanguage);
     const lines = parsedLyrics.map((line) => String(line.words || ""));
     if (!lines.some((line) => line.trim()) || lines.length > 200) return null;
 
-    const response = await fetch(lyricsTranslationEndpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ lines, to: targetLanguage }),
-    });
-    if (!response.ok) {
-        const error = new Error(`Unison returned ${response.status}`);
-        error.status = response.status;
-        throw error;
+    const cacheKey = getTranslationCacheKey(trackId, targetLanguage);
+    if (loopPreferences.useLyricsCache !== false) {
+        const cachedTranslation = await getCachedTranslation(trackId, targetLanguage, lines.length);
+        if (cachedTranslation) {
+            console.log("[loop.mp3] Using cached translation:", { trackId, targetLanguage });
+            return cachedTranslation;
+        }
     }
-    const result = await response.json();
-    if (!Array.isArray(result?.lines) || result.lines.length !== parsedLyrics.length) {
-        throw new Error("Unison returned an invalid line mapping");
+
+    const pendingRequest = translationRequestCache.get(cacheKey);
+    if (pendingRequest) return pendingRequest;
+
+    const translationRequest = (async () => {
+        const response = await fetch(lyricsTranslationEndpoint, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ lines, to: targetLanguage }),
+        });
+        if (!response.ok) {
+            const error = new Error(`Unison returned ${response.status}`);
+            error.status = response.status;
+            throw error;
+        }
+        const result = await response.json();
+        if (!isValidTranslationResult(result, parsedLyrics.length)) {
+            throw new Error("Unison returned an invalid line mapping");
+        }
+        if (loopPreferences.useLyricsCache !== false) {
+            await cacheTranslation(trackId, targetLanguage, result);
+        }
+        return result;
+    })();
+
+    translationRequestCache.set(cacheKey, translationRequest);
+    try {
+        return await translationRequest;
+    } finally {
+        if (translationRequestCache.get(cacheKey) === translationRequest) {
+            translationRequestCache.delete(cacheKey);
+        }
     }
-    return result;
 }
 
 function waitForUnisonTranslationRetry(delayMs) {
@@ -2980,13 +3049,14 @@ function waitForUnisonTranslationRetry(delayMs) {
 
 async function translateLyricsLinesWithRetry(
     parsedLyrics,
+    trackId,
     shouldContinue = () => true,
     onRetry = () => {}
 ) {
     for (let attempt = 0; ; attempt += 1) {
         if (!shouldContinue()) return null;
         try {
-            return await translateLyricsLines(parsedLyrics);
+            return await translateLyricsLines(parsedLyrics, trackId);
         } catch (error) {
             const retryDelayMs = error?.status !== 200
                 ? unisonTranslationRetryDelaysMs[attempt]
@@ -3185,7 +3255,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
                 loopPreferences.showLyrics &&
                 trackId === (getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId);
             let translationRetried = false;
-            translateLyricsLinesWithRetry(parsedLyrics, isCurrentLyricsRequest, () => {
+            translateLyricsLinesWithRetry(parsedLyrics, trackId, isCurrentLyricsRequest, () => {
                 if (translationRetried) return;
                 translationRetried = true;
                 showLoopNotification("Hmm… not quite there, still finding the translation.", 4000);
