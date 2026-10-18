@@ -230,6 +230,7 @@ let videoBackgroundTrackId;
 let videoBackgroundSyncFrame;
 let videoBackgroundLastSyncedTime;
 let videoBackgroundLastPaused;
+let videoUiHideTimer;
 let loopPreferences = {
     animatedBackground: true,
     hideVinyl: true,
@@ -250,6 +251,8 @@ let loopPreferences = {
     kawarpFpsLogging: false,
     volume: 1,
     theme: "default",
+    videoBehaviorEnabled: true,
+    videoUiRearrangement: true,
 };
 let currentArtworkURL = "";
 let kawarpRendererClass;
@@ -1604,6 +1607,8 @@ async function resetLoopData() {
         kawarpFpsLogging: false,
         volume: 1,
         theme: "default",
+        videoBehaviorEnabled: true,
+        videoUiRearrangement: true,
     };
 
     kawarpSettings = { ...defaultKawarpSettings };
@@ -1625,6 +1630,7 @@ function applyLoopPreferences() {
     loop.classList.toggle("loop-no-vinyl", loopPreferences.hideVinyl);
     loop.classList.toggle("loop-hide-album", !loopPreferences.showAlbum);
     loop.classList.toggle("loop-lyrics-disabled", !loopPreferences.showLyrics);
+    applyVideoPresentationPreferences();
     const vinylToggle = loop.querySelector("#loop-vinyl-toggle");
     if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
     const navigationToggle = loop.querySelector("#loop-navigation-toggle");
@@ -1679,6 +1685,29 @@ function applyLoopPreferences() {
     applyArtworkPreference();
     miniPlayerBridge?.sync(getCurrentMedia());
     publishElectronMiniPlayerState({ force: true });
+}
+
+function applyVideoPresentationPreferences() {
+    const loop = document.querySelector("#loop");
+    if (!loop) return;
+
+    const isVideo = loop.dataset.videoBackground === "true";
+    const behaviorEnabled = loopPreferences.videoBehaviorEnabled !== false;
+    const rearrangementEnabled = behaviorEnabled && loopPreferences.videoUiRearrangement === true;
+    loop.classList.toggle("loop-video-mode", isVideo && behaviorEnabled);
+    loop.classList.toggle("loop-video-ui-rearranged", isVideo && rearrangementEnabled);
+
+    const behaviorToggle = loop.querySelector("#loop-video-behavior-toggle");
+    const rearrangementToggle = loop.querySelector("#loop-video-ui-rearrangement-toggle");
+    if (behaviorToggle) behaviorToggle.checked = behaviorEnabled;
+    if (rearrangementToggle) {
+        rearrangementToggle.checked = loopPreferences.videoUiRearrangement === true;
+        rearrangementToggle.disabled = !behaviorEnabled;
+    }
+    if (!behaviorEnabled) {
+        window.clearTimeout(videoUiHideTimer);
+        loop.classList.remove("loop-video-ui-hidden");
+    }
 }
 
 function applyArtworkPreference() {
@@ -3781,6 +3810,17 @@ function updateVideoBackground(trackId, isVideo) {
     }, { once: true });
 }
 
+function showVideoUi() {
+    const loop = document.getElementById("loop");
+    if (!loop?.classList.contains("loop-video-mode")) return;
+
+    loop.classList.remove("loop-video-ui-hidden");
+    window.clearTimeout(videoUiHideTimer);
+    videoUiHideTimer = window.setTimeout(() => {
+        loop.classList.add("loop-video-ui-hidden");
+    }, 1600);
+}
+
 function updateKawarpArtwork(artworkURL) {
     const canvas = document.querySelector("#loop-kawarp-background");
     if (!canvas) return;
@@ -4166,6 +4206,14 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-background-toggle" type="checkbox" checked>
                         Enable Kwarp <span>(re-enable)</span>
                     </label>
+                    <label class="loop-navigation-toggle">
+                        <input id="loop-video-behavior-toggle" type="checkbox" checked>
+                        Enable video behavior
+                    </label>
+                    <label class="loop-navigation-toggle">
+                        <input id="loop-video-ui-rearrangement-toggle" type="checkbox" checked>
+                        Rearrange video UI
+                    </label>
                     <div id="loop-kawarp-warning" class="loop-kawarp-warning" role="status" >
                         Kawarp may increase GPU usage and battery drain.
                     </div>
@@ -4330,6 +4378,10 @@ function updateLoop(artworkURL, trackInfo) {
                 </div>
             </div>`;
         document.body.appendChild(loop);
+        const loopPlayer = loop.querySelector("#loop-player");
+        ["pointermove", "pointerdown", "focusin"].forEach((eventName) => {
+            loopPlayer.addEventListener(eventName, showVideoUi, { passive: true });
+        });
         applyLoopPreferences();
         loop.querySelector("#loop-back-button").addEventListener("click", goBackToNormal);
         loop.querySelector("#loop-play-button").addEventListener("click", togglePlayback);
@@ -4374,6 +4426,20 @@ function updateLoop(artworkURL, trackInfo) {
         });
         loop.querySelector("#loop-background-toggle").addEventListener("change", (event) => {
             setKawarpEnabled(event.target.checked);
+        });
+        loop.querySelector("#loop-video-behavior-toggle").addEventListener("change", (event) => {
+            loopPreferences.videoBehaviorEnabled = event.target.checked;
+            saveLoopPreferences();
+            applyVideoPresentationPreferences();
+        });
+        loop.querySelector("#loop-video-ui-rearrangement-toggle").addEventListener("change", (event) => {
+            if (loopPreferences.videoBehaviorEnabled === false) {
+                event.target.checked = false;
+                return;
+            }
+            loopPreferences.videoUiRearrangement = event.target.checked;
+            saveLoopPreferences();
+            applyVideoPresentationPreferences();
         });
         loop.querySelector("#loop-queue-button").addEventListener("click", () => {
             sendLoopShortcut("q", { ctrlKey: true });
@@ -4580,6 +4646,8 @@ function updateLoop(artworkURL, trackInfo) {
     if (trackInfo.albumUrl) album.href = trackInfo.albumUrl;
     loop.classList.toggle("loop-empty", Boolean(trackInfo.empty));
     loop.dataset.videoBackground = !trackInfo.empty && trackInfo.isVideo === true ? "true" : "false";
+    applyVideoPresentationPreferences();
+    if (trackInfo.isVideo === true && loopPreferences.videoBehaviorEnabled !== false) showVideoUi();
     emptyState.hidden = !trackInfo.empty;
     updateVideoBackground(lastTrackId, !trackInfo.empty && trackInfo.isVideo === true);
     syncWindowTitle();

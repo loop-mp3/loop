@@ -132,7 +132,7 @@
     inset: 0;
     z-index: 0;
     overflow: hidden;
-    pointer-events: auto;
+    pointer-events: none;
     background: #000;
 }
 
@@ -150,8 +150,65 @@
     position: absolute;
     inset: 0;
     z-index: 1;
-    pointer-events: auto;
+    pointer-events: none;
     background: transparent;
+}
+
+#loop.loop-video-mode #loop-artwork {
+    display: none;
+}
+
+#loop.loop-video-ui-rearranged #loop-track-info {
+    top: auto;
+    bottom: 62px;
+    left: 50%;
+    z-index: 3;
+    width: min(90vw, 1100px);
+    transform: translateX(-50%);
+    text-align: center;
+}
+
+#loop.loop-video-ui-rearranged #loop-track-title {
+    display: inline;
+    font-size: clamp(20px, 2.4vw, 32px);
+}
+
+#loop.loop-video-ui-rearranged #loop-track-artist {
+    display: inline;
+    margin-left: 8px;
+    font-size: clamp(13px, 1.4vw, 18px);
+}
+
+#loop.loop-video-ui-rearranged #loop-track-artist::before {
+    content: "by ";
+}
+
+#loop.loop-video-ui-rearranged #loop-track-album {
+    display: none;
+}
+
+#loop.loop-video-ui-rearranged #loop-seek-row {
+    top: auto;
+    bottom: 24px;
+    left: 240px;
+    z-index: 4;
+    width: calc(100% - 260px);
+    max-width: none;
+    transform: none;
+}
+
+#loop.loop-video-ui-rearranged #loop-action-dock {
+    left: 20px;
+    bottom: 18px;
+    transform: none;
+}
+
+#loop.loop-video-ui-hidden #loop-track-info,
+#loop.loop-video-ui-hidden #loop-action-dock,
+#loop.loop-video-ui-hidden #loop-controls {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
 }
 
 #loop ytmusic-search-box,
