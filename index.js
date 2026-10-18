@@ -4192,6 +4192,8 @@ function syncVideoBackgroundPlayback() {
     }), "https://www.youtube.com");
 
     send("mute");
+    send("unloadModule", ["captions"]);
+    send("unloadModule", ["cc"]);
     if (Number.isFinite(media.currentTime) &&
         (!Number.isFinite(videoBackgroundLastSyncedTime) ||
             Math.abs(media.currentTime - videoBackgroundLastSyncedTime) > 0.75)) {
@@ -4234,7 +4236,7 @@ function updateVideoBackground(trackId, isVideo) {
     wrapper = document.createElement("div");
     wrapper.id = "loop-video-background";
     wrapper.innerHTML = `<iframe
-        src="https://www.youtube.com/embed/${encodeURIComponent(trackId)}?rel=0&enablejsapi=1"
+        src="https://www.youtube.com/embed/${encodeURIComponent(trackId)}?rel=0&enablejsapi=1&cc_load_policy=0"
         title="Track video"
         allowfullscreen
         scrolling="no"
