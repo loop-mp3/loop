@@ -1,6 +1,18 @@
 
 All notable changes to Loop are documented here.
 
+## [0.6.9] (minor) - 2026-10-18
+
+### Highlights
+
+* Added persistent translation caching keyed by track and target language, with an opt-out through the existing lyrics-cache setting.
+* Reused in-flight translation requests to prevent duplicate translation requests for the same track and language.
+* Removed the border from song artwork across themes for a cleaner presentation.
+
+### Fixes
+
+* Fixed translated lyrics styling so translated text renders with the intended size, weight, and opacity.
+
 ## [0.6.8] (minor) - 2026-10-17
 
 ### Highlights
@@ -360,3 +372,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [0.0.0]: https://github.com/loop-mp3/loop/releases/tag/v0.0.0
 [0.6.7]: https://github.com/loop-mp3/loop/releases/tag/v0.6.7
 [0.6.8]: https://github.com/loop-mp3/loop/releases/tag/v0.6.8
+[0.6.9]: https://github.com/loop-mp3/loop/releases/tag/v0.6.9
