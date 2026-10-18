@@ -1,6 +1,28 @@
 
 All notable changes to Loop are documented here.
 
+## [0.7.0] (minor) - 2026-10-18
+
+### Highlights
+
+* Added video backgrounds for tracks with available video, including synchronized play, pause, seeking, and muted playback.
+* Added Audio/Video mode switching with artwork fallback and persisted controls for video behavior and video UI rearrangement.
+* Added auto-hiding video UI that reappears when the player is interacted with.
+* Added manual lyrics selection from the lyrics loading and unavailable states, plus a reselect action in the lyrics footer.
+* Added a lyrics candidate modal that searches available providers and allows synced lyrics, plain lyrics, and synchronization offsets to be edited before selection.
+* Added persistent caching for manually selected lyrics and reused those selections for the track on subsequent loads.
+
+### Fixes
+
+* Disabled captions and closed captions in video backgrounds.
+* Added a video overlay and corrected video sizing so the background does not interfere with the Loop interface.
+* Refreshed the active track after manually selected lyrics are cached so the selected result is applied consistently.
+
+### Internal and maintenance changes
+
+* Renamed the `Lugu` audio mode to `Audio`.
+* Made the lyrics footer transparent and updated manual-selection control styling.
+
 ## [0.6.9] (minor) - 2026-10-18
 
 ### Highlights
@@ -373,3 +395,5 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [0.6.7]: https://github.com/loop-mp3/loop/releases/tag/v0.6.7
 [0.6.8]: https://github.com/loop-mp3/loop/releases/tag/v0.6.8
 [0.6.9]: https://github.com/loop-mp3/loop/releases/tag/v0.6.9
+[0.7.0]: https://github.com/loop-mp3/loop/releases/tag/v0.7.0
+
