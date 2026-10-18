@@ -3346,10 +3346,17 @@ function showLyricsCandidateModal(trackId, title, artist, duration) {
                 lyricsRequestId++;
                 clearLyricsRetryTimer();
                 currentTrackLyricsProvider = { trackId, providerId: candidate.provider.id };
-                cacheManuallySelectedLyrics(trackId, title, artist, duration, editedLyrics).catch((error) => {
-                    console.warn("[loop.mp3] Could not store manual lyrics selection:", error);
+                Promise.all([
+                    cacheManuallySelectedLyrics(trackId, title, artist, duration, editedLyrics),
+                    cacheLyrics(trackId, title, artist, duration, editedLyrics),
+                ]).catch((error) => {
+                    console.warn("[loop.mp3] Could not store adjusted lyrics caches:", error);
+                }).finally(() => {
+                    const activeTrackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
+                    if (activeTrackId === trackId) {
+                        fetchLoopLyricsForCurrentTrack(false);
+                    }
                 });
-                updateLoopLyrics(editedLyrics);
                 close();
                 showLoopNotification(`Using ${candidate.provider.label} lyrics`, 2500);
             });
