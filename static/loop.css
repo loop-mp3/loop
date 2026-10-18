@@ -267,7 +267,6 @@
     height: min(400px, 34vw);
     object-fit: cover;
     border-radius: 100%;
-    border: 5px solid #000;
     position: absolute;
     top: 42%;
     left: 31%;
@@ -1002,7 +1001,6 @@
 
 #loop[data-theme="sharp"] #loop-artwork {
     border-radius: 0;
-    border-color: var(--loop-sharp-accent);
 }
 
 #loop[data-theme="sharp"] #loop-back-button,
@@ -1207,10 +1205,6 @@
     border-color: var(--ctp-overlay);
     background: color-mix(in srgb, var(--ctp-mantle) 92%, transparent);
     box-shadow: 0 16px 40px rgba(17, 17, 27, 0.55);
-}
-
-#loop[data-theme="catppuccin"] #loop-artwork {
-    border-color: var(--ctp-mauve);
 }
 
 #loop[data-theme="catppuccin"] #loop-seek {
