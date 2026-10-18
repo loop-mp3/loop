@@ -1,7 +1,7 @@
 
 All notable changes to Loop are documented here.
 
-## [0.7.0] (minor) - 2026-10-18
+## [0.7.0] - 2026-10-18
 
 ### Highlights
 
