@@ -4384,7 +4384,7 @@ function updateLoop(artworkURL, trackInfo) {
                     </button>
                 </div>
                 <div id="loop-artwork-video-toggle" role="group" aria-label="Choose artwork or video mode">
-                    <button type="button" data-loop-view-mode="artwork" aria-label="Use artwork mode">Lugu</button>
+                    <button type="button" data-loop-view-mode="artwork" aria-label="Use artwork mode">Audio</button>
                     <button type="button" data-loop-view-mode="video" aria-label="Use video mode">Video</button>
                 </div>
                 <img id="loop-artwork" alt="Album artwork" onerror="this.onerror=null; this.src='${getFallbackArtwork()}';">
