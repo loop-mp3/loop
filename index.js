@@ -240,6 +240,7 @@ let loopPreferences = {
     useLegacyFallbackArtwork: false,
     showAlbum: false,
     showLyrics: false,
+    trackPresentationModes: {},
     lyricsRenderingEngine: "standard",
     animateWordWobble: false,
     showWriterCredits: true,
@@ -819,6 +820,16 @@ function getStoredLoopPreferences() {
     } catch {
         return Promise.resolve({});
     }
+}
+
+function normalizeTrackPresentationModes(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(Object.entries(value).filter(([, mode]) => mode === "audio" || mode === "video"));
+}
+
+function getTrackPresentationMode(trackId) {
+    if (!trackId) return "auto";
+    return loopPreferences.trackPresentationModes?.[trackId] || "auto";
 }
 
 function saveLoopPreferences() {
@@ -1678,6 +1689,7 @@ async function resetLoopData() {
         useLegacyFallbackArtwork: false,
         showAlbum: false,
         showLyrics: false,
+        trackPresentationModes: {},
         showWriterCredits: true,
         useLyricsCache: true,
         useGrooveOverrides: true,
@@ -1807,24 +1819,38 @@ function updateArtworkVideoToggle() {
     if (!toggle) return;
 
     const videoActive = loop.dataset.videoBackground === "true";
+    const mode = getTrackPresentationMode(lastTrackId);
     toggle.dataset.mode = videoActive ? "video" : "artwork";
+    toggle.dataset.override = mode;
     toggle.setAttribute("aria-pressed", String(videoActive));
-    toggle.querySelector('[data-loop-view-mode="artwork"]')?.classList.toggle("is-active", !videoActive);
-    toggle.querySelector('[data-loop-view-mode="video"]')?.classList.toggle("is-active", videoActive);
+    toggle.querySelectorAll("[data-loop-view-mode]").forEach((button) => {
+        const buttonMode = button.dataset.loopViewMode;
+        button.classList.toggle("is-active", buttonMode === mode);
+        button.setAttribute("aria-pressed", String(buttonMode === mode));
+    });
 }
 
-function setForcedVideoMode(enabled) {
+function setTrackPresentationMode(mode) {
     const loop = document.querySelector("#loop");
-    if (!loop) return;
+    const trackId = lastTrackId || getCurrentTrackId(getYTMPlayerRoot());
+    if (!loop || !trackId || !["auto", "audio", "video"].includes(mode)) return;
 
-    forcedVideoMode = enabled;
-    forcedArtworkMode = !enabled;
+    loopPreferences.trackPresentationModes = normalizeTrackPresentationModes(loopPreferences.trackPresentationModes);
+    if (mode === "auto") {
+        delete loopPreferences.trackPresentationModes[trackId];
+    } else {
+        loopPreferences.trackPresentationModes[trackId] = mode;
+    }
+    saveLoopPreferences();
+
+    forcedVideoMode = mode === "video";
+    forcedArtworkMode = mode === "audio";
     const trackHasVideo = loop.dataset.trackVideo === "true";
-    const videoActive = trackHasVideo && (enabled || !forcedArtworkMode);
-    loop.dataset.videoForced = String(enabled);
+    const videoActive = mode === "video" || (mode === "auto" && trackHasVideo);
+    loop.dataset.videoForced = String(mode === "video");
     loop.dataset.videoBackground = String(videoActive);
     applyVideoPresentationPreferences();
-    updateVideoBackground(lastTrackId, videoActive);
+    updateVideoBackground(trackId, videoActive);
     if (videoActive) showVideoUi();
 }
 
@@ -4159,6 +4185,7 @@ function showKawarpConfigEditor() {
 
 async function loadLoopPreferences() {
     loopPreferences = { ...loopPreferences, ...(await getStoredLoopPreferences()) };
+    loopPreferences.trackPresentationModes = normalizeTrackPresentationModes(loopPreferences.trackPresentationModes);
     loopPreferences.lyricsRenderingEngine = normalizeLyricsRenderingEngine(loopPreferences.lyricsRenderingEngine);
     loopPreferences.enableLyricsTranslation = loopPreferences.enableLyricsTranslation === true;
     loopPreferences.lyricsTranslationLanguage = normalizeLyricsTranslationLanguage(loopPreferences.lyricsTranslationLanguage);
@@ -4866,9 +4893,10 @@ function updateLoop(artworkURL, trackInfo) {
                         </svg>
                     </button>
                 </div>
-                <div id="loop-artwork-video-toggle" role="group" aria-label="Choose artwork or video mode">
-                    <button type="button" data-loop-view-mode="artwork" aria-label="Use artwork mode">Audio</button>
-                    <button type="button" data-loop-view-mode="video" aria-label="Use video mode">Video</button>
+                <div id="loop-artwork-video-toggle" role="group" aria-label="Choose automatic, audio, or video mode">
+                    <button type="button" data-loop-view-mode="auto" aria-label="Use automatic mode">Auto</button>
+                    <button type="button" data-loop-view-mode="audio" aria-label="Force audio mode">Audio</button>
+                    <button type="button" data-loop-view-mode="video" aria-label="Force video mode">Video</button>
                 </div>
                 <img id="loop-artwork" alt="Album artwork" onerror="this.onerror=null; this.src='${getFallbackArtwork()}';">
                 <div id="loop-track-info">
@@ -4926,7 +4954,7 @@ function updateLoop(artworkURL, trackInfo) {
         });
         loop.querySelectorAll("#loop-artwork-video-toggle [data-loop-view-mode]").forEach((button) => {
             button.addEventListener("click", () => {
-                setForcedVideoMode(button.dataset.loopViewMode === "video");
+                setTrackPresentationMode(button.dataset.loopViewMode);
             });
         });
         loop.querySelector("#loop-screen-disable").addEventListener("click", () => {
@@ -5189,9 +5217,12 @@ function updateLoop(artworkURL, trackInfo) {
     album.toggleAttribute("href", Boolean(trackInfo.albumUrl));
     if (trackInfo.albumUrl) album.href = trackInfo.albumUrl;
     loop.classList.toggle("loop-empty", Boolean(trackInfo.empty));
+    const presentationMode = getTrackPresentationMode(lastTrackId);
+    forcedVideoMode = presentationMode === "video";
+    forcedArtworkMode = presentationMode === "audio";
     loop.dataset.trackVideo = !trackInfo.empty && trackInfo.isVideo === true ? "true" : "false";
-    loop.dataset.videoBackground = (loop.dataset.trackVideo === "true" &&
-        (forcedVideoMode || !forcedArtworkMode)) ? "true" : "false";
+    loop.dataset.videoBackground = String(presentationMode === "video" ||
+        (presentationMode === "auto" && loop.dataset.trackVideo === "true"));
     applyVideoPresentationPreferences();
     if (trackInfo.isVideo === true && loopPreferences.videoBehaviorEnabled !== false) showVideoUi();
     emptyState.hidden = !trackInfo.empty;
