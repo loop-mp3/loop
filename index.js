@@ -3188,15 +3188,6 @@ function ensureLyricsFooter(shadow) {
         });
     });
 
-    const sourceLink = document.createElement("a");
-    sourceLink.className = "loop-lyrics-footer-button loop-lyrics-source-link";
-    sourceLink.target = "_blank";
-    sourceLink.rel = "noopener noreferrer";
-    sourceLink.setAttribute("aria-label", "Open lyrics sync");
-    sourceLink.title = "Open lyrics sync";
-    sourceLink.innerHTML = '<i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i><span>Open lyrics sync</span>';
-    sourceLink.hidden = true;
-
     const wrongLyricsLink = document.createElement("a");
     wrongLyricsLink.className = "loop-lyrics-footer-button loop-lyrics-wrong-link";
     wrongLyricsLink.target = "_blank";
@@ -3236,7 +3227,7 @@ function ensureLyricsFooter(shadow) {
 
     const actions = document.createElement("div");
     actions.className = "loop-lyrics-footer-actions";
-    actions.append(reloadButton, reselectButton, providerSelect, sourceLink, wrongLyricsLink);
+    actions.append(reloadButton, reselectButton, providerSelect, wrongLyricsLink);
     footer.append(actions);
     shadow.appendChild(footer);
     return footer;
@@ -3594,7 +3585,6 @@ function updateLyricsFooter(shadow, lyrics, songwriters = [], hasSungLyrics = tr
         writers.hidden = !safeNames;
     }
     bindLyricsFooterScroll(shadow);
-    const sourceLink = footer.querySelector(".loop-lyrics-source-link");
     const providerSelect = footer.querySelector("select");
     if (providerSelect) {
         const selectedProvider = lyrics?.meta?.provider || getLyricsProviderOrder()[0];
@@ -3605,13 +3595,6 @@ function updateLyricsFooter(shadow, lyrics, songwriters = [], hasSungLyrics = tr
         }));
         providerSelect.value = selectedProvider;
     }
-    const lyricsId = lyrics?.meta?.id;
-    const sourceURL = lyrics?.meta?.sourceUrl || lyrics?.meta?.source_url ||
-        (lyrics?.meta?.provider === "lrclib" && lyricsId
-            ? `https://lrclib.net/tracks/${encodeURIComponent(lyricsId)}`
-            : "");
-    sourceLink.hidden = !sourceURL;
-    if (sourceURL) sourceLink.href = sourceURL;
     const wrongLyricsLink = footer.querySelector(".loop-lyrics-wrong-link");
     if (wrongLyricsLink) wrongLyricsLink.href = grooveEditorURL;
     footer.hidden = false;
