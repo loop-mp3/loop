@@ -475,7 +475,7 @@ function createDiffLyricsRenderer(lines, view) {
     const targetsFor = (index) => {
         const distance = Math.abs(index - activeIndex);
         return distance === 0
-            ? { scale: 1.1, opacity: 1, marginTop: 0.7, marginBottom: 1.4 }
+            ? { scale: 1, opacity: 1, marginTop: 0.7, marginBottom: 1.4 }
             : distance === 1
                 ? { scale: 0.95, opacity: 0.4, marginTop: 0, marginBottom: 0.75 }
                 : { scale: 0.85, opacity: 0.2, marginTop: 0, marginBottom: 0.75 };
@@ -484,6 +484,7 @@ function createDiffLyricsRenderer(lines, view) {
         const line = lines[index]?.lyricElement;
         const item = state[index];
         if (!line || !item) return;
+        line.classList.toggle("blyrics--active", index === activeIndex);
         line.style.scale = item.scale.toFixed(4);
         line.style.opacity = Math.max(0, Math.min(1, item.opacity)).toFixed(3);
         line.style.marginTop = `${Math.max(0, item.marginTop * 16).toFixed(1)}px`;
@@ -548,6 +549,7 @@ function createDiffLyricsRenderer(lines, view) {
         destroy() {
             stop();
             lines.forEach(({ lyricElement }) => {
+                lyricElement.classList.remove("blyrics--active");
                 lyricElement.style.removeProperty("scale");
                 lyricElement.style.removeProperty("opacity");
                 lyricElement.style.removeProperty("margin-top");
