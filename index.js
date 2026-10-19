@@ -3574,8 +3574,9 @@ function updateLyricsFooter(shadow, lyrics, songwriters = [], hasSungLyrics = tr
             writers.id = "loop-track-writers";
             footer.parentElement.insertBefore(writers, footer);
         }
+        const availableSongwriters = songwriters.length > 0 ? songwriters : currentTrackWriters;
         const safeNames = loopPreferences.showWriterCredits !== false && !lyrics?.meta?.instrumental && hasSungLyrics
-            ? songwriters
+            ? availableSongwriters
             .filter(Boolean)
             .map((name) => String(name).replace(/[&<>"']/g, (character) => ({
                 "&": "&amp;",
@@ -3589,6 +3590,7 @@ function updateLyricsFooter(shadow, lyrics, songwriters = [], hasSungLyrics = tr
         writers.innerHTML = safeNames
             ? '<span class="loop-track-writers-label">Written by</span><span class="loop-track-writers-names">' + safeNames + "</span>"
             : "";
+        writers.dataset.hasCredits = String(Boolean(safeNames));
         writers.hidden = !safeNames;
     }
     bindLyricsFooterScroll(shadow);
@@ -4576,40 +4578,23 @@ async function getTrackWriterCredits(browseId) {
 
 // this is the selector that gets the writers name apparently ytm is wasting our precious ram in saving 100's of lines of useless json even in this ram cris 
 function getTrackWritersFromBrowse(data) {
-    const actions = data.onResponseReceivedActions ?? [];
-
-    for (const action of actions) {
-        const sections =
-            action.openPopupAction
-                ?.popup
-                ?.dismissableDialogRenderer
-                ?.sections ?? [];
-
-        const creditsSection = sections.find(section => {
-            const renderer =
-                section.dismissableDialogContentSectionRenderer;
-
-            return renderer?.title?.runs
-                ?.some(run => run.text === "Written by");
-        });
-
-        if (!creditsSection) continue;
-
-        const runs =
-            creditsSection.dismissableDialogContentSectionRenderer
-                .subtitle?.runs ?? [];
-
-        return [...new Set(
-            runs
-                .map(run => run.text)
-                .join("")
-                .split("\n")
-                .map(name => name.trim())
-                .filter(Boolean)
-        )];
-    }
-
-    return [];
+    const writers = [];
+    const visit = (value) => {
+        if (!value || typeof value !== "object") return;
+        if (Array.isArray(value)) {
+            value.forEach(visit);
+            return;
+        }
+        const renderer = value.dismissableDialogContentSectionRenderer;
+        const title = renderer?.title?.runs?.map((run) => run.text || "").join("").trim().toLowerCase();
+        if (title === "written by") {
+            const names = renderer.subtitle?.runs?.map((run) => run.text || "").join("") || "";
+            writers.push(...names.split("\n").map((name) => name.trim()).filter(Boolean));
+        }
+        Object.values(value).forEach(visit);
+    };
+    visit(data);
+    return [...new Set(writers)];
 }
 
 
@@ -4756,7 +4741,7 @@ function goBackToNormal() {
 
 function updateLoop(artworkURL, trackInfo) {
     loopVisible = true;
-    if (Array.isArray(trackInfo.TrackWriters)) currentTrackWriters = trackInfo.TrackWriters;
+    currentTrackWriters = Array.isArray(trackInfo.TrackWriters) ? trackInfo.TrackWriters : [];
     if (trackInfo.empty) currentTrackWriters = [];
     let loop = document.getElementById("loop");
     if (!loop) {
