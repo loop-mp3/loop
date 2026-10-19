@@ -1,6 +1,21 @@
 
 All notable changes to Loop are documented here.
 
+## [0.7.1] - 2026-10-19
+
+### Highlights
+
+* Added an optional experimental Diff lyrics rendering engine with spring-based lyric transitions and scrolling, selectable from the Loop menu.
+* Added performance warnings for the Diff renderer and lyric letter-wave animation.
+* Disabled lyric letter-wave animation by default while keeping it available as an opt-in Loop-menu setting.
+* Improved the lyrics loading experience with clearer loading feedback and manual lyrics-selection controls that remain available while automatic resolution is in progress.
+
+### Fixes
+
+* Fixed writer credits not rendering by making YouTube Music credit extraction more tolerant of nested response data and preventing stale credits from carrying between tracks.
+* Removed the lyrics source-link button from the lyrics footer.
+
+
 ## [0.7.0] - 2026-10-18
 
 ### Highlights
@@ -396,4 +411,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [0.6.8]: https://github.com/loop-mp3/loop/releases/tag/v0.6.8
 [0.6.9]: https://github.com/loop-mp3/loop/releases/tag/v0.6.9
 [0.7.0]: https://github.com/loop-mp3/loop/releases/tag/v0.7.0
-
+[0.7.1]: https://github.com/loop-mp3/loop/releases/tag/v0.7.1
