@@ -4742,7 +4742,7 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-lyrics-toggle" type="checkbox">
                         Show lyrics <span>(experimental)</span>
                     </label>
-                    <label class="loop-navigation-toggle">
+                    <label class="loop-navigation-toggle loop-lyrics-rendering-setting">
                         Lyrics rendering engine
                         <select id="loop-lyrics-rendering-engine" aria-label="Lyrics rendering engine">
                             <option value="standard">Braccato</option>
