@@ -265,7 +265,8 @@ let kawarpWarningTimer;
 let braccatoLyricsPromise;
 let braccatoLyricsRenderer;
 let braccatoLyricsMount;
-let braccatoDiffLyricsRenderer;
+let ludoLyricsController;
+let createLudoLyricsController;
 let lyricsRequestId = 0;
 let lyricsRetryTimer;
 let currentTrackLyricsProvider = { trackId: null, providerId: null };
@@ -461,112 +462,17 @@ function applyLyricsAnimationPreferences() {
 }
 
 function normalizeLyricsRenderingEngine(value) {
-    return value === "diff" ? "diff" : "standard";
-}
-
-function createDiffLyricsRenderer(lines, view) {
-    const state = lines.map(() => ({ scale: 0.85, opacity: 0.2, marginTop: 0, marginBottom: 0, y: 0, velocity: {} }));
-    let activeIndex = -1;
-    let frameId = 0;
-    let lastTime = 0;
-    let scrollTop = view.scrollTop;
-    let scrollVelocity = 0;
-
-    const targetsFor = (index) => {
-        const distance = Math.abs(index - activeIndex);
-        return distance === 0
-            ? { scale: 1, opacity: 1, marginTop: 0.7, marginBottom: 1.4 }
-            : distance === 1
-                ? { scale: 0.95, opacity: 0.4, marginTop: 0, marginBottom: 0.75 }
-                : { scale: 0.85, opacity: 0.2, marginTop: 0, marginBottom: 0.75 };
-    };
-    const paint = (index) => {
-        const line = lines[index]?.lyricElement;
-        const item = state[index];
-        if (!line || !item) return;
-        line.classList.toggle("blyrics--active", index === activeIndex);
-        line.style.scale = item.scale.toFixed(4);
-        line.style.opacity = Math.max(0, Math.min(1, item.opacity)).toFixed(3);
-        line.style.marginTop = `${Math.max(0, item.marginTop * 16).toFixed(1)}px`;
-        line.style.marginBottom = `${Math.max(0, item.marginBottom * 16).toFixed(1)}px`;
-        line.style.translate = `0 ${item.y.toFixed(1)}px`;
-        line.style.willChange = "scale, opacity, translate, margin";
-    };
-    const scrollTarget = () => {
-        const line = lines[activeIndex]?.lyricElement;
-        if (!line || !view.clientHeight) return null;
-        return Math.max(0, Math.min(view.scrollHeight - view.clientHeight, line.offsetTop - view.clientHeight * 0.28));
-    };
-    const stop = () => {
-        cancelAnimationFrame(frameId);
-        frameId = 0;
-    };
-    const animate = (now) => {
-        const delta = Math.min(0.032, lastTime ? (now - lastTime) / 1000 : 0.016);
-        lastTime = now;
-        let moving = false;
-        for (let index = 0; index < state.length; index++) {
-            const item = state[index];
-            const target = targetsFor(index);
-            for (const key of ["scale", "opacity", "marginTop", "marginBottom"]) {
-                const velocity = item.velocity[key] || 0;
-                const acceleration = 300 * (target[key] - item[key]) - 26 * velocity;
-                item.velocity[key] = velocity + acceleration * delta;
-                item[key] += item.velocity[key] * delta;
-                if (Math.abs(target[key] - item[key]) > 0.001 || Math.abs(item.velocity[key]) > 0.01) moving = true;
-            }
-            paint(index);
-        }
-        const targetScroll = scrollTarget();
-        if (targetScroll !== null) {
-            const acceleration = 300 * (targetScroll - scrollTop) - 26 * scrollVelocity;
-            scrollVelocity += acceleration * delta;
-            scrollTop += scrollVelocity * delta;
-            view.scrollTop = scrollTop;
-            if (Math.abs(targetScroll - scrollTop) > 0.4 || Math.abs(scrollVelocity) > 6) moving = true;
-        }
-        if (moving) frameId = requestAnimationFrame(animate);
-        else stop();
-    };
-    const start = () => {
-        if (!frameId) {
-            lastTime = 0;
-            frameId = requestAnimationFrame(animate);
-        }
-    };
-    return {
-        tick(currentTime) {
-            let nextActiveIndex = -1;
-            lines.forEach((line, index) => {
-                if (line.time <= currentTime + 0.05) nextActiveIndex = index;
-            });
-            if (nextActiveIndex !== activeIndex) {
-                activeIndex = nextActiveIndex;
-                scrollTop = view.scrollTop;
-            }
-            start();
-        },
-        destroy() {
-            stop();
-            lines.forEach(({ lyricElement }) => {
-                lyricElement.classList.remove("blyrics--active");
-                lyricElement.style.removeProperty("scale");
-                lyricElement.style.removeProperty("opacity");
-                lyricElement.style.removeProperty("margin-top");
-                lyricElement.style.removeProperty("margin-bottom");
-                lyricElement.style.removeProperty("translate");
-                lyricElement.style.removeProperty("will-change");
-            });
-        },
-    };
+    return value === "ludo" || value === "diff" ? "ludo" : "standard";
 }
 
 function applyLyricsRenderingEngine() {
-    braccatoDiffLyricsRenderer?.destroy();
-    braccatoDiffLyricsRenderer = null;
-    const view = braccatoLyricsMount;
-    if (!view || loopPreferences.lyricsRenderingEngine !== "diff") return;
-    braccatoDiffLyricsRenderer = createDiffLyricsRenderer(braccatoLyricsRenderer?.lines || [], view);
+    if (!createLudoLyricsController) return;
+    ludoLyricsController ??= createLudoLyricsController();
+    ludoLyricsController.apply({
+        enabled: loopPreferences.lyricsRenderingEngine === "ludo",
+        lines: braccatoLyricsRenderer?.lines || [],
+        view: braccatoLyricsMount,
+    });
 }
 
 function startLoopUpdatePolling(playerBar) {
@@ -1822,7 +1728,7 @@ function applyLoopPreferences() {
     const lyricsRenderingEngine = loop.querySelector("#loop-lyrics-rendering-engine");
     if (lyricsRenderingEngine) lyricsRenderingEngine.value = normalizeLyricsRenderingEngine(loopPreferences.lyricsRenderingEngine);
     const lyricsRenderingWarning = loop.querySelector("#loop-lyrics-rendering-warning");
-    if (lyricsRenderingWarning) lyricsRenderingWarning.hidden = loopPreferences.lyricsRenderingEngine !== "diff";
+    if (lyricsRenderingWarning) lyricsRenderingWarning.hidden = loopPreferences.lyricsRenderingEngine !== "ludo";
     const wordWobbleToggle = loop.querySelector("#loop-lyrics-word-wobble-toggle");
     if (wordWobbleToggle) wordWobbleToggle.checked = loopPreferences.animateWordWobble === true;
     applyLyricsAnimationPreferences();
@@ -3155,10 +3061,12 @@ function loadBraccatoLyrics() {
         braccatoLyricsPromise = Promise.all([
             import(getExtensionURL("modules/braccato/renderer.js")),
             import(getExtensionURL("modules/braccato/inject.js")),
+            import(getExtensionURL("modules/ludo/index.js")),
         ])
-            .then(async ([{ createLyricsRenderer }, { injectTranslation }]) => ({
+            .then(async ([{ createLyricsRenderer }, { injectTranslation }, ludo]) => ({
                 createLyricsRenderer,
                 injectTranslation,
+                createLudoLyricsController: ludo.createLudoLyricsController,
                 styles: await Promise.all(["variables.css", "lyrics.css", "instrumental.css"].map(async (file) => {
                     const response = await fetch(getExtensionURL(`modules/braccato/styles/${file}`));
                     if (!response.ok) throw new Error(`Could not load Braccato stylesheet ${file}`);
@@ -3271,7 +3179,7 @@ function syncLyricsFooterVisibility(shadow) {
     const lastLyric = lyricLines[lyricLines.length - 1];
     const lastLyricFocused = lastLyric?.classList.contains("blyrics--active") ||
         lastLyric?.getAttribute("aria-current") === "true";
-    // The standard renderer marks the current line, while the performant renderer
+    // The standard renderer marks the current line, while Ludo
     // drives the same scroll view without relying on that marker. Use the scroll
     // position as the shared source of truth and keep the marker as an early signal.
     const reachedEnd = Boolean(lastLyricFocused) ||
@@ -3710,8 +3618,8 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
     if (!loopPreferences.showLyrics) {
         clearLyricsRetryTimer();
         panel.hidden = true;
-        braccatoDiffLyricsRenderer?.destroy();
-        braccatoDiffLyricsRenderer = null;
+        ludoLyricsController?.destroy();
+        ludoLyricsController = null;
         braccatoLyricsRenderer?.clear();
         return;
     }
@@ -3798,7 +3706,8 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
 
     clearLyricsRetryTimer();
     loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
-    loadBraccatoLyrics().then(({ createLyricsRenderer, injectTranslation, styles }) => {
+    loadBraccatoLyrics().then(({ createLyricsRenderer, createLudoLyricsController: ludoFactory, injectTranslation, styles }) => {
+        createLudoLyricsController = ludoFactory;
         if (
             requestId !== lyricsRequestId ||
             !loopPreferences.showLyrics ||
@@ -4837,11 +4746,11 @@ function updateLoop(artworkURL, trackInfo) {
                         Lyrics rendering engine
                         <select id="loop-lyrics-rendering-engine" aria-label="Lyrics rendering engine">
                             <option value="standard">Braccato</option>
-                            <option value="diff">Performant</option>
+                            <option value="ludo">Ludo</option>
                         </select>
                     </label>
                     <div id="loop-lyrics-rendering-warning" class="loop-setting-warning" role="note" hidden>
-                        Warning: the Perfromant renderer is experimental and is meant to save resources expect visual compromises and bugs
+                        Warning: Ludo is experimental and is meant to save resources; expect visual compromises and bugs.
                     </div>
                     <label class="loop-navigation-toggle">
                         <input id="loop-lyrics-word-wobble-toggle" type="checkbox">
@@ -5356,8 +5265,8 @@ function updatePlaybackControls(media = getCurrentMedia()) {
         isPlaying: Boolean(media && !media.paused && !media.ended),
         playbackRate: media?.playbackRate,
     });
-    if (loopPreferences.lyricsRenderingEngine === "diff") {
-        braccatoDiffLyricsRenderer?.tick(media ? media.currentTime : 0);
+    if (loopPreferences.lyricsRenderingEngine === "ludo") {
+        ludoLyricsController?.tick(media ? media.currentTime : 0);
     }
     const lyricsShadow = document.querySelector("#loop-lyrics-host")?.shadowRoot;
     if (lyricsShadow) syncLyricsFooterVisibility(lyricsShadow);

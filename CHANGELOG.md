@@ -12,8 +12,8 @@ All notable changes to Loop are documented here.
 
 ### Highlights
 
-* Added an optional experimental Diff lyrics rendering engine with spring-based lyric transitions and scrolling, selectable from the Loop menu.
-* Added performance warnings for the Diff renderer and lyric letter-wave animation.
+* Added an optional experimental Ludo lyrics rendering engine with spring-based lyric transitions and scrolling, selectable from the Loop menu.
+* Added performance warnings for the Ludo renderer and lyric letter-wave animation.
 * Disabled lyric letter-wave animation by default while keeping it available as an opt-in Loop-menu setting.
 * Improved the lyrics loading experience with clearer loading feedback and manual lyrics-selection controls that remain available while automatic resolution is in progress.
 
