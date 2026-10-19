@@ -240,6 +240,7 @@ let loopPreferences = {
     useLegacyFallbackArtwork: false,
     showAlbum: false,
     showLyrics: false,
+    animateWordWobble: false,
     showWriterCredits: true,
     useLyricsCache: true,
     useGrooveOverrides: true,
@@ -446,6 +447,15 @@ function updateLoopPollingPreferenceUI() {
         warning.hidden = !warning.textContent;
     }
     updateKawarpFpsPreferenceUI();
+}
+
+function applyLyricsAnimationPreferences() {
+    const lyricsContainer = braccatoLyricsMount?.querySelector(".blyrics-container");
+    if (!lyricsContainer) return;
+    lyricsContainer.style.setProperty(
+        "--blyrics-animate-word-wobble",
+        loopPreferences.animateWordWobble === true ? "1" : "0"
+    );
 }
 
 function startLoopUpdatePolling(playerBar) {
@@ -1698,6 +1708,9 @@ function applyLoopPreferences() {
     if (albumToggle) albumToggle.checked = Boolean(loopPreferences.showAlbum);
     const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
     if (lyricsToggle) lyricsToggle.checked = Boolean(loopPreferences.showLyrics);
+    const wordWobbleToggle = loop.querySelector("#loop-lyrics-word-wobble-toggle");
+    if (wordWobbleToggle) wordWobbleToggle.checked = loopPreferences.animateWordWobble === true;
+    applyLyricsAnimationPreferences();
     const writerCreditsToggle = loop.querySelector("#loop-writer-credits-toggle");
     if (writerCreditsToggle) writerCreditsToggle.checked = loopPreferences.showWriterCredits !== false;
     const lyricsCacheToggle = loop.querySelector("#loop-lyrics-cache-toggle");
@@ -2876,15 +2889,18 @@ async function getLegacyLyricsFromTrackInfo(trackId, title, artist) {
     }
 }
 
-const braccatoLyricsTheme = `
+function getBraccatoLyricsTheme() {
+    return `
     @import url("https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap");
 
     /* blyrics-target-scroll-pos-ratio = 0.5; */
+    /* blyrics-letter-wave = ${loopPreferences.animateWordWobble === true ? "true" : "false"}; */
 
     .blyrics-container {
         --blyrics-font-size: 3rem;
         --blyrics-line-height: 1.333;
         --blyrics-padding: 2rem;
+        --blyrics-animate-word-wobble: 0;
         --blyrics-word-wobble-transform-from: scaleX(1);
         --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025);
         --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1);
@@ -2895,6 +2911,7 @@ const braccatoLyricsTheme = `
         --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5));
     }
 `;
+}
 
 const braccatoLyricsShadowCSS = `
     :host { display: block; width: 100%; height: 100%; color: #fff; font-family: Satoshi, system-ui, sans-serif; }
@@ -2908,7 +2925,7 @@ const braccatoLyricsShadowCSS = `
     .loop-lyrics-loading-content { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
     .loop-lyrics-spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.22); border-top-color: #fff; border-radius: 50%; animation: loop-lyrics-spin 800ms linear infinite; }
     @keyframes loop-lyrics-spin { to { transform: rotate(360deg); } }
-    .blyrics-container { --blyrics-font-family: Satoshi, system-ui, sans-serif; --blyrics-font-size: 3rem; --blyrics-line-height: 1.333; --blyrics-padding: 2rem; --blyrics-word-wobble-transform-from: scaleX(1); --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025); --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1); --blyrics-word-wobble-transform-to: scaleX(1); }
+    .blyrics-container { --blyrics-font-family: Satoshi, system-ui, sans-serif; --blyrics-font-size: 3rem; --blyrics-line-height: 1.333; --blyrics-padding: 2rem; --blyrics-animate-word-wobble: 0; --blyrics-word-wobble-transform-from: scaleX(1); --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025); --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1); --blyrics-word-wobble-transform-to: scaleX(1); }
     #loop-lyrics-view .blyrics-container { display: flex; flex-direction: column; min-height: 100%; }
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
     .loop-track-writers-label { display: block; color: rgba(255,255,255,.72); font: 400 16px/1.2 Satoshi, system-ui, sans-serif; margin-bottom: .45em; }
@@ -3688,7 +3705,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
             style.textContent = styles.join("\n");
             shadow.appendChild(style);
             const themeStyle = document.createElement("style");
-            themeStyle.textContent = braccatoLyricsTheme;
+            themeStyle.textContent = getBraccatoLyricsTheme();
             shadow.appendChild(themeStyle);
             view = document.createElement("div");
             view.id = "loop-lyrics-view";
@@ -3724,13 +3741,14 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
             });
             braccatoLyricsMount = view;
         }
-        braccatoLyricsRenderer.setTheme(braccatoLyricsTheme);
+        braccatoLyricsRenderer.setTheme(getBraccatoLyricsTheme());
         braccatoLyricsRenderer.setLyrics(parsedLyrics, {
             noLyrics: false,
             songwriters,
             // Songwriter credits belong to the shell footer, not the scrollable lyric content.
             showCredits: false,
         });
+        applyLyricsAnimationPreferences();
 
         if (requestId !== lyricsRequestId || !loopPreferences.showLyrics) return;
         loading.hidden = true;
@@ -4710,6 +4728,13 @@ function updateLoop(artworkURL, trackInfo) {
                         Show lyrics <span>(experimental)</span>
                     </label>
                     <label class="loop-navigation-toggle">
+                        <input id="loop-lyrics-word-wobble-toggle" type="checkbox">
+                        Animate lyric letter wave
+                    </label>
+                    <div class="loop-setting-warning" role="note">
+                        Warning: enabling the lyric letter wave can significantly impact performance.
+                    </div>
+                    <label class="loop-navigation-toggle">
                         <input id="loop-writer-credits-toggle" type="checkbox">
                         Show writer credits
                     </label>
@@ -4948,6 +4973,12 @@ function updateLoop(artworkURL, trackInfo) {
             loopPreferences.showLyrics = event.target.checked;
             saveLoopPreferences();
             applyLoopPreferences();
+            if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
+        });
+        loop.querySelector("#loop-lyrics-word-wobble-toggle").addEventListener("change", (event) => {
+            loopPreferences.animateWordWobble = event.target.checked;
+            saveLoopPreferences();
+            applyLyricsAnimationPreferences();
             if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
         });
         loop.querySelector("#loop-writer-credits-toggle").addEventListener("change", (event) => {

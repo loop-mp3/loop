@@ -66,7 +66,7 @@
 
 	/* Animations */
 	--blyrics-animate-line-scale: 1;
-	--blyrics-animate-word-wobble: 1;
+	--blyrics-animate-word-wobble: 0;
 	--blyrics-animate-highlight-swipe: 1;
 	--blyrics-animate-highlight-glow: 1;
 	--blyrics-animate-highlight-fade: 1;
