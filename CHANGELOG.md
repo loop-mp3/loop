@@ -1,6 +1,21 @@
 
 All notable changes to Loop are documented here.
 
+## [0.7.3] - 2026-10-19
+
+### Highlights
+
+* Added per-track presentation overrides with Auto, Audio, and Video modes. Overrides persist and are restored when the track plays again.
+* Added styling for the lyrics rendering-engine selector in the Loop menu.
+
+### Fixes
+
+* Fixed focused Ludo lyrics being visually clipped by matching the standard renderer's active-line scale and state.
+
+### Internal and maintenance changes
+
+* Renamed the experimental performant lyrics renderer to Ludo and moved its spring animation and scrolling logic into `modules/ludo/index.js` behind a controller abstraction.
+
 ## [0.7.2] - 2026-10-19
 
 ### Fixes
@@ -420,3 +435,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [0.7.0]: https://github.com/loop-mp3/loop/releases/tag/v0.7.0
 [0.7.1]: https://github.com/loop-mp3/loop/releases/tag/v0.7.1
 [0.7.2]: https://github.com/loop-mp3/loop/releases/tag/v0.7.2
+[0.7.3]: https://github.com/loop-mp3/loop/releases/tag/v0.7.3
