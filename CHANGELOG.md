@@ -1,6 +1,13 @@
 
 All notable changes to Loop are documented here.
 
+## [0.7.2] - 2026-10-19
+
+### Fixes
+
+* Fixed writer credits not appearing again by supporting both YouTube Music credit-response renderers and keeping the credits visible with either lyrics renderer.
+
+
 ## [0.7.1] - 2026-10-19
 
 ### Highlights
@@ -412,3 +419,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [0.6.9]: https://github.com/loop-mp3/loop/releases/tag/v0.6.9
 [0.7.0]: https://github.com/loop-mp3/loop/releases/tag/v0.7.0
 [0.7.1]: https://github.com/loop-mp3/loop/releases/tag/v0.7.1
+[0.7.2]: https://github.com/loop-mp3/loop/releases/tag/v0.7.2
