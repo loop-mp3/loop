@@ -3265,10 +3265,13 @@ function syncLyricsFooterVisibility(shadow) {
     const footer = shadow.querySelector("#loop-lyrics-footer");
     if (!view || !footer || footer.hidden) return;
     const endThreshold = Math.max(footer.offsetHeight + 24, view.clientHeight * 0.08);
-    const lyricLines = view.querySelectorAll(".blyrics-container > .blyrics--line");
+    const lyricLines = view.querySelectorAll(".blyrics-container .blyrics--line");
     const lastLyric = lyricLines[lyricLines.length - 1];
     const lastLyricFocused = lastLyric?.classList.contains("blyrics--active") ||
         lastLyric?.getAttribute("aria-current") === "true";
+    // The standard renderer marks the current line, while the performant renderer
+    // drives the same scroll view without relying on that marker. Use the scroll
+    // position as the shared source of truth and keep the marker as an early signal.
     const reachedEnd = Boolean(lastLyricFocused) ||
         view.scrollTop + view.clientHeight >= view.scrollHeight - endThreshold;
     footer.classList.toggle("is-visible", reachedEnd);
@@ -4562,17 +4565,33 @@ async function getTrackWriterCredits(browseId) {
 // this is the selector that gets the writers name apparently ytm is wasting our precious ram in saving 100's of lines of useless json even in this ram cris 
 function getTrackWritersFromBrowse(data) {
     const writers = [];
+    const getText = (value) => {
+        if (!value) return "";
+        if (typeof value === "string") return value;
+        if (Array.isArray(value)) return value.map(getText).join("");
+        if (typeof value !== "object") return "";
+        if (typeof value.simpleText === "string") return value.simpleText;
+        if (typeof value.text === "string") return value.text;
+        if (Array.isArray(value.runs)) return value.runs.map(getText).join("");
+        return "";
+    };
     const visit = (value) => {
         if (!value || typeof value !== "object") return;
         if (Array.isArray(value)) {
             value.forEach(visit);
             return;
         }
-        const renderer = value.dismissableDialogContentSectionRenderer;
-        const title = renderer?.title?.runs?.map((run) => run.text || "").join("").trim().toLowerCase();
+        // YouTube has returned credits through more than one renderer. Do not
+        // depend on the parent renderer name; identify the section by its title
+        // and read either the old subtitle or the newer text/content field.
+        const section = value.dismissableDialogContentSectionRenderer || value;
+        const title = getText(section.title).trim().toLowerCase();
         if (title === "written by") {
-            const names = renderer.subtitle?.runs?.map((run) => run.text || "").join("") || "";
-            writers.push(...names.split("\n").map((name) => name.trim()).filter(Boolean));
+            const names = getText(section.subtitle) || getText(section.content) || getText(section.description);
+            writers.push(...names
+                .split(/[\n,]/)
+                .map((name) => name.trim())
+                .filter(Boolean));
         }
         Object.values(value).forEach(visit);
     };
@@ -5338,6 +5357,8 @@ function updatePlaybackControls(media = getCurrentMedia()) {
     if (loopPreferences.lyricsRenderingEngine === "diff") {
         braccatoDiffLyricsRenderer?.tick(media ? media.currentTime : 0);
     }
+    const lyricsShadow = document.querySelector("#loop-lyrics-host")?.shadowRoot;
+    if (lyricsShadow) syncLyricsFooterVisibility(lyricsShadow);
     syncVideoBackgroundPlayback();
     miniPlayerBridge?.sync(media);
     publishElectronMiniPlayerState();
