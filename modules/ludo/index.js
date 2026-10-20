@@ -34,6 +34,17 @@ export function createLudoLyricsRenderer(lines, view) {
         markAnimated(index + 1);
     };
 
+    const markVisibleLines = () => {
+        const top = view.scrollTop;
+        const bottom = top + view.clientHeight;
+        for (let index = 0; index < count; index++) {
+            const line = elements[index];
+            if (!line) continue;
+            const lineTop = line.offsetTop;
+            if (lineTop > bottom) break;
+            if (lineTop + line.offsetHeight >= top) markAnimated(index);
+        }
+    };
 
     // Margins are applied only when the active line changes. Animating margins forces layout on
     // every frame, while scale and opacity remain compositor-friendly.
@@ -149,11 +160,14 @@ export function createLudoLyricsRenderer(lines, view) {
                 updateActiveSpacing(previousIndex, activeIndex);
                 markActiveNeighborhood(previousIndex);
                 markActiveNeighborhood(activeIndex);
+                markVisibleLines();
                 if (elements[previousIndex]) elements[previousIndex].classList.remove("blyrics--active");
                 if (elements[activeIndex]) elements[activeIndex].classList.add("blyrics--active");
             }
             // Layout can change when translations arrive, so refresh the scroll target at each
-            // playback update, but never force a layout read on every animation frame.
+            // playback update, but never force a layout read on every animation frame. Also add
+            // newly visible lines to the short animation set so every visible lyric is updated.
+            markVisibleLines();
             targetScroll = null;
             start();
         },
