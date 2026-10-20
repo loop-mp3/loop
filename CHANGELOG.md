@@ -1,6 +1,24 @@
 
 All notable changes to Loop are documented here.
 
+## [0.7.4] - 2026-10-20
+
+### Highlights
+
+* Added LyricsPlus as a lyrics provider, including synchronized lyric support from its timed line response and fallback integration with the existing provider resolver.
+* Added an actionable playback-protection modal when closing Loop while music is playing. Users can confirm closing the tab or keep listening and resume playback.
+* Discord activity now reports when playback is paused instead of presenting the paused track as actively playing.
+
+### Fixes
+
+* Prevented Discord activity updates when no media element is available.
+* Replaced the previous close-protection behavior that muted playback with an explicit pause-and-confirm flow.
+
+### Internal and maintenance changes
+
+* Added conversion of LyricsPlus millisecond timestamps to LRC timestamps and included LyricsPlus in provider selection and candidate search flows.
+* Reordered the lyrics provider registry so LyricsPlus and LRCLIB appear before Groove in provider lists.
+
 ## [0.7.3] - 2026-10-19
 
 ### Highlights
@@ -436,3 +454,4 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [0.7.1]: https://github.com/loop-mp3/loop/releases/tag/v0.7.1
 [0.7.2]: https://github.com/loop-mp3/loop/releases/tag/v0.7.2
 [0.7.3]: https://github.com/loop-mp3/loop/releases/tag/v0.7.3
+[0.7.4]: https://github.com/loop-mp3/loop/releases/tag/v0.7.4
