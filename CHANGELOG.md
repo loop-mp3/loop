@@ -1,6 +1,16 @@
 
 All notable changes to Loop are documented here.
 
+## [0.7.5] - 2026-10-20
+
+### Fixes
+
+* Updated Ludo to animate all lyrics currently visible in the viewport, keeping visible inactive and adjacent lines in sync with the active lyric.
+
+### Internal and maintenance changes
+
+* Optimized Ludo rendering with reduced per-frame work, cached lyric state, compositor-friendly animation, and improved renderer reuse.
+
 ## [0.7.4] - 2026-10-20
 
 ### Highlights
