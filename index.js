@@ -251,7 +251,7 @@ let loopPreferences = {
     useGrooveOverrides: true,
     enableLyricsTranslation: false,
     lyricsTranslationLanguage: "en",
-    lyricsProviderOrder: ["groove", "lrclib"],
+    lyricsProviderOrder: ["groove", "lyricsplus", "lrclib"],
     loopUpdateInterval: 500,
     kawarpFpsCap: 60,
     kawarpFpsLogging: false,
@@ -303,10 +303,11 @@ const grooveEditorURL = "https://loop.mizucode.qzz.io/groove/";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
 const lyricsProviders = [
     { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/v1/track" },
+    { id: "lyricsplus", label: "LyricsPlus", endpoint: "https://lyricsplus.prjktla.my.id/v2/lyrics/get" },
     { id: "lrclib", label: "LRCLIB", endpoint: "https://lrclib.net/api/search" },
     { id: "groove-dev", label: "Groove (dev)", endpoint: "http://127.0.0.1:8787/api/v1/track" },
 ];
-const defaultLyricsProviderIds = ["groove", "lrclib"];
+const defaultLyricsProviderIds = ["groove", "lyricsplus", "lrclib"];
 const supportedLyricsTranslationLanguages = new Set([
     "ar", "bn", "de", "en", "es", "fr", "hi", "id", "it", "ja", "ko", "pt", "ru", "tr", "vi", "zh",
 ]);
@@ -1698,7 +1699,7 @@ async function resetLoopData() {
         useGrooveOverrides: true,
         enableLyricsTranslation: false,
         lyricsTranslationLanguage: "en",
-        lyricsProviderOrder: ["groove", "lrclib"],
+        lyricsProviderOrder: ["groove", "lyricsplus", "lrclib"],
         loopUpdateInterval: defaultLoopUpdateInterval,
         kawarpFpsCap: defaultKawarpFpsCap,
         kawarpFpsLogging: false,
@@ -2493,6 +2494,20 @@ function getExtensionURL(path) {
     }
 }
 
+function toLRC(lines) {
+    return lines
+        .filter(line => line.text && Number.isFinite(line.time))
+        .map(line => {
+            const minutes = Math.floor(line.time / 60000);
+            const seconds = (line.time % 60000) / 1000;
+
+            return `[${String(minutes).padStart(2, "0")}:${seconds
+                .toFixed(2)
+                .padStart(5, "0")}]${line.text}`;
+        })
+        .join("\n");
+}
+
 function hasSyncedLyricTimestamps(syncedLyrics) {
     return String(syncedLyrics || "")
         .split(/\r?\n/)
@@ -2631,6 +2646,29 @@ async function getLyricsFromGroove(trackId, title, artist, trackDurationInSecond
     return lyrics;
 }
 
+async function getLyricsFromLyricsPlus(title, artist, signal) {
+    const provider = lyricsProviders.find((entry) => entry.id === "lyricsplus");
+    const query = new URLSearchParams({ title, artist }).toString();
+    const response = await fetch(`${provider.endpoint}?${query}`, { signal });
+    if (!response.ok) throw new Error(`LyricsPlus returned ${response.status}`);
+
+    const payload = await response.json();
+    const lines = Array.isArray(payload?.lyrics) ? payload.lyrics : [];
+    const syncedLyrics = toLRC(lines);
+    if (!syncedLyrics) throw new Error("LyricsPlus returned no usable lyrics");
+
+    return normalizeLyricsResponse({
+        ...payload,
+        syncedLyrics,
+        plainLyrics: lines
+            .filter((line) => line.text)
+            .map((line) => line.text)
+            .join("\n"),
+        duration: payload?.metadata?.totalDuration || payload?.duration,
+        songWriters: payload?.metadata?.songWriters || [],
+    }, "lyricsplus");
+}
+
 async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSeconds, signal) {
     const searchLrclib = async (searchText) => {
         const query = new URLSearchParams({ q: searchText }).toString();
@@ -2752,7 +2790,9 @@ async function getLyricsCandidatesForAllProviders(trackId, title, artist, durati
         try {
             const candidates = provider.id === "lrclib"
                 ? await getLrclibCandidateResults(trackId, title, artist, undefined, queryOverride)
-                : [await getLyricsFromGroove(trackId, title, artist, duration, provider.id)];
+                : provider.id === "lyricsplus"
+                    ? [await getLyricsFromLyricsPlus(title, artist)]
+                    : [await getLyricsFromGroove(trackId, title, artist, duration, provider.id)];
             return { provider, candidates };
         } catch (error) {
             console.warn(`[loop.mp3] ${provider.label} candidate search failed:`, error);
@@ -2823,7 +2863,9 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
         const controller = new AbortController();
         const request = providerId === "lrclib"
             ? getLyricsFromLrclib(trackId, title, artist, trackDurationInSeconds, controller.signal)
-            : getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds, providerId, controller.signal);
+            : providerId === "lyricsplus"
+                ? getLyricsFromLyricsPlus(title, artist, controller.signal)
+                : getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds, providerId, controller.signal);
 
         const promise = request.then((lyrics) => {
             if (!lyrics) throw new Error(`${providerId} returned no usable lyrics`);
