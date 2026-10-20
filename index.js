@@ -5248,13 +5248,64 @@ function getCurrentMedia() {
     return media.find((element) => !element.paused && !element.ended) || media[0];
 }
 
+function showCloseProtectionModal(media) {
+    const existingModal = document.getElementById("loop-close-protection-modal");
+    if (existingModal) {
+        existingModal.querySelector(".loop-close-protection-continue")?.focus();
+        return;
+    }
+
+    const modal = document.createElement("div");
+    modal.id = "loop-close-protection-modal";
+    modal.setAttribute("role", "alertdialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "loop-close-protection-title");
+    modal.innerHTML = `
+        <div class="loop-close-protection-card">
+            <div class="loop-close-protection-kicker">Playback protection</div>
+            <h2 id="loop-close-protection-title">Music is still playing</h2>
+            <p class="loop-close-protection-description">
+                Playback was paused because this tab is being closed. Confirm closing, or keep the music playing.
+            </p>
+            <div class="loop-close-protection-actions">
+                <button type="button" class="loop-close-protection-close">Confirm closing</button>
+                <button type="button" class="loop-close-protection-continue">Keep listening</button>
+            </div>
+        </div>`;
+    (document.getElementById("loop") || document.body).appendChild(modal);
+
+    const close = () => modal.remove();
+    modal.querySelector(".loop-close-protection-close").addEventListener("click", () => {
+        close();
+        const sendMessage = globalThis.chrome?.runtime?.sendMessage;
+        if (typeof sendMessage !== "function") {
+            window.close();
+            return;
+        }
+        sendMessage.call(globalThis.chrome.runtime, { type: "close-current-tab" })
+            .catch(() => showLoopNotification("Could not close this tab automatically."));
+    });
+    modal.querySelector(".loop-close-protection-continue").addEventListener("click", () => {
+        media.play().catch((error) => console.warn("[loop.mp3] Could not resume media:", error));
+        updatePlaybackControls(media);
+        close();
+    });
+    modal.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        media.play().catch((error) => console.warn("[loop.mp3] Could not resume media:", error));
+        updatePlaybackControls(media);
+        close();
+    });
+    modal.querySelector(".loop-close-protection-close").focus();
+}
+
 window.addEventListener("beforeunload", (event) => {
     const media = getCurrentMedia();
     if (!media || media.paused || media.ended) return;
 
-    media.muted = true;
+    media.pause();
     updatePlaybackControls(media);
-    showLoopNotification("Music muted. Pause playback to close Loop.");
+    showCloseProtectionModal(media);
     event.preventDefault();
     event.returnValue = "";
 });

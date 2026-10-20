@@ -58,6 +58,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "close-current-tab" && sender.tab?.id) {
+        chrome.tabs.remove(sender.tab.id).catch((error) => {
+            console.warn("[loop.mp3] Could not close the current tab:", error);
+        });
+        return;
+    }
+
     if (message.type === "publish-lyrics") {
         (async () => {
             try {
