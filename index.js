@@ -120,8 +120,11 @@ function publishElectronMiniPlayerCommand(type) {
 function publishDiscordActivity({ force = false } = {}) {
     const loop = document.getElementById("loop");
     const media = getCurrentMedia();
+    if (!media) {
+      return;
+    }
     const title = loop?.querySelector("#loop-track-title")?.textContent.trim() || "";
-    const artist = loop?.querySelector("#loop-track-artist")?.textContent.trim() || "";
+    const artist = media.paused ? `Paused` : loop?.querySelector("#loop-track-artist")?.textContent.trim() || "";
     const album = loop?.querySelector("#loop-track-album")?.textContent.trim() || "";
     const artwork = loop?.querySelector("#loop-artwork")?.src || "";
     const now = Date.now();
@@ -4500,7 +4503,7 @@ async function getTrackWriterCredits(browseId) {
     }
 }
 
-// this is the selector that gets the writers name apparently ytm is wasting our precious ram in saving 100's of lines of useless json even in this ram cris 
+// this is the selector that gets the writers name apparently ytm is wasting our precious ram in saving 100's of lines of useless json even in this ram cris
 function getTrackWritersFromBrowse(data) {
     const writers = [];
     const getText = (value) => {
@@ -4612,7 +4615,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
                 ?.querySelector('a.yt-simple-endpoint[href^="browse/"]')
                 ?.textContent.trim();
         const AuthorNameComposed =
-            details.author_name.replace(/\s*[-–—]\s*Topic$/i, '').trim();  
+            details.author_name.replace(/\s*[-–—]\s*Topic$/i, '').trim();
         // Use the canonical title so collaborations remain intact.
         const title =
             details.title ||
@@ -4730,7 +4733,7 @@ function updateLoop(artworkURL, trackInfo) {
                     <div><kbd>Ctrl + F5</kbd> Reload Loop Session</div>
                     <div><kbd>F5</kbd> Reload Resources</div>
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
-                    <div><kbd>F</kbd> Fullscreen <span>(press esc to close)</span></div>                   
+                    <div><kbd>F</kbd> Fullscreen <span>(press esc to close)</span></div>
                     <label class="loop-navigation-toggle">
                         <input id="loop-navigation-toggle" type="checkbox">
                         Show previous/next buttons
@@ -4759,7 +4762,7 @@ function updateLoop(artworkURL, trackInfo) {
                         Show album name
                     </label>
                     <div class="loop-setting-warning" role="note">
-                        Album names might not be accurate in some scenario 
+                        Album names might not be accurate in some scenario
                     </div>
                     <label class="loop-navigation-toggle">
                         <input id="loop-legacy-fallback-toggle" type="checkbox">
@@ -4928,7 +4931,7 @@ function updateLoop(artworkURL, trackInfo) {
                     <i class="fa-solid fa-power-off" aria-hidden="true"></i>
                     </button>
                     <button id="loop-toggle-fullscreen" type="button" aria-label="Toggle Fullscreen" title="Toggle Fullscreen">
-                    <i class="fa-solid fa-expand" aria-hidden="true"></i>                    
+                    <i class="fa-solid fa-expand" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>`;
@@ -4968,7 +4971,7 @@ function updateLoop(artworkURL, trackInfo) {
                 console.error("[loop.mp3] Could not toggle fullscreen:", error);
                 showLoopNotification("Could not toggle fullscreen", 3000);
             });
-        });    
+        });
         loop.querySelector("#loop-mini-player-button").addEventListener("click", () => {
             openMiniPlayer().catch((error) => {
                 console.warn("[loop.mp3] Could not open miniplayer:", error);
@@ -6269,11 +6272,11 @@ function isElectron() {
   if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
     return true;
   }
-  
+
   if (typeof navigator === 'object' && typeof navigator.userAgent === 'string' && navigator.userAgent.indexOf('Electron') >= 0) {
     return true;
   }
-  
+
   return false;
 }
 
