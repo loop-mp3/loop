@@ -302,9 +302,9 @@ const unisonTranslationRetryDelaysMs = [3_000, 5_000, 10_000, 15_000];
 const grooveEditorURL = "https://loop.mizucode.qzz.io/groove/";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
 const lyricsProviders = [
-    { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/v1/track" },
     { id: "lyricsplus", label: "LyricsPlus", endpoint: "https://lyricsplus.prjktla.my.id/v2/lyrics/get" },
     { id: "lrclib", label: "LRCLIB", endpoint: "https://lrclib.net/api/search" },
+    { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/v1/track" },
     { id: "groove-dev", label: "Groove (dev)", endpoint: "http://127.0.0.1:8787/api/v1/track" },
 ];
 const defaultLyricsProviderIds = ["groove", "lyricsplus", "lrclib"];
