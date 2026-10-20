@@ -3132,7 +3132,7 @@ function loadBraccatoLyrics() {
         braccatoLyricsPromise = Promise.all([
             import(getExtensionURL("modules/braccato/renderer.js")),
             import(getExtensionURL("modules/braccato/inject.js")),
-            import(getExtensionURL("modules/ludo/index.js")),
+            import(getExtensionURL("ludo/index.js")),
         ])
             .then(async ([{ createLyricsRenderer }, { injectTranslation }, ludo]) => ({
                 createLyricsRenderer,
