@@ -300,6 +300,7 @@ const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
 const lyricsTranslationEndpoint = "https://unison.boidu.dev/translate";
 const unisonTranslationRetryDelaysMs = [3_000, 5_000, 10_000, 15_000];
 const grooveEditorURL = "https://loop.mizucode.qzz.io/groove/";
+const geniusURL = "https://genius.com";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
 const lyricsProviders = [
     { id: "lyricsplus", label: "LyricsPlus", endpoint: "https://lyricsplus.prjktla.my.id/v2/lyrics/get" },
@@ -3148,6 +3149,19 @@ function loadBraccatoLyrics() {
     return braccatoLyricsPromise;
 }
 
+function getGeniusLyricsURL(title, artist) {
+    const slugify = (value) => String(value || "")
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/&/g, " and ")
+        .replace(/[^a-zA-Z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .toLowerCase();
+    const artistSlug = slugify(artist);
+    const titleSlug = slugify(title);
+    return `${geniusURL}/${artistSlug}-${titleSlug}-lyrics`;
+}
+
 function ensureLyricsFooter(shadow) {
     let footer = shadow.querySelector("#loop-lyrics-footer");
     if (footer) return footer;
@@ -3169,14 +3183,13 @@ function ensureLyricsFooter(shadow) {
         });
     });
 
-    const wrongLyricsLink = document.createElement("a");
-    wrongLyricsLink.className = "loop-lyrics-footer-button loop-lyrics-wrong-link";
-    wrongLyricsLink.target = "_blank";
-    wrongLyricsLink.rel = "noopener noreferrer";
-    wrongLyricsLink.href = grooveEditorURL;
-    wrongLyricsLink.setAttribute("aria-label", "Report wrong lyrics");
-    wrongLyricsLink.title = "Correct these lyrics in Groove";
-    wrongLyricsLink.innerHTML = '<span>Wrong lyrics?</span>';
+    const geniusLink = document.createElement("a");
+    geniusLink.className = "loop-lyrics-footer-button loop-lyrics-genius-link";
+    geniusLink.target = "_blank";
+    geniusLink.rel = "noopener noreferrer";
+    geniusLink.setAttribute("aria-label", "Open lyrics in Genius");
+    geniusLink.title = "Open lyrics in Genius";
+    geniusLink.innerHTML = '<span>Search on Genius</span>';
 
     const reselectButton = document.createElement("button");
     reselectButton.className = "loop-lyrics-footer-button loop-lyrics-reselect-button";
@@ -3208,7 +3221,7 @@ function ensureLyricsFooter(shadow) {
 
     const actions = document.createElement("div");
     actions.className = "loop-lyrics-footer-actions";
-    actions.append(reloadButton, reselectButton, providerSelect, wrongLyricsLink);
+    actions.append(reloadButton, reselectButton, providerSelect, geniusLink);
     footer.append(actions);
     shadow.appendChild(footer);
     return footer;
@@ -3579,8 +3592,11 @@ function updateLyricsFooter(shadow, lyrics, songwriters = [], hasSungLyrics = tr
         }));
         providerSelect.value = selectedProvider;
     }
-    const wrongLyricsLink = footer.querySelector(".loop-lyrics-wrong-link");
-    if (wrongLyricsLink) wrongLyricsLink.href = grooveEditorURL;
+    const loop = document.querySelector("#loop");
+    const title = loop?.querySelector("#loop-track-title")?.textContent.trim();
+    const artist = loop?.querySelector("#loop-track-artist")?.textContent.trim();
+    const geniusLink = footer.querySelector(".loop-lyrics-genius-link");
+    if (geniusLink && title && artist) geniusLink.href = getGeniusLyricsURL(title, artist);
     footer.hidden = false;
     syncLyricsFooterVisibility(shadow);
 }
