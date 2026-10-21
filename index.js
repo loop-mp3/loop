@@ -301,6 +301,7 @@ const lyricsTranslationEndpoint = "https://unison.boidu.dev/translate";
 const unisonTranslationRetryDelaysMs = [3_000, 5_000, 10_000, 15_000];
 const grooveEditorURL = "https://loop.mizucode.qzz.io/groove/";
 const geniusURL = "https://genius.com";
+const unisonURL = "https://unison.boidu.dev";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
 const lyricsProviders = [
     { id: "lyricsplus", label: "LyricsPlus", endpoint: "https://lyricsplus.prjktla.my.id/v2/lyrics/get" },
@@ -4914,7 +4915,7 @@ function updateLoop(artworkURL, trackInfo) {
                         <select id="loop-lyrics-provider-select" aria-label="Preferred lyrics provider"></select>
                     </label>
                     <button id="loop-lyrics-submit-button" class="loop-menu-action" type="button">
-                        Submit lyrics to LRCLIB
+                        Submit lyrics to Unison (lyrics+ source)
                     </button>
                     <button id="loop-lyrics-cache-button" class="loop-menu-action" type="button">
                         View cached lyrics
@@ -5160,7 +5161,10 @@ function updateLoop(artworkURL, trackInfo) {
         });
         loop.querySelector("#loop-lyrics-submit-button").addEventListener("click", () => {
             loop.querySelector("#loop-shortcuts-panel").hidden = true;
-            showLyricsSubmissionModal();
+            // we no longer support lrc lib sumission the never worked either btw
+            //showLyricsSubmissionModal();
+          window.open(unisonURL, "_blank");
+
         });
         loop.querySelector("#loop-lyrics-cache-button").addEventListener("click", () => {
             loop.querySelector("#loop-shortcuts-panel").hidden = true;
