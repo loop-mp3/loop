@@ -301,7 +301,7 @@ const lyricsTranslationEndpoint = "https://unison.boidu.dev/translate";
 const unisonTranslationRetryDelaysMs = [3_000, 5_000, 10_000, 15_000];
 const grooveEditorURL = "https://loop.mizucode.qzz.io/groove/";
 const geniusURL = "https://genius.com";
-const unisonURL = "https://unison.boidu.dev";
+const unisonURL = "https://unison.prjktla.my.id/submit";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
 const lyricsProviders = [
     { id: "lyricsplus", label: "LyricsPlus", endpoint: "https://lyricsplus.prjktla.my.id/v2/lyrics/get" },
