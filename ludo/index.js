@@ -76,7 +76,7 @@ export function createLudoLyricsRenderer(lines, view) {
             const charCount = Math.max(1, [...part.lyricElement.textContent].length);
             const start = cursor;
             const end = cursor + charCount;
-            const progress = Math.max(0, Math.min(1, (elapsedChars - start) / charCount));
+            const progress = Math.max(0, Math.min(1, (elapsedChars - start) / (end - start)));
             const rtl = part.highlightElement.classList.contains("blyrics-rtl");
             part.highlightElement.style.clipPath = rtl
                 ? `inset(0 0 0 ${(1 - progress) * 100}%)`
