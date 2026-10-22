@@ -4721,6 +4721,134 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
     }
 }
 
+function getRecommendationText(node) {
+    return node?.textContent?.replace(/\s+/g, " ").trim() || "";
+}
+
+function getEmptyStateRecommendationShelves() {
+    const shelfSelectors = [
+        "ytmusic-carousel-shelf-renderer",
+        "ytmusic-rich-section-renderer",
+        "ytmusic-rich-shelf-renderer",
+        "ytmusic-shelf-renderer",
+    ];
+    const shelfNames = /new releases?|quick picks?|quickplay|listen again/i;
+    return [...document.querySelectorAll(shelfSelectors.join(","))]
+        .filter((shelf) => !shelf.closest("#loop"))
+        .map((shelf) => {
+            const heading = [...shelf.querySelectorAll(
+                "h2, h3, yt-formatted-string, .title, [id*=title]"
+            )]
+                .map(getRecommendationText)
+                .find((text) => shelfNames.test(text));
+            return heading ? { shelf, heading } : null;
+        })
+        .filter(Boolean);
+}
+
+function getRecommendationVideoId(url) {
+    try {
+        const parsedURL = new URL(url, location.href);
+        return parsedURL.searchParams.get("v") ||
+            parsedURL.pathname.match(/(?:\/watch\/|\/embed\/|\/shorts\/|\/v\/)([^/?#]+)/)?.[1] ||
+            "";
+    } catch {
+        return "";
+    }
+}
+
+function getRecommendationArtwork(url, fallback) {
+    const videoId = getRecommendationVideoId(url);
+    return videoId ? `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/maxresdefault.jpg` : fallback;
+}
+
+function getRecommendationCardData(shelf) {
+    const cardSelectors = [
+        "ytmusic-two-row-item-renderer",
+        "ytmusic-responsive-list-item-renderer",
+        "ytmusic-rich-item-renderer",
+        "ytmusic-video-renderer",
+    ];
+    const cards = [...shelf.querySelectorAll(cardSelectors.join(","))];
+    return cards.map((sourceCard) => {
+        const link = sourceCard.querySelector(
+            'a[href*="watch"], a[href*="browse"], a[href*="playlist"]'
+        );
+        const image = sourceCard.querySelector("img");
+        const title = [...sourceCard.querySelectorAll(
+            "yt-formatted-string, .title, [id*=title]"
+        )]
+            .map(getRecommendationText)
+            .find((text) => text && !/^(play|pause|more)$/i.test(text));
+        const artist = [...sourceCard.querySelectorAll(
+            ".subtitle, .byline, [class*=subtitle], [class*=byline]"
+        )].map(getRecommendationText).find(Boolean);
+        if (!link || !title || !image?.src) return null;
+        return {
+            sourceCard,
+            action: sourceCard.querySelector(
+                'button[aria-label*="play" i], a[href*="watch"], a[href*="browse"], a[href*="playlist"]'
+            ) || sourceCard,
+            href: link.href,
+            image: getRecommendationArtwork(link.href, image.currentSrc || image.src),
+            fallbackImage: image.currentSrc || image.src,
+            title,
+            artist: artist || "",
+        };
+    }).filter(Boolean);
+}
+
+function renderEmptyStateRecommendations(loop) {
+    const container = loop?.querySelector("#loop-empty-recommendations");
+    if (!container) return;
+
+    const shelves = getEmptyStateRecommendationShelves();
+    const signature = shelves.map(({ shelf, heading }) =>
+        `${heading}:${getRecommendationCardData(shelf).map((card) => card.href).join(",")}`
+    ).join("|");
+    if (container.dataset.signature === signature) return;
+    container.dataset.signature = signature;
+    container.replaceChildren();
+
+    shelves.forEach(({ shelf, heading }) => {
+        const cards = getRecommendationCardData(shelf).slice(0, 8);
+        if (!cards.length) return;
+        const section = document.createElement("section");
+        section.className = "loop-empty-recommendation-section";
+        const title = document.createElement("h2");
+        title.textContent = heading;
+        section.appendChild(title);
+        const list = document.createElement("div");
+        list.className = "loop-empty-recommendation-list";
+        cards.forEach((card) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "loop-empty-recommendation-card";
+            button.title = card.artist ? `${card.title} — ${card.artist}` : card.title;
+            const artwork = document.createElement("img");
+            artwork.src = card.image;
+            artwork.alt = "";
+            artwork.addEventListener("error", () => {
+                if (artwork.src !== card.fallbackImage) artwork.src = card.fallbackImage;
+            }, { once: true });
+            const cardTitle = document.createElement("span");
+            cardTitle.className = "loop-empty-recommendation-title";
+            cardTitle.textContent = card.title;
+            const cardArtist = document.createElement("span");
+            cardArtist.className = "loop-empty-recommendation-artist";
+            cardArtist.textContent = card.artist;
+            button.append(artwork, cardTitle, cardArtist);
+            button.addEventListener("click", () => {
+                card.action.click();
+            });
+            list.appendChild(button);
+        });
+        section.appendChild(list);
+        container.appendChild(section);
+    });
+    container.hidden = !container.children.length;
+}
+
 function syncWindowTitle() {
     const loop = document.getElementById("loop");
     if (!loop || loop.classList.contains("loop-empty")) {
@@ -4931,11 +5059,7 @@ function updateLoop(artworkURL, trackInfo) {
                         Open mini player when minimized
                     </label>
                 </div>
-                <div id="loop-empty-state" hidden>
-                    <div class="loop-empty-title">Nothing is playing</div>
-                    <div class="loop-empty-subtitle">Search something to play</div>
-                    <kbd>Ctrl + K</kbd>
-                </div>
+
                 <div id="loop-inline-buttons" aria-label="Playback controls">
                     <button id="loop-previous-button" type="button" aria-label="Previous track" hidden>&#9198;</button>
                     <button id="loop-play-button" type="button" aria-label="Play">&#9654;</button>
@@ -4974,6 +5098,7 @@ function updateLoop(artworkURL, trackInfo) {
                     </div>
                 </div>
                 <section id="loop-lyrics-panel" aria-label="Synchronized lyrics" hidden>
+                    <div id="loop-empty-recommendations" hidden aria-label="YouTube Music recommendations"></div>
                     <div id="loop-lyrics-host"></div>
                 </section>
                 <div id="loop-action-dock" aria-label="Track actions">
@@ -5261,11 +5386,12 @@ function updateLoop(artworkURL, trackInfo) {
     const title = loop.querySelector("#loop-track-title");
     const artist = loop.querySelector("#loop-track-artist");
     const album = loop.querySelector("#loop-track-album");
-    const emptyState = loop.querySelector("#loop-empty-state");
+    const emptyRecommendations = loop.querySelector("#loop-empty-recommendations");
+    const lyricsHost = loop.querySelector("#loop-lyrics-host");
 
     // YouTube Music can replace DOM nodes while navigating between tracks.
     // Rebuild the injected UI if one of its required nodes disappeared.
-    if (!artwork || !title || !artist || !album || !emptyState) {
+    if (!artwork || !title || !artist || !album || !emptyRecommendations || !lyricsHost) {
         loop.remove();
         return updateLoop(artworkURL, trackInfo);
     }
@@ -5290,13 +5416,20 @@ function updateLoop(artworkURL, trackInfo) {
         (presentationMode === "auto" && loop.dataset.trackVideo === "true"));
     applyVideoPresentationPreferences();
     if (trackInfo.isVideo === true && loopPreferences.videoBehaviorEnabled !== false) showVideoUi();
-    emptyState.hidden = !trackInfo.empty;
+    emptyRecommendations.hidden = !trackInfo.empty;
+    lyricsHost.hidden = Boolean(trackInfo.empty);
+    if (trackInfo.empty) renderEmptyStateRecommendations(loop);
     updateVideoBackground(lastTrackId, loop.dataset.videoBackground === "true");
     syncWindowTitle();
     syncTrackFeedbackState();
     scheduleTrackFeedbackSync();
     updateKawarpArtwork(artwork.src);
     updateLoopLyrics(trackInfo.lyrics, Boolean(trackInfo.empty), currentTrackWriters);
+    if (trackInfo.empty) {
+        const lyricsPanel = loop.querySelector("#loop-lyrics-panel");
+        lyricsPanel.hidden = false;
+        emptyRecommendations.hidden = false;
+    }
     updatePlaybackControls(getCurrentMedia());
     syncVideoBackgroundPlayback();
     publishDiscordActivity({ force: true });
