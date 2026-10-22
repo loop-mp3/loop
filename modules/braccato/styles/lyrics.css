@@ -139,6 +139,18 @@
 	initial-value: -0.1;
 }
 
+.blyrics--word[data-word-state="upcoming"],
+.blyrics--word[data-word-state="active"] {
+	/* Hard contrast keeps the karaoke progression readable against bright artwork. */
+	color: #242424;
+	transition: color 80ms linear;
+}
+
+.blyrics--word[data-word-state="past"] {
+	color: #fff;
+	transition: color 80ms linear;
+}
+
 .blyrics--word.blyrics-word-highlight {
 	color: transparent;
 	background-image: linear-gradient(
@@ -165,6 +177,20 @@
 		#00000000
 			calc(100% * var(--lyric-transition-amount-end) + 1px)
 	);
+}
+
+/* Keep completed syllables highlighted even when a seek, tab switch, or dropped animation frame
+   prevents the Web Animation from reaching its final keyframe. The active part still uses the
+   gradient/mask above, so its fill progresses with the provider's timestamp. */
+.blyrics--word.blyrics-word-highlight[data-word-state="past"] {
+	background-image: none;
+	color: #fff;
+	opacity: 1;
+}
+
+.blyrics--word.blyrics-word-highlight[data-word-state="past"] .blyrics--letter {
+	-webkit-mask-image: none;
+	mask-image: none;
 }
 
 .blyrics--letter {
