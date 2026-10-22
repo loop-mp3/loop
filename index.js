@@ -274,6 +274,9 @@ let createLudoLyricsController;
 let lyricsRequestId = 0;
 let lyricsRetryTimer;
 let currentTrackLyricsProvider = { trackId: null, providerId: null };
+let currentParsedLyrics = [];
+let currentLyricsRenderOptions = {};
+let lastLudoSyllableWarningKey = "";
 let currentTrackWriters = [];
 let notificationTimer;
 let notificationAnimationTimer;
@@ -472,8 +475,25 @@ function normalizeLyricsRenderingEngine(value) {
     return value === "ludo" || value === "diff" ? "ludo" : "standard";
 }
 
+function hasSyllableSync(lines) {
+    return lines.some((line) => line.parts?.some((part) => part.durationMs > 0));
+}
+
+function getLyricsForRenderingEngine(lines) {
+    if (loopPreferences.lyricsRenderingEngine !== "ludo") return lines;
+    return lines.map((line) => ({ ...line, parts: [] }));
+}
+
 function applyLyricsRenderingEngine() {
     if (!createLudoLyricsController) return;
+    const syllableSync = hasSyllableSync(currentParsedLyrics);
+    if (loopPreferences.lyricsRenderingEngine === "ludo" && syllableSync) {
+        const warningKey = `${lastTrackId || ""}:${currentTrackLyricsProvider.providerId || ""}`;
+        if (warningKey !== lastLudoSyllableWarningKey) {
+            lastLudoSyllableWarningKey = warningKey;
+            showLoopNotification("Ludo does not support syllable sync; using line sync.", 4500);
+        }
+    }
     ludoLyricsController ??= createLudoLyricsController();
     ludoLyricsController.apply({
         enabled: loopPreferences.lyricsRenderingEngine === "ludo",
@@ -2496,18 +2516,81 @@ function getExtensionURL(path) {
     }
 }
 
-function toLRC(lines) {
-    return lines
-        .filter(line => line.text && Number.isFinite(line.time))
-        .map(line => {
-            const minutes = Math.floor(line.time / 60000);
-            const seconds = (line.time % 60000) / 1000;
+function escapeTTMLText(value) {
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+}
 
-            return `[${String(minutes).padStart(2, "0")}:${seconds
-                .toFixed(2)
-                .padStart(5, "0")}]${line.text}`;
+function formatTTMLTime(milliseconds) {
+    const totalSeconds = Math.max(0, Number(milliseconds) || 0) / 1_000;
+    const hours = Math.floor(totalSeconds / 3_600);
+    const minutes = Math.floor((totalSeconds % 3_600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${seconds.toFixed(3).padStart(6, "0")}`;
+}
+
+function lyricsPlusToTTML(lines) {
+    const body = lines
+        .filter((line) => line?.text && Number.isFinite(Number(line.time)))
+        .map((line, index, validLines) => {
+            const start = Number(line.time);
+            const explicitEnd = start + Math.max(0, Number(line.duration) || 0);
+            const nextStart = Number(validLines[index + 1]?.time);
+            const end = explicitEnd > start ? explicitEnd : Number.isFinite(nextStart) ? nextStart : start + 4_000;
+            const syllables = Array.isArray(line.syllabus) ? line.syllabus : [];
+            const content = syllables.length
+                ? syllables.map((syllable) => `<span begin="${formatTTMLTime(syllable.time)}" dur="${formatTTMLTime(syllable.duration)}">${escapeTTMLText(syllable.text)}</span>`).join("")
+                : escapeTTMLText(line.text);
+            return `<p begin="${formatTTMLTime(start)}" end="${formatTTMLTime(end)}">${content}</p>`;
         })
-        .join("\n");
+        .join("");
+    return `<tt xmlns="http://www.w3.org/ns/ttml"><body><div>${body}</div></body></tt>`;
+}
+
+function parseTTMLTimestamp(value) {
+    const timestamp = String(value || "").trim();
+    const clock = timestamp.match(/^(?:(\d+):)?(\d{2}):(\d{2}(?:\.\d+)?)$/);
+    if (clock) {
+        return ((Number(clock[1] || 0) * 3_600) + Number(clock[2]) * 60 + Number(clock[3])) * 1_000;
+    }
+    const offset = timestamp.match(/^(\d+(?:\.\d+)?)(ms|s)$/);
+    if (offset) return Number(offset[1]) * (offset[2] === "s" ? 1_000 : 1);
+    return NaN;
+}
+
+function parseTTMLLyrics(ttml, songDurationMs) {
+    if (typeof DOMParser !== "function") return [];
+    const documentRoot = new DOMParser().parseFromString(String(ttml), "application/xml");
+    if (documentRoot.querySelector("parsererror")) return [];
+    const paragraphs = [...documentRoot.getElementsByTagNameNS("*", "p")];
+    return paragraphs.map((paragraph, index) => {
+        const startTimeMs = parseTTMLTimestamp(paragraph.getAttribute("begin"));
+        if (!Number.isFinite(startTimeMs)) return null;
+        const nextStartTimeMs = parseTTMLTimestamp(paragraphs[index + 1]?.getAttribute("begin"));
+        const explicitEndTimeMs = parseTTMLTimestamp(paragraph.getAttribute("end"));
+        const durationMs = Math.max(0,
+            Number.isFinite(explicitEndTimeMs) ? explicitEndTimeMs - startTimeMs :
+                Number.isFinite(nextStartTimeMs) ? nextStartTimeMs - startTimeMs :
+                    Number.isFinite(songDurationMs) ? songDurationMs - startTimeMs : 4_000
+        );
+        const parts = [...paragraph.children].filter((child) => child.localName === "span").map((span) => {
+            const partStartTimeMs = parseTTMLTimestamp(span.getAttribute("begin"));
+            const partDurationMs = parseTTMLTimestamp(span.getAttribute("dur"));
+            return Number.isFinite(partStartTimeMs) && Number.isFinite(partDurationMs)
+                ? { startTimeMs: partStartTimeMs, durationMs: partDurationMs, words: span.textContent || "" }
+                : null;
+        }).filter((part) => part && part.words);
+        return {
+            startTimeMs,
+            durationMs,
+            words: paragraph.textContent?.trim() || "",
+            parts: parts.length ? parts : undefined,
+        };
+    }).filter((line) => line?.words).sort((left, right) => left.startTimeMs - right.startTimeMs);
 }
 
 function hasSyncedLyricTimestamps(syncedLyrics) {
@@ -2656,8 +2739,8 @@ async function getLyricsFromLyricsPlus(title, artist, signal) {
 
     const payload = await response.json();
     const lines = Array.isArray(payload?.lyrics) ? payload.lyrics : [];
-    const syncedLyrics = toLRC(lines);
-    if (!syncedLyrics) throw new Error("LyricsPlus returned no usable lyrics");
+    const syncedLyrics = lyricsPlusToTTML(lines);
+    if (!syncedLyrics || !lines.some((line) => line?.text)) throw new Error("LyricsPlus returned no usable lyrics");
 
     return normalizeLyricsResponse({
         ...payload,
@@ -3049,6 +3132,9 @@ const braccatoLyricsShadowCSS = `
 `;
 
 function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs, instrumental = false) {
+    if (/^\s*<tt(?:\s|>)/i.test(String(syncedLyrics || ""))) {
+        return parseTTMLLyrics(syncedLyrics, songDurationMs);
+    }
     const lines = String(syncedLyrics || "")
         .split(/\r?\n/)
         .map((line) => {
@@ -3742,6 +3828,8 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         panel.hidden = true;
         footer.hidden = true;
         setLyricsResumeAffordanceVisible(shadow, false);
+        currentParsedLyrics = [];
+        currentLyricsRenderOptions = {};
         braccatoLyricsRenderer?.clear();
         return;
     }
@@ -3775,6 +3863,8 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         lyrics?.meta?.instrumental === true
     ), songwriters);
     if (!parsedLyrics.length) {
+        currentParsedLyrics = [];
+        currentLyricsRenderOptions = {};
         braccatoLyricsRenderer?.clear();
         loading.querySelector(".loop-lyrics-loading-label").textContent = "Hmm.. we arent quite there still searching for them";
         ensureManualLyricsSelectionLink(loading, trackId);
@@ -3844,12 +3934,17 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
             braccatoLyricsMount = view;
         }
         braccatoLyricsRenderer.setTheme(getBraccatoLyricsTheme());
-        braccatoLyricsRenderer.setLyrics(parsedLyrics, {
+        currentParsedLyrics = parsedLyrics;
+        currentLyricsRenderOptions = {
             noLyrics: false,
             songwriters,
             // Songwriter credits belong to the shell footer, not the scrollable lyric content.
             showCredits: false,
-        });
+        };
+        braccatoLyricsRenderer.setLyrics(
+            getLyricsForRenderingEngine(currentParsedLyrics),
+            currentLyricsRenderOptions
+        );
         applyLyricsAnimationPreferences();
         applyLyricsRenderingEngine();
 
@@ -4849,6 +4944,15 @@ function renderEmptyStateRecommendations(loop) {
     container.hidden = !container.children.length;
 }
 
+function rerenderLyricsForSelectedEngine() {
+    if (!braccatoLyricsRenderer || !currentParsedLyrics.length) return;
+    braccatoLyricsRenderer.setLyrics(
+        getLyricsForRenderingEngine(currentParsedLyrics),
+        currentLyricsRenderOptions
+    );
+    applyLyricsRenderingEngine();
+}
+
 function syncWindowTitle() {
     const loop = document.getElementById("loop");
     if (!loop || loop.classList.contains("loop-empty")) {
@@ -4967,7 +5071,7 @@ function updateLoop(artworkURL, trackInfo) {
                         </select>
                     </label>
                     <div id="loop-lyrics-rendering-warning" class="loop-setting-warning" role="note" hidden>
-                        Warning: Ludo is experimental and is meant to save resources; expect visual compromises and bugs.
+                        Warning: Ludo is experimental and does not support syllable sync; Lyrics+ syllables are normalized to line sync.
                     </div>
                     <label class="loop-navigation-toggle">
                         <input id="loop-lyrics-word-wobble-toggle" type="checkbox">
@@ -5219,7 +5323,7 @@ function updateLoop(artworkURL, trackInfo) {
             loopPreferences.lyricsRenderingEngine = normalizeLyricsRenderingEngine(event.target.value);
             saveLoopPreferences();
             applyLoopPreferences();
-            applyLyricsRenderingEngine();
+            rerenderLyricsForSelectedEngine();
         });
         loop.querySelector("#loop-lyrics-word-wobble-toggle").addEventListener("change", (event) => {
             loopPreferences.animateWordWobble = event.target.checked;
