@@ -2720,10 +2720,37 @@ async function getLyricsFromGroove(trackId, title, artist, trackDurationInSecond
     return lyrics;
 }
 
-async function getLyricsFromLyricsPlus(title, artist, signal) {
+async function getLyricsFromLyricsPlus(trackId, title, artist, signal) {
     const provider = lyricsProviders.find((entry) => entry.id === "lyricsplus");
-    const query = new URLSearchParams({ title, artist }).toString();
-    const response = await fetch(`${provider.endpoint}?${query}`, { signal });
+    const fetchLyrics = (searchArtist) => {
+        const query = new URLSearchParams({ title, artist: searchArtist }).toString();
+        return fetch(`${provider.endpoint}?${query}`, { signal });
+    };
+
+    let response = await fetchLyrics(artist);
+    if (response.status === 404 && trackId) {
+        try {
+            const oEmbedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://youtube.com/watch?v=${trackId}`)}&format=json`;
+            const oEmbedResponse = await fetch(oEmbedUrl, { signal });
+            if (oEmbedResponse.ok) {
+                const oEmbed = await oEmbedResponse.json();
+                const oEmbedArtist = String(oEmbed.author_name || "")
+                    .replace(/\s*[-–—]\s*Topic$/i, "")
+                    .trim();
+                if (oEmbedArtist && oEmbedArtist.toLowerCase() !== String(artist || "").trim().toLowerCase()) {
+                    console.log("[loop.mp3] LyricsPlus artist retry using the track author:", {
+                        title,
+                        artist,
+                        trackAuthor: oEmbedArtist,
+                    });
+                    response = await fetchLyrics(oEmbedArtist);
+                }
+            }
+        } catch (error) {
+            if (error?.name === "AbortError") throw error;
+            console.warn("[loop.mp3] LyricsPlus track-author retry failed:", error);
+        }
+    }
     if (!response.ok) throw new Error(`LyricsPlus returned ${response.status}`);
 
     const payload = await response.json();
@@ -2865,7 +2892,7 @@ async function getLyricsCandidatesForAllProviders(trackId, title, artist, durati
             const candidates = provider.id === "lrclib"
                 ? await getLrclibCandidateResults(trackId, title, artist, undefined, queryOverride)
                 : provider.id === "lyricsplus"
-                    ? [await getLyricsFromLyricsPlus(title, artist)]
+                    ? [await getLyricsFromLyricsPlus(trackId, title, artist)]
                     : [await getLyricsFromGroove(trackId, title, artist, duration, provider.id)];
             return { provider, candidates };
         } catch (error) {
@@ -2938,7 +2965,7 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
         const request = providerId === "lrclib"
             ? getLyricsFromLrclib(trackId, title, artist, trackDurationInSeconds, controller.signal)
             : providerId === "lyricsplus"
-                ? getLyricsFromLyricsPlus(title, artist, controller.signal)
+                ? getLyricsFromLyricsPlus(trackId, title, artist, controller.signal)
                 : getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds, providerId, controller.signal);
 
         const promise = request.then((lyrics) => {
