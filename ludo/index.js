@@ -16,6 +16,7 @@ export function createLudoLyricsRenderer(lines, view) {
     const marginActiveBottom = "22.4px";
 
     let activeIndex = -1;
+    let progressIndex = -1;
     let frameId = 0;
     let lastTime = 0;
     let scrollTop = view.scrollTop;
@@ -46,6 +47,50 @@ export function createLudoLyricsRenderer(lines, view) {
         }
     };
 
+    // Line-synced lyrics have no word durations. Give their existing highlight spans a
+    // playback-driven clip so the active line fills continuously instead of popping word by word.
+    // Rich-sync parts keep Braccato's own word/syllable animations untouched.
+    const paintLineProgress = (index, currentTime) => {
+        const line = lines[index];
+        if (!line?.parts?.length) return;
+        const parts = line.parts;
+        if (parts.some((part) => Number(part.duration) > 0)) return;
+
+        const nextLineTime = lines[index + 1]?.time;
+        const lineDuration = Number(line.duration) > 0
+            ? Number(line.duration)
+            : Number.isFinite(nextLineTime) && nextLineTime > line.time
+                ? nextLineTime - line.time
+                : 0;
+        if (!(lineDuration > 0)) return;
+
+        const timedParts = parts.filter((part) => part.highlightElement && part.lyricElement);
+        const totalChars = timedParts.reduce((sum, part) => sum + Math.max(1, [...part.lyricElement.textContent].length), 0);
+        if (!totalChars) return;
+
+        const lineProgress = Math.max(0, Math.min(1, (currentTime - line.time) / lineDuration));
+        const elapsedChars = lineProgress * totalChars;
+        let cursor = 0;
+
+        for (const part of timedParts) {
+            const charCount = Math.max(1, [...part.lyricElement.textContent].length);
+            const start = cursor;
+            const end = cursor + charCount;
+            const progress = Math.max(0, Math.min(1, (elapsedChars - start) / charCount));
+            const rtl = part.highlightElement.classList.contains("blyrics-rtl");
+            part.highlightElement.style.clipPath = rtl
+                ? `inset(0 0 0 ${(1 - progress) * 100}%)`
+                : `inset(0 ${(1 - progress) * 100}% 0 0)`;
+            cursor = end;
+        }
+    };
+
+    const clearLineProgress = (index) => {
+        for (const part of lines[index]?.parts || []) {
+            part.highlightElement?.style.removeProperty("clip-path");
+        }
+    };
+
     // Margins are applied only when the active line changes. Animating margins forces layout on
     // every frame, while scale and opacity remain compositor-friendly.
     for (const line of elements) {
@@ -58,7 +103,6 @@ export function createLudoLyricsRenderer(lines, view) {
     const paint = (index) => {
         const line = elements[index];
         if (!line) return;
-        // Scale and opacity are compositor-friendly properties.
         line.style.scale = scale[index].toFixed(4);
         line.style.opacity = opacity[index].toFixed(3);
     };
@@ -146,12 +190,27 @@ export function createLudoLyricsRenderer(lines, view) {
         tick(currentTime) {
             if (destroyed) return;
             let nextActiveIndex = -1;
-            // Lines are ordered by time, so stop at the first future line instead of scanning the
-            // entire lyric list on every playback update.
             for (let index = 0; index < lines.length; index++) {
                 if (lines[index].time > currentTime + 0.05) break;
                 nextActiveIndex = index;
             }
+
+            if (nextActiveIndex !== progressIndex) {
+                // Seeking can skip several lines. Bring those lines to their correct endpoint
+                // so old clip-path values never remain visible after a seek or track-time jump.
+                const low = Math.min(progressIndex, nextActiveIndex);
+                const high = Math.max(progressIndex, nextActiveIndex);
+                if (progressIndex >= 0 && nextActiveIndex >= 0) {
+                    for (let index = low; index <= high; index++) {
+                        if (index !== nextActiveIndex) paintLineProgress(index, currentTime);
+                    }
+                } else if (progressIndex >= 0) {
+                    clearLineProgress(progressIndex);
+                }
+                progressIndex = nextActiveIndex;
+            }
+            if (progressIndex >= 0) paintLineProgress(progressIndex, currentTime);
+
             if (nextActiveIndex !== activeIndex) {
                 const previousIndex = activeIndex;
                 activeIndex = nextActiveIndex;
@@ -164,9 +223,6 @@ export function createLudoLyricsRenderer(lines, view) {
                 if (elements[previousIndex]) elements[previousIndex].classList.remove("blyrics--active");
                 if (elements[activeIndex]) elements[activeIndex].classList.add("blyrics--active");
             }
-            // Layout can change when translations arrive, so refresh the scroll target at each
-            // playback update, but never force a layout read on every animation frame. Also add
-            // newly visible lines to the short animation set so every visible lyric is updated.
             markVisibleLines();
             targetScroll = null;
             start();
@@ -183,6 +239,7 @@ export function createLudoLyricsRenderer(lines, view) {
                 line.style.removeProperty("margin-bottom");
                 line.style.removeProperty("will-change");
             }
+            for (let index = 0; index < count; index++) clearLineProgress(index);
         },
     };
 }
