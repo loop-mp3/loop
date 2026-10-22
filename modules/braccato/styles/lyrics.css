@@ -147,7 +147,7 @@
 
 .blyrics--word[data-word-state="active"] {
 	/* Hard contrast keeps the current karaoke progression readable against bright artwork. */
-	color: #242424;
+	color: #636363;
 	transition: color 80ms linear;
 }
 
@@ -263,7 +263,7 @@
 	font-weight: 600;
 	color: color(
 			display-p3 1 1 1 / var(--blyrics-translated-opacity, 0.6)
-		);	
+		);
 	line-height: normal;
 	margin-top: 8px;
 	max-width: 100%;
