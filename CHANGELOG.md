@@ -1,6 +1,18 @@
 
 All notable changes to Loop are documented here.
 
+## [0.7.6] - 2026-10-22
+
+### Highlights
+
+* Added a "Search on Genius" action to the lyrics footer, opening a track-specific Genius lyrics page.
+* Replaced the nonfunctional LRCLIB lyrics-submission action with an Unison submission link for the lyrics+ source.
+* Added YouTube Music recommendation rails to the empty Loop view, including New releases, Quick picks, and Listen again content with playable cards and high-resolution artwork.
+
+### Internal and maintenance changes
+
+* Moved the Ludo lyrics renderer into the top-level `ludo/` directory, updated its extension resource path, and added renderer documentation and preview artwork.
+
 ## [0.7.5] - 2026-10-20
 
 ### Fixes
