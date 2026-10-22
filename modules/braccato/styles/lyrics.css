@@ -139,9 +139,14 @@
 	initial-value: -0.1;
 }
 
-.blyrics--word[data-word-state="upcoming"],
+.blyrics--word[data-word-state="upcoming"] {
+	/* Upcoming lyrics stay visible while the renderer prepares the active line early. */
+	color: #666;
+	transition: color 80ms linear;
+}
+
 .blyrics--word[data-word-state="active"] {
-	/* Hard contrast keeps the karaoke progression readable against bright artwork. */
+	/* Hard contrast keeps the current karaoke progression readable against bright artwork. */
 	color: #242424;
 	transition: color 80ms linear;
 }
