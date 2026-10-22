@@ -276,7 +276,7 @@ let lyricsRetryTimer;
 let currentTrackLyricsProvider = { trackId: null, providerId: null };
 let currentParsedLyrics = [];
 let currentLyricsRenderOptions = {};
-let lastLudoSyllableWarningKey = "";
+
 let currentTrackWriters = [];
 let notificationTimer;
 let notificationAnimationTimer;
@@ -475,25 +475,14 @@ function normalizeLyricsRenderingEngine(value) {
     return value === "ludo" || value === "diff" ? "ludo" : "standard";
 }
 
-function hasSyllableSync(lines) {
-    return lines.some((line) => line.parts?.some((part) => part.durationMs > 0));
-}
-
 function getLyricsForRenderingEngine(lines) {
-    if (loopPreferences.lyricsRenderingEngine !== "ludo") return lines;
-    return lines.map((line) => ({ ...line, parts: [] }));
+    // Ludo animates the line shell while Braccato keeps the timed parts inside each line alive.
+    // Keeping these parts is what allows Lyrics+ TTML syllables to progress in Ludo too.
+    return lines;
 }
 
 function applyLyricsRenderingEngine() {
     if (!createLudoLyricsController) return;
-    const syllableSync = hasSyllableSync(currentParsedLyrics);
-    if (loopPreferences.lyricsRenderingEngine === "ludo" && syllableSync) {
-        const warningKey = `${lastTrackId || ""}:${currentTrackLyricsProvider.providerId || ""}`;
-        if (warningKey !== lastLudoSyllableWarningKey) {
-            lastLudoSyllableWarningKey = warningKey;
-            showLoopNotification("Ludo does not support syllable sync; using line sync.", 4500);
-        }
-    }
     ludoLyricsController ??= createLudoLyricsController();
     ludoLyricsController.apply({
         enabled: loopPreferences.lyricsRenderingEngine === "ludo",
@@ -3076,7 +3065,9 @@ function getBraccatoLyricsTheme() {
     .blyrics-container {
         --blyrics-font-size: 3rem;
         --blyrics-line-height: 1.333;
-        --blyrics-padding: 2rem;
+        --blyrics-padding: 1.4rem;
+        --blyrics-active-opacity: 1;
+        --blyrics-inactive-opacity: 0.3;
         --blyrics-animate-word-wobble: 0;
         --blyrics-word-wobble-transform-from: scaleX(1);
         --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025);
@@ -3096,8 +3087,12 @@ const braccatoLyricsShadowCSS = `
     #loop-lyrics-view { display: block; width: 100%; height: 100%; overflow: auto; scrollbar-width: none; }
     #loop-lyrics-view::-webkit-scrollbar { display: none; }
     #loop-lyrics-view[hidden], #loop-lyrics-loading[hidden], #loop-lyrics-footer[hidden] { display: none; }
-    .blyrics--line:not(.blyrics--active) { filter: blur(2px); transition: filter 250ms ease; }
-    .blyrics--line.blyrics--active { filter: none; }
+    .blyrics--line { opacity: var(--blyrics-line-opacity, 0.3); transition: filter 250ms ease, opacity 250ms ease; }
+    .blyrics--line:not(.blyrics--active) { filter: blur(2px); }
+    .blyrics--line.blyrics--active { --blyrics-line-opacity: 1; filter: none; }
+    #loop-lyrics-view.loop-ludo-progression .blyrics--line { transition: filter 420ms ease, opacity 420ms ease; }
+    #loop-lyrics-view.loop-ludo-progression .blyrics--line:not(.blyrics--active) { filter: blur(3px); }
+    #loop-lyrics-view.loop-ludo-progression .blyrics--line.blyrics--active { filter: none; }
     #loop-lyrics-loading { position: absolute; top: 50%; left: 50%; display: flex; align-items: center; gap: 12px; transform: translate(-50%, -50%); color: rgba(255,255,255,.7); font-size: 15px; white-space: nowrap; }
     .loop-lyrics-loading-content { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
     .loop-lyrics-spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.22); border-top-color: #fff; border-radius: 50%; animation: loop-lyrics-spin 800ms linear infinite; }
@@ -5071,7 +5066,7 @@ function updateLoop(artworkURL, trackInfo) {
                         </select>
                     </label>
                     <div id="loop-lyrics-rendering-warning" class="loop-setting-warning" role="note" hidden>
-                        Warning: Ludo is experimental and does not support syllable sync; Lyrics+ syllables are normalized to line sync.
+                        Warning: Ludo is experimental; Lyrics+ syllable sync is supported through Braccato.
                     </div>
                     <label class="loop-navigation-toggle">
                         <input id="loop-lyrics-word-wobble-toggle" type="checkbox">

@@ -23,6 +23,7 @@ export function createLudoLyricsRenderer(lines, view) {
     let targetScroll = null;
     let destroyed = false;
     const animatedIndices = new Set();
+    view.classList.add("loop-ludo-progression");
 
     const markAnimated = (index) => {
         if (index >= 0 && index < count) animatedIndices.add(index);
@@ -174,6 +175,7 @@ export function createLudoLyricsRenderer(lines, view) {
         destroy() {
             destroyed = true;
             stop();
+            view.classList.remove("loop-ludo-progression");
             for (const line of elements) {
                 if (!line) continue;
                 line.classList.remove("blyrics--active");
