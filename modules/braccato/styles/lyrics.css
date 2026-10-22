@@ -231,6 +231,26 @@
 	mask-position: 100% 0%;
 }
 
+/* Line-synced lyrics have no syllable timestamps. Once their line starts, paint every word white
+   together instead of showing the rich-sync word-by-word progression. */
+.blyrics--word.blyrics-line-synced-word[data-word-state="active"],
+.blyrics--word.blyrics-line-synced-word[data-word-state="past"] {
+	color: #fff;
+}
+
+.blyrics--word.blyrics-word-highlight.blyrics-line-synced-word[data-word-state="active"],
+.blyrics--word.blyrics-word-highlight.blyrics-line-synced-word[data-word-state="past"] {
+	background-image: none !important;
+	color: #fff;
+	opacity: 1 !important;
+}
+
+.blyrics--word.blyrics-word-highlight.blyrics-line-synced-word[data-word-state="active"] .blyrics--letter,
+.blyrics--word.blyrics-word-highlight.blyrics-line-synced-word[data-word-state="past"] .blyrics--letter {
+	-webkit-mask-image: none;
+	mask-image: none;
+}
+
 [blyrics-alt-hover] .blyrics--word:hover {
 	text-decoration: underline;
 	text-underline-offset: 0.15em;

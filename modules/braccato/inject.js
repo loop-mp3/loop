@@ -8,9 +8,9 @@
 // because a marketplace theme selects on the shape as well as on the names.
 //
 // A part is not a word. Providers hand over parts that run to several words, and the unit the sweep
-// animates is one word, so every part is split on whitespace with its timing pro-rated across the
-// split by character count. A line that arrives with no timed parts at all is rebuilt the same way
-// into zero duration words, so line synced lyrics reach the DOM the sweep already knows.
+// A timed part may contain multiple words, so every part is split on whitespace with its timing
+// pro-rated across the split by character count. A line with no timed parts is rebuilt into zero-
+// duration words, but those words share the line timestamp and advance together.
 import { alignImageGlowRun, wrapImageHighlight } from "./imageHighlights.js";
 import { normalizeLanguage } from "./language.js";
 import { BACKGROUND_LINE_CLASS, BACKGROUND_LYRIC_CLASS, BIDI_RUN_CLASS, BIDI_SENSITIVE_CLASS, CONTENT_LINE_CLASS, EXPLICIT_WORD_CLASS, HIGHLIGHT_RUN_CLASS, LETTER_CLASS, LINE_MAIN_CLASS, LINE_SYNCED_WORD_CLASS, LONG_WORD_GROUP_CLASS, ROMANIZED_LYRICS_CLASS, RTL_CLASS, TRANSLATED_LYRICS_CLASS, WORD_CLASS, WORD_GROUP_CLASS, WORD_HIGHLIGHT_CLASS, WORD_HIGHLIGHT_LETTERED_CLASS, WORD_STATE_ATTR, WORD_STATE_UPCOMING, ZERO_DURATION_ANIMATION_CLASS, } from "./constants.js";
@@ -18,7 +18,7 @@ import { getSeekTimeFromClick } from "./seek.js";
 import { testJoiningScript, testRtl } from "./text.js";
 import { registerThemeSetting } from "./themeSettings.js";
 export let disableRichsync = registerThemeSetting("blyrics-disable-richsync", false, true);
-let lineSyncedAnimationDelay = registerThemeSetting("blyrics-line-synced-animation-delay", 50, true);
+
 let longWordThreshold = registerThemeSetting("blyrics-long-word-threshold", 1500, true);
 let longWordWrapThreshold = registerThemeSetting("blyrics-long-word-wrap-threshold", 10, true);
 let letterWave = registerThemeSetting("blyrics-letter-wave", true, true);
@@ -387,18 +387,16 @@ export function createLyricsLine(doc, parts, line, lyricElement, options = { spl
 export function buildLineSyncedParts(item) {
     const parts = [];
     const tokens = item.words.match(/\s+|\S+/gu) ?? [];
-    let wordIndex = 0;
+
     for (const token of tokens) {
         const isSpace = SPACE_REGEX.test(token);
-        const startTimeMs = item.startTimeMs + wordIndex * lineSyncedAnimationDelay.getNumberValue();
+        const startTimeMs = item.startTimeMs;
         parts.push({
             startTimeMs,
             words: token,
             durationMs: 0,
         });
-        if (!isSpace) {
-            wordIndex += 1;
-        }
+
     }
     return parts;
 }

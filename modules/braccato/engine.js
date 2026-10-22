@@ -379,11 +379,14 @@ function clearLineStateClasses(lineData) {
 export function updateWordStates(lineData, currentTime) {
     const parts = lineData.parts;
     const lineEndTime = lineData.time + lineData.duration;
+    const isLineSynced = parts.length > 0 && parts.every(part => part.lyricElement.classList.contains(LINE_SYNCED_WORD_CLASS));
     for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
-        const endTime = part.duration > 0 ? part.time + part.duration : (parts[i + 1]?.time ?? lineEndTime);
+        const endTime = isLineSynced
+            ? lineEndTime
+            : part.duration > 0 ? part.time + part.duration : (parts[i + 1]?.time ?? lineEndTime);
         let state = WORD_STATE_PAST;
-        if (currentTime < part.time) {
+        if (currentTime < lineData.time || (!isLineSynced && currentTime < part.time)) {
             state = WORD_STATE_UPCOMING;
         }
         else if (currentTime < endTime) {
