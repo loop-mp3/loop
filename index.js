@@ -2559,6 +2559,24 @@ function parseTTMLTimestamp(value) {
     return NaN;
 }
 
+function hasTTMLPreservedWhitespace(node) {
+    let current = node?.parentNode;
+    while (current) {
+        const space = current.getAttribute?.("xml:space") || current.getAttributeNS?.("http://www.w3.org/XML/1998/namespace", "space");
+        if (space) return space === "preserve";
+        current = current.parentNode;
+    }
+    return false;
+}
+
+function getTTMLTextNodeContent(node) {
+    const text = node.nodeValue || "";
+    if (/\S/u.test(text) || hasTTMLPreservedWhitespace(node)) return text;
+    // A single literal space between inline spans is lyric content. Newlines, tabs,
+    // and runs of whitespace without xml:space="preserve" are normally indentation.
+    return text === " " ? text : "";
+}
+
 function parseTTMLLyrics(ttml, songDurationMs) {
     if (typeof DOMParser !== "function") return [];
     const documentRoot = new DOMParser().parseFromString(String(ttml), "application/xml");
@@ -2574,31 +2592,37 @@ function parseTTMLLyrics(ttml, songDurationMs) {
                 Number.isFinite(nextStartTimeMs) ? nextStartTimeMs - startTimeMs :
                     Number.isFinite(songDurationMs) ? songDurationMs - startTimeMs : 4_000
         );
-        const parts = [...paragraph.children].filter((child) => child.localName === "span").map((span) => {
-            const partStartTimeMs = parseTTMLTimestamp(span.getAttribute("begin"));
-            const explicitEndTimeMs = parseTTMLTimestamp(span.getAttribute("end"));
-            const explicitDurationMs = parseTTMLTimestamp(span.getAttribute("dur"));
+        const parts = [];
+        let pendingText = "";
+        let leadingText = "";
+        for (const child of paragraph.childNodes || []) {
+            if (child.nodeType !== 1 || child.localName !== "span") {
+                pendingText += child.nodeType === 3 ? getTTMLTextNodeContent(child) : "";
+                continue;
+            }
+            const partStartTimeMs = parseTTMLTimestamp(child.getAttribute("begin"));
+            const explicitEndTimeMs = parseTTMLTimestamp(child.getAttribute("end"));
+            const explicitDurationMs = parseTTMLTimestamp(child.getAttribute("dur"));
             const partDurationMs = Number.isFinite(explicitDurationMs)
                 ? explicitDurationMs
                 : Number.isFinite(explicitEndTimeMs) && Number.isFinite(partStartTimeMs)
                     ? explicitEndTimeMs - partStartTimeMs
                     : NaN;
-            return Number.isFinite(partStartTimeMs) && Number.isFinite(partDurationMs) && partDurationMs >= 0
-                ? { startTimeMs: partStartTimeMs, durationMs: partDurationMs, words: span.textContent || "" }
-                : null;
-        }).filter((part) => part && part.words);
-        const normalizedParts = parts.map((part, partIndex) => {
-            const nextPart = parts[partIndex + 1];
-            if (!nextPart || /\s$/u.test(part.words) || /^\s/u.test(nextPart.words)) return part;
-            return { ...part, words: `${part.words}\u00a0` };
-        });
+            if (!Number.isFinite(partStartTimeMs) || !Number.isFinite(partDurationMs) || partDurationMs < 0 || !child.textContent) continue;
+            if (pendingText) {
+                if (parts.length) parts[parts.length - 1].words += pendingText;
+                else leadingText += pendingText;
+                pendingText = "";
+            }
+            parts.push({ startTimeMs: partStartTimeMs, durationMs: partDurationMs, words: child.textContent });
+        }
+        const trailingText = pendingText;
+        const words = `${leadingText}${parts.map((part) => part.words).join("")}${trailingText}`.trim();
         return {
             startTimeMs,
             durationMs,
-            words: normalizedParts.length
-                ? normalizedParts.map((part) => part.words).join("").trim()
-                : paragraph.textContent?.trim() || "",
-            parts: normalizedParts.length ? normalizedParts : undefined,
+            words,
+            parts: parts.length ? parts : undefined,
         };
     }).filter((line) => line?.words).sort((left, right) => left.startTimeMs - right.startTimeMs);
 }
