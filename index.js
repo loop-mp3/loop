@@ -5480,7 +5480,7 @@ function updateLoop(artworkURL, trackInfo) {
                         <select id="loop-lyrics-provider-select" aria-label="Preferred lyrics provider"></select>
                     </label>
                     <button id="loop-lyrics-submit-button" class="loop-menu-action" type="button">
-                        Submit lyrics to Unison (lyrics+ source)
+                        Submit lyrics to Unison
                     </button>
                     <button id="loop-lyrics-cache-button" class="loop-menu-action" type="button">
                         View cached lyrics
