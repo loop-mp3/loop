@@ -4196,7 +4196,6 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
                 );
                 if (replacementLines.length) {
                     updateLoopLyrics(replacement);
-                    if (currentParsedLyrics.length) lyricsLoadedTrackId = trackId;
                 }
             }
         }
@@ -4218,7 +4217,6 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
             lyrics?.meta?.instrumental === true
         );
         if (resolvedLines.length || !currentParsedLyrics.length) updateLoopLyrics(lyrics);
-        if (resolvedLines.length && currentParsedLyrics.length) lyricsLoadedTrackId = trackId;
     } else if (!currentParsedLyrics.length) {
         updateLoopLyrics({
             meta: null,
