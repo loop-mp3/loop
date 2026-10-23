@@ -2587,11 +2587,18 @@ function parseTTMLLyrics(ttml, songDurationMs) {
                 ? { startTimeMs: partStartTimeMs, durationMs: partDurationMs, words: span.textContent || "" }
                 : null;
         }).filter((part) => part && part.words);
+        const normalizedParts = parts.map((part, partIndex) => {
+            const nextPart = parts[partIndex + 1];
+            if (!nextPart || /\s$/u.test(part.words) || /^\s/u.test(nextPart.words)) return part;
+            return { ...part, words: `${part.words}\u00a0` };
+        });
         return {
             startTimeMs,
             durationMs,
-            words: paragraph.textContent?.trim() || "",
-            parts: parts.length ? parts : undefined,
+            words: normalizedParts.length
+                ? normalizedParts.map((part) => part.words).join("").trim()
+                : paragraph.textContent?.trim() || "",
+            parts: normalizedParts.length ? normalizedParts : undefined,
         };
     }).filter((line) => line?.words).sort((left, right) => left.startTimeMs - right.startTimeMs);
 }
