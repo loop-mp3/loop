@@ -4165,7 +4165,9 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
     if (!forceRefresh && lyricsLoadedTrackId === trackId && currentParsedLyrics.length) return;
 
     lyricsFetchInFlightTrackId = trackId;
-    updateLoopLyrics(undefined);
+    // During a forced refresh keep the current valid render on screen. The new result
+    // should only replace it after it has been parsed successfully.
+    if (!currentParsedLyrics.length || lyricsLoadedTrackId !== trackId) updateLoopLyrics(undefined);
     const lyrics = await getLyricsFromTrackInfo(
         trackId,
         title,
