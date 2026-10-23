@@ -3985,17 +3985,22 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         return;
     }
 
+    const hasExistingRenderedLyrics = currentParsedLyrics.length > 0 && lyricsLoadedTrackId === trackId;
     panel.hidden = false;
-    loading.hidden = false;
-    footer.hidden = true;
-    setLyricsResumeAffordanceVisible(shadow, false);
-    shadow.querySelector("#loop-lyrics-view")?.setAttribute("hidden", "");
-    loading.querySelector(".loop-lyrics-submit-link")?.remove();
-    loading.querySelector(".loop-lyrics-instrumental-link")?.remove();
-    loading.querySelector(".loop-lyrics-manual-selection-link")?.remove();
+    if (!hasExistingRenderedLyrics) {
+        loading.hidden = false;
+        footer.hidden = true;
+        setLyricsResumeAffordanceVisible(shadow, false);
+        shadow.querySelector("#loop-lyrics-view")?.setAttribute("hidden", "");
+        loading.querySelector(".loop-lyrics-submit-link")?.remove();
+        loading.querySelector(".loop-lyrics-instrumental-link")?.remove();
+        loading.querySelector(".loop-lyrics-manual-selection-link")?.remove();
+    }
     if (lyrics === undefined) {
-        loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
-        ensureManualLyricsSelectionLink(loading, trackId);
+        if (!hasExistingRenderedLyrics) {
+            loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
+            ensureManualLyricsSelectionLink(loading, trackId);
+        }
         return;
     }
 
@@ -4095,6 +4100,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         }
         braccatoLyricsRenderer.setTheme(getBraccatoLyricsTheme());
         currentParsedLyrics = parsedLyrics;
+        lyricsLoadedTrackId = trackId;
         currentLyricsRenderOptions = {
             noLyrics: false,
             songwriters,
@@ -4146,7 +4152,6 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
 
 async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
     clearLyricsRetryTimer();
-    const requestId = ++lyricsRequestId;
     const trackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
     const loop = document.querySelector("#loop");
     const title = loop?.querySelector("#loop-track-title")?.textContent.trim();
@@ -4164,6 +4169,9 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
     if (lyricsFetchInFlightTrackId === trackId) return;
     if (!forceRefresh && lyricsLoadedTrackId === trackId && currentParsedLyrics.length) return;
 
+    // Only a new request may invalidate previous callbacks. Polling the same track while
+    // a request is already running must not invalidate the request that is about to finish.
+    const requestId = ++lyricsRequestId;
     lyricsFetchInFlightTrackId = trackId;
     // During a forced refresh keep the current valid render on screen. The new result
     // should only replace it after it has been parsed successfully.
