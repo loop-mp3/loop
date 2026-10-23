@@ -251,7 +251,7 @@ let loopPreferences = {
     useGrooveOverrides: true,
     enableLyricsTranslation: false,
     lyricsTranslationLanguage: "en",
-    lyricsProviderOrder: ["groove", "lyricsplus", "lrclib"],
+    lyricsProviderOrder: ["lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
     loopUpdateInterval: 500,
     kawarpFpsCap: 60,
     kawarpFpsLogging: false,
@@ -308,11 +308,13 @@ const unisonURL = "https://unison.prjktla.my.id/submit";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
 const lyricsProviders = [
     { id: "lyricsplus", label: "LyricsPlus", endpoint: "https://lyricsplus.prjktla.my.id/v2/lyrics/get" },
+    { id: "binilyrics-ttml", label: "Binilyrics (lrc.red TTML)", endpoint: "https://lrc.red", format: "ttml" },
+    { id: "binilyrics-lrc", label: "Binilyrics (lrc.red LRC)", endpoint: "https://lrc.red", format: "lrc" },
     { id: "lrclib", label: "LRCLIB", endpoint: "https://lrclib.net/api/search" },
     { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/v1/track" },
     { id: "groove-dev", label: "Groove (dev)", endpoint: "http://127.0.0.1:8787/api/v1/track" },
 ];
-const defaultLyricsProviderIds = ["groove", "lyricsplus", "lrclib"];
+const defaultLyricsProviderIds = ["lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev"];
 const supportedLyricsTranslationLanguages = new Set([
     "ar", "bn", "de", "en", "es", "fr", "hi", "id", "it", "ja", "ko", "pt", "ru", "tr", "vi", "zh",
 ]);
@@ -1710,7 +1712,7 @@ async function resetLoopData() {
         useGrooveOverrides: true,
         enableLyricsTranslation: false,
         lyricsTranslationLanguage: "en",
-        lyricsProviderOrder: ["groove", "lyricsplus", "lrclib"],
+        lyricsProviderOrder: ["lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
         loopUpdateInterval: defaultLoopUpdateInterval,
         kawarpFpsCap: defaultKawarpFpsCap,
         kawarpFpsLogging: false,
@@ -2542,9 +2544,13 @@ function lyricsPlusToTTML(lines) {
 
 function parseTTMLTimestamp(value) {
     const timestamp = String(value || "").trim();
-    const clock = timestamp.match(/^(?:(\d+):)?(\d{2}):(\d{2}(?:\.\d+)?)$/);
-    if (clock) {
-        return ((Number(clock[1] || 0) * 3_600) + Number(clock[2]) * 60 + Number(clock[3])) * 1_000;
+    if (/^\d+(?:\.\d+)?$/.test(timestamp)) return Number(timestamp) * 1_000;
+    const clockParts = timestamp.split(":");
+    if (clockParts.length >= 2 && clockParts.length <= 3 && clockParts.every((part) => /^\d+(?:\.\d+)?$/.test(part))) {
+        const seconds = Number(clockParts.pop());
+        const minutes = Number(clockParts.pop() || 0);
+        const hours = Number(clockParts.pop() || 0);
+        return (hours * 3_600 + minutes * 60 + seconds) * 1_000;
     }
     const offset = timestamp.match(/^(\d+(?:\.\d+)?)(ms|s)$/);
     if (offset) return Number(offset[1]) * (offset[2] === "s" ? 1_000 : 1);
@@ -2568,8 +2574,14 @@ function parseTTMLLyrics(ttml, songDurationMs) {
         );
         const parts = [...paragraph.children].filter((child) => child.localName === "span").map((span) => {
             const partStartTimeMs = parseTTMLTimestamp(span.getAttribute("begin"));
-            const partDurationMs = parseTTMLTimestamp(span.getAttribute("dur"));
-            return Number.isFinite(partStartTimeMs) && Number.isFinite(partDurationMs)
+            const explicitEndTimeMs = parseTTMLTimestamp(span.getAttribute("end"));
+            const explicitDurationMs = parseTTMLTimestamp(span.getAttribute("dur"));
+            const partDurationMs = Number.isFinite(explicitDurationMs)
+                ? explicitDurationMs
+                : Number.isFinite(explicitEndTimeMs) && Number.isFinite(partStartTimeMs)
+                    ? explicitEndTimeMs - partStartTimeMs
+                    : NaN;
+            return Number.isFinite(partStartTimeMs) && Number.isFinite(partDurationMs) && partDurationMs >= 0
                 ? { startTimeMs: partStartTimeMs, durationMs: partDurationMs, words: span.textContent || "" }
                 : null;
         }).filter((part) => part && part.words);
@@ -2770,6 +2782,52 @@ async function getLyricsFromLyricsPlus(trackId, title, artist, signal) {
     }, "lyricsplus");
 }
 
+async function getLyricsFromBinilyrics(title, artist, trackDurationInSeconds, providerId, signal) {
+    const provider = lyricsProviders.find((entry) => entry.id === providerId);
+    const searchQuery = new URLSearchParams({ q: `${title} ${artist}` }).toString();
+    const searchResponse = await fetch(`${provider.endpoint}/search.json?${searchQuery}`, { signal });
+    if (!searchResponse.ok) throw new Error(`${provider.label} search returned ${searchResponse.status}`);
+
+    const searchPayload = await searchResponse.json();
+    const hits = Array.isArray(searchPayload?.hits) ? searchPayload.hits : [];
+    if (!hits.length) throw new Error(`${provider.label} returned no matches`);
+
+    const requestedDuration = Number(trackDurationInSeconds);
+    const selectedHit = [...hits].sort((left, right) => {
+        const durationDelta = (hit) => Number.isFinite(requestedDuration) && Number.isFinite(Number(hit?.duration))
+            ? Math.abs(Number(hit.duration) - requestedDuration)
+            : Infinity;
+        return durationDelta(left) - durationDelta(right);
+    })[0];
+    const isrc = String(selectedHit?.isrc || "").trim();
+    if (!isrc) throw new Error(`${provider.label} returned a match without an ISRC`);
+
+    const lyricsResponse = await fetch(`${provider.endpoint}/s/${encodeURIComponent(isrc)}.${provider.format}`, { signal });
+    if (!lyricsResponse.ok) throw new Error(`${provider.label} lyrics returned ${lyricsResponse.status}`);
+    const lyricsText = await lyricsResponse.text();
+    if (!lyricsText.trim()) throw new Error(`${provider.label} returned empty lyrics`);
+    if (provider.format === "ttml" && !/^\s*<tt(?:\s|>)/i.test(lyricsText)) {
+        throw new Error(`${provider.label} returned invalid TTML`);
+    }
+    if (provider.format === "lrc" && !hasSyncedLyricTimestamps(lyricsText)) {
+        throw new Error(`${provider.label} returned invalid LRC`);
+    }
+
+    const plainLyrics = provider.format === "lrc"
+        ? lyricsText
+            .replace(/(?:\[\d{1,3}:\d{2}(?:\.\d{1,3})?\])+\s*/g, "")
+            .split(/\r?\n/)
+            .filter((line) => line.trim() && !/^\[[a-z]{2,}:.*\]$/i.test(line.trim()))
+            .join("\n")
+        : null;
+    return normalizeLyricsResponse({
+        ...selectedHit,
+        syncedLyrics: lyricsText,
+        plainLyrics,
+        duration: selectedHit.duration,
+    }, providerId);
+}
+
 async function getLyricsFromLrclib(trackId, title, artist, trackDurationInSeconds, signal) {
     const searchLrclib = async (searchText) => {
         const query = new URLSearchParams({ q: searchText }).toString();
@@ -2893,7 +2951,9 @@ async function getLyricsCandidatesForAllProviders(trackId, title, artist, durati
                 ? await getLrclibCandidateResults(trackId, title, artist, undefined, queryOverride)
                 : provider.id === "lyricsplus"
                     ? [await getLyricsFromLyricsPlus(trackId, title, artist)]
-                    : [await getLyricsFromGroove(trackId, title, artist, duration, provider.id)];
+                    : provider.id.startsWith("binilyrics-")
+                        ? [await getLyricsFromBinilyrics(title, artist, duration, provider.id)]
+                        : [await getLyricsFromGroove(trackId, title, artist, duration, provider.id)];
             return { provider, candidates };
         } catch (error) {
             console.warn(`[loop.mp3] ${provider.label} candidate search failed:`, error);
@@ -2966,7 +3026,9 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
             ? getLyricsFromLrclib(trackId, title, artist, trackDurationInSeconds, controller.signal)
             : providerId === "lyricsplus"
                 ? getLyricsFromLyricsPlus(trackId, title, artist, controller.signal)
-                : getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds, providerId, controller.signal);
+                : providerId.startsWith("binilyrics-")
+                    ? getLyricsFromBinilyrics(title, artist, trackDurationInSeconds, providerId, controller.signal)
+                    : getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds, providerId, controller.signal);
 
         const promise = request.then((lyrics) => {
             if (!lyrics) throw new Error(`${providerId} returned no usable lyrics`);
