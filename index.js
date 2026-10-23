@@ -251,7 +251,7 @@ let loopPreferences = {
     useGrooveOverrides: true,
     enableLyricsTranslation: false,
     lyricsTranslationLanguage: "en",
-    lyricsProviderOrder: ["lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
+    lyricsProviderOrder: ["lyricsplus", "binilyrics-ttml", "unison", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
     loopUpdateInterval: 500,
     kawarpFpsCap: 60,
     kawarpFpsLogging: false,
@@ -311,12 +311,13 @@ const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/
 const lyricsProviders = [
     { id: "lyricsplus", label: "LyricsPlus", endpoint: "https://lyricsplus.prjktla.my.id/v2/lyrics/get" },
     { id: "binilyrics-ttml", label: "Binilyrics (lrc.red TTML)", endpoint: "https://lrc.red", format: "ttml" },
+    { id: "unison", label: "Unison", endpoint: "https://unison.boidu.dev" },
     { id: "binilyrics-lrc", label: "Binilyrics (lrc.red LRC)", endpoint: "https://lrc.red", format: "lrc" },
     { id: "lrclib", label: "LRCLIB", endpoint: "https://lrclib.net/api/search" },
     { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/v1/track" },
     { id: "groove-dev", label: "Groove (dev)", endpoint: "http://127.0.0.1:8787/api/v1/track" },
 ];
-const defaultLyricsProviderIds = ["lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev"];
+const defaultLyricsProviderIds = ["lyricsplus", "binilyrics-ttml", "unison", "binilyrics-lrc", "lrclib", "groove", "groove-dev"];
 const supportedLyricsTranslationLanguages = new Set([
     "ar", "bn", "de", "en", "es", "fr", "hi", "id", "it", "ja", "ko", "pt", "ru", "tr", "vi", "zh",
 ]);
@@ -1714,7 +1715,7 @@ async function resetLoopData() {
         useGrooveOverrides: true,
         enableLyricsTranslation: false,
         lyricsTranslationLanguage: "en",
-        lyricsProviderOrder: ["lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
+        lyricsProviderOrder: ["lyricsplus", "binilyrics-ttml", "unison", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
         loopUpdateInterval: defaultLoopUpdateInterval,
         kawarpFpsCap: defaultKawarpFpsCap,
         kawarpFpsLogging: false,
@@ -2823,6 +2824,56 @@ async function getLyricsFromLyricsPlus(trackId, title, artist, signal) {
     }, "lyricsplus");
 }
 
+async function getLyricsFromUnison(trackId, title, artist, trackDurationInSeconds, signal) {
+    const provider = lyricsProviders.find((entry) => entry.id === "unison");
+    const normalizeUnisonLyrics = (payload, fallbackMetadata = {}) => {
+        const lyricsText = String(payload?.data?.lyrics || "").trim();
+        if (!/^\s*<tt(?:\s|>)/i.test(lyricsText)) return null;
+        return normalizeLyricsResponse({
+            ...fallbackMetadata,
+            ...payload.data,
+            syncedLyrics: lyricsText,
+            plainLyrics: null,
+            duration: payload.data?.duration ?? fallbackMetadata.duration,
+        }, "unison");
+    };
+
+    const videoId = String(trackId || "").trim();
+    if (videoId) {
+        const videoResponse = await fetch(`${provider.endpoint}/lyrics?v=${encodeURIComponent(videoId)}`, { signal });
+        if (videoResponse.ok) {
+            const videoLyrics = normalizeUnisonLyrics(await videoResponse.json(), { videoId });
+            if (videoLyrics) return videoLyrics;
+        }
+    }
+
+    const searchQuery = new URLSearchParams({ song: title, artist }).toString();
+    const searchResponse = await fetch(`${provider.endpoint}/lyrics/search?${searchQuery}`, { signal });
+    if (!searchResponse.ok) throw new Error(`${provider.label} search returned ${searchResponse.status}`);
+
+    const searchPayload = await searchResponse.json();
+    const results = Array.isArray(searchPayload?.data) ? searchPayload.data : [];
+    if (!results.length) throw new Error(`${provider.label} returned no matches`);
+
+    const requestedDuration = Number(trackDurationInSeconds);
+    const selectedResult = [...results].sort((left, right) => {
+        const durationDelta = (result) => Number.isFinite(requestedDuration) && Number.isFinite(Number(result?.duration))
+            ? Math.abs(Number(result.duration) - requestedDuration)
+            : Infinity;
+        const durationDifference = durationDelta(left) - durationDelta(right);
+        return durationDifference || Number(right?.matchScore || 0) - Number(left?.matchScore || 0);
+    })[0];
+    const matchedVideoId = String(selectedResult?.videoId || "").trim();
+    if (!matchedVideoId) throw new Error(`${provider.label} returned a match without a video ID`);
+
+    const lyricsResponse = await fetch(`${provider.endpoint}/lyrics/variants/${encodeURIComponent(matchedVideoId)}`, { signal });
+    if (!lyricsResponse.ok) throw new Error(`${provider.label} lyrics returned ${lyricsResponse.status}`);
+    const lyricsPayload = await lyricsResponse.json();
+    const lyrics = normalizeUnisonLyrics(lyricsPayload, selectedResult);
+    if (!lyrics) throw new Error(`${provider.label} returned invalid TTML`);
+    return lyrics;
+}
+
 async function getLyricsFromBinilyrics(title, artist, trackDurationInSeconds, providerId, signal) {
     const provider = lyricsProviders.find((entry) => entry.id === providerId);
     const searchQuery = new URLSearchParams({ q: `${title} ${artist}` }).toString();
@@ -2992,9 +3043,11 @@ async function getLyricsCandidatesForAllProviders(trackId, title, artist, durati
                 ? await getLrclibCandidateResults(trackId, title, artist, undefined, queryOverride)
                 : provider.id === "lyricsplus"
                     ? [await getLyricsFromLyricsPlus(trackId, title, artist)]
-                    : provider.id.startsWith("binilyrics-")
-                        ? [await getLyricsFromBinilyrics(title, artist, duration, provider.id)]
-                        : [await getLyricsFromGroove(trackId, title, artist, duration, provider.id)];
+                    : provider.id === "unison"
+                        ? [await getLyricsFromUnison(trackId, title, artist, duration)]
+                        : provider.id.startsWith("binilyrics-")
+                            ? [await getLyricsFromBinilyrics(title, artist, duration, provider.id)]
+                            : [await getLyricsFromGroove(trackId, title, artist, duration, provider.id)];
             return { provider, candidates };
         } catch (error) {
             console.warn(`[loop.mp3] ${provider.label} candidate search failed:`, error);
@@ -3067,9 +3120,11 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
             ? getLyricsFromLrclib(trackId, title, artist, trackDurationInSeconds, controller.signal)
             : providerId === "lyricsplus"
                 ? getLyricsFromLyricsPlus(trackId, title, artist, controller.signal)
-                : providerId.startsWith("binilyrics-")
-                    ? getLyricsFromBinilyrics(title, artist, trackDurationInSeconds, providerId, controller.signal)
-                    : getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds, providerId, controller.signal);
+                : providerId === "unison"
+                    ? getLyricsFromUnison(trackId, title, artist, trackDurationInSeconds, controller.signal)
+                    : providerId.startsWith("binilyrics-")
+                        ? getLyricsFromBinilyrics(title, artist, trackDurationInSeconds, providerId, controller.signal)
+                        : getLyricsFromGroove(trackId, title, artist, trackDurationInSeconds, providerId, controller.signal);
 
         const promise = request.then((lyrics) => {
             if (!lyrics) throw new Error(`${providerId} returned no usable lyrics`);
