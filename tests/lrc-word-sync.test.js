@@ -50,7 +50,7 @@ function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs, instrument
 
 test("parses inline LRC word timestamps without leaking timestamp markup", () => {
     const [line] = parseSyncedLyrics("[00:21.20]<00:21.20>I'm <00:21.57>down <00:21.89>bad,");
-    assert.equal(line.words, "I'm  down  bad,");
+    assert.equal(line.words, "I'm down bad,");
     assert.deepEqual(line.parts.map(({ startTimeMs, words }) => ({ startTimeMs, words })), [
         { startTimeMs: 21200, words: "I'm\u00a0" },
         { startTimeMs: 21570, words: "down\u00a0" },
