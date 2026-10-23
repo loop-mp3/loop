@@ -3226,19 +3226,54 @@ function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs, instrument
         .map((line) => {
             const match = line.match(/^\[(\d+):(\d+(?:\.\d+)?)\](.*)$/);
             if (!match) return null;
+            const startTimeMs = Number(match[1]) * 60_000 + Number(match[2]) * 1_000;
+            const text = match[3];
+            const timedParts = [];
+            const wordTimestampPattern = /<(\d+):(\d+(?:\.\d+)?)>/g;
+            let timestampMatch;
+            while ((timestampMatch = wordTimestampPattern.exec(text)) !== null) {
+                timedParts.push({
+                    startTimeMs: Number(timestampMatch[1]) * 60_000 + Number(timestampMatch[2]) * 1_000,
+                    tagStart: timestampMatch.index,
+                    textStart: wordTimestampPattern.lastIndex,
+                });
+            }
+            const parts = timedParts.map((part, index) => {
+                const next = timedParts[index + 1];
+                const startIndex = part.textStart;
+                const endIndex = next ? next.tagStart : text.length;
+                return {
+                    startTimeMs: part.startTimeMs,
+                    // Preserve lrc.red's spaces as non-breaking whitespace so inline timed groups
+                    // cannot collapse the gap between two separately rendered words.
+                    words: text.slice(startIndex, endIndex).replace(/\s/g, "\u00a0"),
+                };
+            }).filter((part) => part.words.trim());
+            const plainText = text.replace(/<\d+:\d+(?:\.\d+)?\>/g, "").trim();
             return {
-                startTimeMs: Number(match[1]) * 60_000 + Number(match[2]) * 1_000,
-                words: match[3].trim() || ["♪", "♫", "♪"][Math.floor(Math.random() * 3)],
+                startTimeMs,
+                words: plainText || ["♪", "♫", "♪"][Math.floor(Math.random() * 3)],
+                timedParts: parts,
             };
         })
         .filter(Boolean)
         .sort((left, right) => left.startTimeMs - right.startTimeMs);
 
     if (lines.length) {
-        return lines.map((line, index) => ({
-            ...line,
-            durationMs: Math.max(750, (lines[index + 1]?.startTimeMs || line.startTimeMs + 4_000) - line.startTimeMs),
-        }));
+        return lines.map((line, index) => {
+            const durationMs = Math.max(750, (lines[index + 1]?.startTimeMs || line.startTimeMs + 4_000) - line.startTimeMs);
+            const parts = line.timedParts?.map((part, partIndex) => ({
+                startTimeMs: part.startTimeMs,
+                durationMs: Math.max(0, (line.timedParts[partIndex + 1]?.startTimeMs || line.startTimeMs + durationMs) - part.startTimeMs),
+                words: part.words,
+            }));
+            return {
+                startTimeMs: line.startTimeMs,
+                durationMs,
+                words: line.words,
+                parts: parts?.length ? parts : undefined,
+            };
+        });
     }
 
     const plainLines = String(plainLyrics || "")
