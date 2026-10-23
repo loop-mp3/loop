@@ -251,6 +251,7 @@ let loopPreferences = {
     useGrooveOverrides: true,
     enableLyricsTranslation: false,
     lyricsTranslationLanguage: "en",
+    lyricsGapNoteThreshold: 5,
     lyricsProviderOrder: ["lyricsplus", "binilyrics-ttml", "unison", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
     loopUpdateInterval: 500,
     kawarpFpsCap: 60,
@@ -292,6 +293,9 @@ let loopUpdatePlayerBar;
 const loopPreferencesKey = "loop.mp3.preferences";
 const defaultLoopUpdateInterval = 500;
 const defaultKawarpFpsCap = 60;
+const defaultLyricsGapNoteThreshold = 5;
+const minimumLyricsGapNoteThreshold = 0;
+const maximumLyricsGapNoteThreshold = 30;
 const kawarpFpsOptions = [15, 30, 60, 120, 144, 0];
 const LYRICS_RETRY_INTERVAL_MS = 5000;
 const minimumLoopUpdateInterval = 100;
@@ -388,6 +392,15 @@ function setLyricsProviderOrder(providerId) {
     applyLoopPreferences();
 }
 
+function normalizeLyricsGapNoteThreshold(value) {
+    const threshold = Number(value);
+    if (!Number.isFinite(threshold)) return defaultLyricsGapNoteThreshold;
+    return Math.min(
+        maximumLyricsGapNoteThreshold,
+        Math.max(minimumLyricsGapNoteThreshold, Math.round(threshold))
+    );
+}
+
 function normalizeLoopUpdateInterval(value) {
     const interval = Number(value);
     if (!Number.isFinite(interval)) return defaultLoopUpdateInterval;
@@ -452,6 +465,13 @@ function updateKawarpFpsPreferenceUI() {
 function updateLoopPollingPreferenceUI() {
     const loop = document.querySelector("#loop");
     if (!loop) return;
+
+    const lyricsGapNoteThreshold = normalizeLyricsGapNoteThreshold(loopPreferences.lyricsGapNoteThreshold);
+    loopPreferences.lyricsGapNoteThreshold = lyricsGapNoteThreshold;
+    const lyricsGapNoteSlider = loop.querySelector("#loop-lyrics-gap-note-threshold-slider");
+    if (lyricsGapNoteSlider) lyricsGapNoteSlider.value = String(lyricsGapNoteThreshold);
+    const lyricsGapNoteValue = loop.querySelector("#loop-lyrics-gap-note-threshold-value");
+    if (lyricsGapNoteValue) lyricsGapNoteValue.textContent = `${lyricsGapNoteThreshold} sec`;
 
     const interval = normalizeLoopUpdateInterval(loopPreferences.loopUpdateInterval);
     loopPreferences.loopUpdateInterval = interval;
@@ -1715,6 +1735,7 @@ async function resetLoopData() {
         useGrooveOverrides: true,
         enableLyricsTranslation: false,
         lyricsTranslationLanguage: "en",
+        lyricsGapNoteThreshold: defaultLyricsGapNoteThreshold,
         lyricsProviderOrder: ["lyricsplus", "binilyrics-ttml", "unison", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
         loopUpdateInterval: defaultLoopUpdateInterval,
         kawarpFpsCap: defaultKawarpFpsCap,
@@ -3333,9 +3354,32 @@ const braccatoLyricsShadowCSS = `
     #loop-lyrics-resume[hidden] { display: none; }
 `;
 
+function addLyricsGapNotes(lines, songDurationMs) {
+    if (!lines.length || !Number.isFinite(songDurationMs) || songDurationMs <= 0) return lines;
+
+    const note = () => ["♪", "♫", "♪"][Math.floor(Math.random() * 3)];
+    const thresholdMs = typeof loopPreferences === "undefined"
+        ? 5_000
+        : normalizeLyricsGapNoteThreshold(loopPreferences.lyricsGapNoteThreshold) * 1_000;
+    const firstLine = lines[0];
+    const lastLine = lines[lines.length - 1];
+    const openingGapMs = firstLine.startTimeMs;
+    const closingStartMs = lastLine.startTimeMs + Math.max(0, lastLine.durationMs || 0);
+    const closingGapMs = songDurationMs - closingStartMs;
+    const gapNotes = [];
+
+    if (openingGapMs > thresholdMs) {
+        gapNotes.push({ startTimeMs: 0, durationMs: openingGapMs, words: note() });
+    }
+    if (closingGapMs > thresholdMs) {
+        gapNotes.push({ startTimeMs: closingStartMs, durationMs: closingGapMs, words: note() });
+    }
+    return gapNotes.length ? [...gapNotes, ...lines].sort((left, right) => left.startTimeMs - right.startTimeMs) : lines;
+}
+
 function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs, instrumental = false) {
     if (/^\s*<tt(?:\s|>)/i.test(String(syncedLyrics || ""))) {
-        return parseTTMLLyrics(syncedLyrics, songDurationMs);
+        return addLyricsGapNotes(parseTTMLLyrics(syncedLyrics, songDurationMs), songDurationMs);
     }
     const lines = String(syncedLyrics || "")
         .split(/\r?\n/)
@@ -3376,7 +3420,7 @@ function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs, instrument
         .sort((left, right) => left.startTimeMs - right.startTimeMs);
 
     if (lines.length) {
-        return lines.map((line, index) => {
+        return addLyricsGapNotes(lines.map((line, index) => {
             const durationMs = Math.max(750, (lines[index + 1]?.startTimeMs || line.startTimeMs + 4_000) - line.startTimeMs);
             const parts = line.timedParts?.map((part, partIndex) => ({
                 startTimeMs: part.startTimeMs,
@@ -3389,7 +3433,7 @@ function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs, instrument
                 words: line.words,
                 parts: parts?.length ? parts : undefined,
             };
-        });
+        }), songDurationMs);
     }
 
     const plainLines = String(plainLyrics || "")
@@ -3408,11 +3452,11 @@ function parseSyncedLyrics(syncedLyrics, plainLyrics, songDurationMs, instrument
     const lineDurationMs = Number.isFinite(songDurationMs) && songDurationMs > 0
         ? songDurationMs / plainLines.length
         : 4_000;
-    return plainLines.map((words, index) => ({
+    return addLyricsGapNotes(plainLines.map((words, index) => ({
         startTimeMs: index * lineDurationMs,
         durationMs: lineDurationMs,
         words,
-    }));
+    })), songDurationMs);
 }
 
 function normalizeWriterCreditText(value) {
@@ -4630,6 +4674,7 @@ async function loadLoopPreferences() {
     loopPreferences.lyricsRenderingEngine = normalizeLyricsRenderingEngine(loopPreferences.lyricsRenderingEngine);
     loopPreferences.enableLyricsTranslation = loopPreferences.enableLyricsTranslation === true;
     loopPreferences.lyricsTranslationLanguage = normalizeLyricsTranslationLanguage(loopPreferences.lyricsTranslationLanguage);
+    loopPreferences.lyricsGapNoteThreshold = normalizeLyricsGapNoteThreshold(loopPreferences.lyricsGapNoteThreshold);
     loopPreferences.loopUpdateInterval = normalizeLoopUpdateInterval(loopPreferences.loopUpdateInterval);
     loopPreferences.kawarpFpsCap = normalizeKawarpFpsCap(loopPreferences.kawarpFpsCap);
     loopPreferences.kawarpFpsLogging = loopPreferences.kawarpFpsLogging === true;
@@ -5380,6 +5425,10 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-lyrics-translation-toggle" type="checkbox">
                         Translate lyrics
                     </label>
+                    <label class="loop-polling-setting">
+                        Lyric gap notes <output id="loop-lyrics-gap-note-threshold-value" for="loop-lyrics-gap-note-threshold-slider">5 sec</output>
+                        <input id="loop-lyrics-gap-note-threshold-slider" type="range" min="0" max="30" step="1" value="5" aria-label="Lyric gap note threshold in seconds">
+                    </label>
                     <label class="loop-navigation-toggle loop-lyrics-translation-setting">
                         Translation language
                         <select id="loop-lyrics-translation-language" aria-label="Lyrics translation language">
@@ -5636,9 +5685,15 @@ function updateLoop(artworkURL, trackInfo) {
             if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
         });
         loop.querySelector("#loop-lyrics-translation-language").addEventListener("change", (event) => {
-            loopPreferences.lyricsTranslationLanguage = normalizeLyricsTranslationLanguage(event.target.value);
+                loopPreferences.lyricsTranslationLanguage = normalizeLyricsTranslationLanguage(event.target.value);
             saveLoopPreferences();
             if (loopPreferences.showLyrics && loopPreferences.enableLyricsTranslation) fetchLoopLyricsForCurrentTrack();
+        });
+        loop.querySelector("#loop-lyrics-gap-note-threshold-slider").addEventListener("input", (event) => {
+            loopPreferences.lyricsGapNoteThreshold = normalizeLyricsGapNoteThreshold(event.target.value);
+            saveLoopPreferences();
+            updateLoopPollingPreferenceUI();
+            if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack(true);
         });
         loop.querySelector("#loop-update-interval-slider").addEventListener("input", (event) => {
             loopPreferences.loopUpdateInterval = normalizeLoopUpdateInterval(event.target.value);

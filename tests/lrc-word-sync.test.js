@@ -129,8 +129,25 @@ test("parses inline LRC word timestamps without leaking timestamp markup", () =>
 test("keeps normal LRC lines working", () => {
     const lines = parseSyncedLyrics("[00:01.00]First line\n[00:02.50]Second line");
     assert.equal(lines.length, 2);
-    assert.equal(lines[0].words, "First line");
     assert.equal(lines[1].startTimeMs, 2500);
+});
+
+test("adds musical notes for opening and closing lyric gaps", () => {
+    const lines = parseSyncedLyrics("[00:06.00]First line\n[00:10.00]Last line", null, 20_000);
+    assert.equal(lines.length, 4);
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(lines.map(({ startTimeMs, durationMs }) => ({ startTimeMs, durationMs })))),
+        [
+            { startTimeMs: 0, durationMs: 6_000 },
+            { startTimeMs: 6_000, durationMs: 4_000 },
+            { startTimeMs: 10_000, durationMs: 4_000 },
+            { startTimeMs: 14_000, durationMs: 6_000 },
+        ]
+    );
+    assert.ok(["♪", "♫", "♪"].includes(lines[0].words));
+    assert.ok(["♪", "♫", "♪"].includes(lines[3].words));
+    assert.equal(lines[1].words, "First line");
+    assert.equal(lines[2].words, "Last line");
 });
 
 test("malformed inputs do not produce lines", () => {
