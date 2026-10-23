@@ -2612,7 +2612,15 @@ function scheduleLyricsRetry(trackId) {
     lyricsRetryTimer = setTimeout(() => {
         lyricsRetryTimer = undefined;
         const currentTrackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
-        if (loopPreferences.showLyrics && currentTrackId === trackId && !currentParsedLyrics.length) {
+        // A usable render wins over scheduled recovery work. Do not start another provider
+        // round just because an older attempt left a timer behind.
+        if (
+            loopPreferences.showLyrics &&
+            currentTrackId === trackId &&
+            !currentParsedLyrics.length &&
+            lyricsLoadedTrackId !== trackId &&
+            lyricsFetchInFlightTrackId !== trackId
+        ) {
             fetchLoopLyricsForCurrentTrack(true).catch((error) => {
                 console.warn("[loop.mp3] Could not retry lyrics for the current track:", error);
             });
@@ -3044,12 +3052,30 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
 
         promise.then((result) => {
             if (providerIndex >= bestProviderIndex) return;
+
+            // Validate the candidate using the same parser the renderer uses before it is
+            // allowed to replace a result already on screen. Providers can return nonempty
+            // payloads that still parse to zero usable lines.
+            const durationMs = Number.isFinite(trackDurationInSeconds) && trackDurationInSeconds > 0
+                ? trackDurationInSeconds * 1_000
+                : Number(result.lyrics?.meta?.duration) * 1_000;
+            const candidateLines = parseSyncedLyrics(
+                result.lyrics?.syncedLyrics,
+                result.lyrics?.plainLyrics,
+                durationMs,
+                result.lyrics?.meta?.instrumental === true
+            );
+            if (!candidateLines.length) {
+                throw new Error(`${providerId} returned lyrics that could not be parsed`);
+            }
+
             bestProviderIndex = providerIndex;
             if (!firstLyricsDelivered) {
                 firstLyricsDelivered = true;
                 resolveFirstLyrics(result);
                 return;
             }
+
             currentTrackLyricsProvider = { trackId, providerId: result.providerId };
             if (loopPreferences.useLyricsCache !== false) {
                 cacheLyrics(trackId, title, artist, trackDurationInSeconds, result.lyrics).catch((error) => {
@@ -3058,7 +3084,11 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
             }
             onLyricsResolved?.(result.lyrics, result.providerId);
             console.log(`[loop.mp3] Replaced lyrics with higher-priority ${result.providerId} result after ${result.elapsedMs.toFixed(1)} ms:`, { trackId, title, artist });
-        }).catch(() => {});
+        }).catch((error) => {
+            if (error?.name !== "AbortError") {
+                console.warn(`[loop.mp3] Ignoring unusable ${providerId} lyrics result:`, error);
+            }
+        });
 
         return promise;
     });
@@ -3955,17 +3985,22 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         return;
     }
 
+    const hasExistingRenderedLyrics = currentParsedLyrics.length > 0 && lyricsLoadedTrackId === trackId;
     panel.hidden = false;
-    loading.hidden = false;
-    footer.hidden = true;
-    setLyricsResumeAffordanceVisible(shadow, false);
-    shadow.querySelector("#loop-lyrics-view")?.setAttribute("hidden", "");
-    loading.querySelector(".loop-lyrics-submit-link")?.remove();
-    loading.querySelector(".loop-lyrics-instrumental-link")?.remove();
-    loading.querySelector(".loop-lyrics-manual-selection-link")?.remove();
+    if (!hasExistingRenderedLyrics) {
+        loading.hidden = false;
+        footer.hidden = true;
+        setLyricsResumeAffordanceVisible(shadow, false);
+        shadow.querySelector("#loop-lyrics-view")?.setAttribute("hidden", "");
+        loading.querySelector(".loop-lyrics-submit-link")?.remove();
+        loading.querySelector(".loop-lyrics-instrumental-link")?.remove();
+        loading.querySelector(".loop-lyrics-manual-selection-link")?.remove();
+    }
     if (lyrics === undefined) {
-        loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
-        ensureManualLyricsSelectionLink(loading, trackId);
+        if (!hasExistingRenderedLyrics) {
+            loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
+            ensureManualLyricsSelectionLink(loading, trackId);
+        }
         return;
     }
 
@@ -3984,6 +4019,15 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         lyrics?.meta?.instrumental === true
     ), songwriters);
     if (!parsedLyrics.length) {
+        // A late provider miss or malformed response must not erase lyrics already
+        // rendered for this track. The caller can continue resolution without flashing blank.
+        if (currentParsedLyrics.length && lyricsLoadedTrackId === trackId) {
+            console.warn("[loop.mp3] Ignoring empty lyrics replacement for an already-rendered track:", {
+                trackId,
+                provider: lyrics?.meta?.provider || null,
+            });
+            return;
+        }
         currentParsedLyrics = [];
         currentLyricsRenderOptions = {};
         braccatoLyricsRenderer?.clear();
@@ -4056,6 +4100,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         }
         braccatoLyricsRenderer.setTheme(getBraccatoLyricsTheme());
         currentParsedLyrics = parsedLyrics;
+        lyricsLoadedTrackId = trackId;
         currentLyricsRenderOptions = {
             noLyrics: false,
             songwriters,
@@ -4107,7 +4152,6 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
 
 async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
     clearLyricsRetryTimer();
-    const requestId = ++lyricsRequestId;
     const trackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
     const loop = document.querySelector("#loop");
     const title = loop?.querySelector("#loop-track-title")?.textContent.trim();
@@ -4125,8 +4169,13 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
     if (lyricsFetchInFlightTrackId === trackId) return;
     if (!forceRefresh && lyricsLoadedTrackId === trackId && currentParsedLyrics.length) return;
 
+    // Only a new request may invalidate previous callbacks. Polling the same track while
+    // a request is already running must not invalidate the request that is about to finish.
+    const requestId = ++lyricsRequestId;
     lyricsFetchInFlightTrackId = trackId;
-    updateLoopLyrics(undefined);
+    // During a forced refresh keep the current valid render on screen. The new result
+    // should only replace it after it has been parsed successfully.
+    if (!currentParsedLyrics.length || lyricsLoadedTrackId !== trackId) updateLoopLyrics(undefined);
     const lyrics = await getLyricsFromTrackInfo(
         trackId,
         title,
@@ -4139,7 +4188,15 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
                 loopPreferences.showLyrics &&
                 trackId === (getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId)
             ) {
-                updateLoopLyrics(replacement);
+                const replacementLines = parseSyncedLyrics(
+                    replacement?.syncedLyrics,
+                    replacement?.plainLyrics,
+                    Number(replacement?.meta?.duration) * 1_000,
+                    replacement?.meta?.instrumental === true
+                );
+                if (replacementLines.length) {
+                    updateLoopLyrics(replacement);
+                }
             }
         }
     );
@@ -4151,12 +4208,22 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
         if (lyricsFetchInFlightTrackId === trackId) lyricsFetchInFlightTrackId = null;
         return;
     }
-    updateLoopLyrics(lyrics || {
-        meta: null,
-        syncedLyrics: null,
-        plainLyrics: null,
-    });
-    if (lyrics && currentParsedLyrics.length) lyricsLoadedTrackId = trackId;
+    // Do not clear a successful intermediate provider result if every later provider failed.
+    if (lyrics) {
+        const resolvedLines = parseSyncedLyrics(
+            lyrics.syncedLyrics,
+            lyrics.plainLyrics,
+            Number(lyrics?.meta?.duration) * 1_000,
+            lyrics?.meta?.instrumental === true
+        );
+        if (resolvedLines.length || !currentParsedLyrics.length) updateLoopLyrics(lyrics);
+    } else if (!currentParsedLyrics.length) {
+        updateLoopLyrics({
+            meta: null,
+            syncedLyrics: null,
+            plainLyrics: null,
+        });
+    }
     if (lyricsFetchInFlightTrackId === trackId) lyricsFetchInFlightTrackId = null;
 }
 
