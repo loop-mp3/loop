@@ -1,6 +1,28 @@
 
 All notable changes to Loop are documented here.
 
+## [0.7.7] - 2026-10-23
+
+### Highlights
+
+* Added synchronized syllable lyrics support for LyricsPlus and Ludo.
+* Added Binilyrics support for LRC and TTML lyrics.
+* Added smoother lyric transitions, more visible upcoming lyrics, and improved active-line contrast in Ludo.
+
+### Fixes
+
+* Fixed line synchronization being treated as syllable synchronization.
+* Preserved whitespace in word-synchronized LRC and TTML lyrics, including whitespace-only segments.
+* Prevented repeated Binilyrics requests and avoided invalidating in-flight lyrics requests.
+* Preserved valid lyrics while replacing providers or refreshing lyrics, and marked lyrics as loaded only after rendering completes.
+* Added track-author retry handling for LyricsPlus.
+
+### Internal and maintenance changes
+
+* Updated the Unison lyrics-submission link to use the unison-client URL.
+* Added coverage for production LRC parsing, inline word synchronization, whitespace preservation, and request races.
+* Added an npm test command for the LRC parser tests.
+
 ## [0.7.6] - 2026-10-22
 
 ### Highlights
@@ -478,3 +500,5 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [0.7.3]: https://github.com/loop-mp3/loop/releases/tag/v0.7.3
 [0.7.4]: https://github.com/loop-mp3/loop/releases/tag/v0.7.4
 [0.7.5]: https://github.com/loop-mp3/loop/releases/tag/v0.7.5
+[0.7.6]: https://github.com/loop-mp3/loop/releases/tag/v0.7.6
+[0.7.7]: https://github.com/loop-mp3/loop/releases/tag/v0.7.7
