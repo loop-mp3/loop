@@ -273,6 +273,8 @@ let ludoLyricsController;
 let createLudoLyricsController;
 let lyricsRequestId = 0;
 let lyricsRetryTimer;
+let lyricsFetchInFlightTrackId = null;
+let lyricsLoadedTrackId = null;
 let currentTrackLyricsProvider = { trackId: null, providerId: null };
 let currentParsedLyrics = [];
 let currentLyricsRenderOptions = {};
@@ -2610,7 +2612,7 @@ function scheduleLyricsRetry(trackId) {
     lyricsRetryTimer = setTimeout(() => {
         lyricsRetryTimer = undefined;
         const currentTrackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
-        if (loopPreferences.showLyrics && currentTrackId === trackId) {
+        if (loopPreferences.showLyrics && currentTrackId === trackId && !currentParsedLyrics.length) {
             fetchLoopLyricsForCurrentTrack(true).catch((error) => {
                 console.warn("[loop.mp3] Could not retry lyrics for the current track:", error);
             });
@@ -4082,8 +4084,13 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
 
     if (currentTrackLyricsProvider.trackId !== trackId) {
         currentTrackLyricsProvider = { trackId, providerId: null };
+        lyricsLoadedTrackId = null;
     }
 
+    if (lyricsFetchInFlightTrackId === trackId) return;
+    if (!forceRefresh && lyricsLoadedTrackId === trackId && currentParsedLyrics.length) return;
+
+    lyricsFetchInFlightTrackId = trackId;
     updateLoopLyrics(undefined);
     const lyrics = await getLyricsFromTrackInfo(
         trackId,
@@ -4105,12 +4112,17 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
         requestId !== lyricsRequestId ||
         !loopPreferences.showLyrics ||
         trackId !== (getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId)
-    ) return;
+    ) {
+        if (lyricsFetchInFlightTrackId === trackId) lyricsFetchInFlightTrackId = null;
+        return;
+    }
     updateLoopLyrics(lyrics || {
         meta: null,
         syncedLyrics: null,
         plainLyrics: null,
     });
+    if (lyrics && currentParsedLyrics.length) lyricsLoadedTrackId = trackId;
+    if (lyricsFetchInFlightTrackId === trackId) lyricsFetchInFlightTrackId = null;
 }
 
 function loadKawarpRenderer() {
