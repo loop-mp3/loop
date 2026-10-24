@@ -1,18 +1,36 @@
 // Unison provider adapter.
 (function registerUnisonAdapter(global) {
     global.LoopLyricsProviderAdapters ||= {};
-    global.LoopLyricsProviderAdapters.unison = ({ normalizeLyricsResponse }) => ({
+    global.LoopLyricsProviderAdapters.unison = ({ normalizeLyricsResponse, hasSyncedLyricTimestamps }) => ({
         async request({ provider, trackId, title, artist, duration, signal }) {
             const normalizeUnisonLyrics = (payload, fallbackMetadata = {}) => {
-                const lyricsText = String(payload?.data?.lyrics || "").trim();
-                if (!/^\s*<tt(?:\s|>)/i.test(lyricsText)) return null;
-                return normalizeLyricsResponse({
-                    ...fallbackMetadata,
-                    ...payload.data,
-                    syncedLyrics: lyricsText,
-                    plainLyrics: null,
-                    duration: payload.data?.duration ?? fallbackMetadata.duration,
-                }, "unison");
+                const entries = Array.isArray(payload?.data)
+                    ? payload.data
+                    : [payload?.data && typeof payload.data === "object" ? payload.data : payload];
+                const matchingEntries = fallbackMetadata.videoId
+                    ? [...entries].sort((left, right) =>
+                        Number(String(right?.videoId || "") === String(fallbackMetadata.videoId)) -
+                        Number(String(left?.videoId || "") === String(fallbackMetadata.videoId))
+                    )
+                    : entries;
+
+                for (const entry of matchingEntries) {
+                    if (!entry || typeof entry !== "object") continue;
+                    const lyricsText = String(entry.lyrics || entry.syncedLyrics || entry.lrc || "").trim();
+                    const isTTML = /^\s*<tt(?:\s|>)/i.test(lyricsText);
+                    const isLrc = String(entry.format || "").toLowerCase() === "lrc" &&
+                        (typeof hasSyncedLyricTimestamps !== "function" || hasSyncedLyricTimestamps(lyricsText));
+                    if (!isTTML && !isLrc) continue;
+
+                    return normalizeLyricsResponse({
+                        ...fallbackMetadata,
+                        ...entry,
+                        syncedLyrics: lyricsText,
+                        plainLyrics: null,
+                        duration: entry.duration ?? fallbackMetadata.duration,
+                    }, "unison");
+                }
+                return null;
             };
 
             const videoId = String(trackId || "").trim();
@@ -46,7 +64,7 @@
             const lyricsResponse = await fetch(`${provider.endpoint}/lyrics/variants/${encodeURIComponent(matchedVideoId)}`, { signal });
             if (!lyricsResponse.ok) throw new Error(`${provider.label} lyrics returned ${lyricsResponse.status}`);
             const lyrics = normalizeUnisonLyrics(await lyricsResponse.json(), selectedResult);
-            if (!lyrics) throw new Error(`${provider.label} returned invalid TTML`);
+            if (!lyrics) throw new Error(`${provider.label} returned invalid lyrics`);
             return lyrics;
         },
     });
