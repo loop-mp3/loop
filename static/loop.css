@@ -402,12 +402,6 @@
     top: 18px;
 }
 
-#loop.loop-lyrics-disabled #loop-player::after,
-#loop.loop-lyrics-disabled #loop-artwork,
-#loop.loop-lyrics-disabled #loop-track-info,
-#loop.loop-lyrics-disabled #loop-seek-row {
-    left: 50%;
-}
 
 #loop.loop-no-vinyl #loop-artwork {
     border-radius: 12px;
@@ -861,11 +855,6 @@
     transform: translateX(-50%);
 }
 
-#loop.loop-lyrics-disabled #loop-action-dock {
-    left: 18px;
-    right: auto;
-    transform: none;
-}
 
 #loop-lyrics-panel {
     position: absolute;

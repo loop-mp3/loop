@@ -242,7 +242,7 @@ let loopPreferences = {
     autoOpenMiniPlayer: true,
     useLegacyFallbackArtwork: false,
     showAlbum: false,
-    showLyrics: false,
+    showLyrics: true,
     trackPresentationModes: {},
     lyricsRenderingEngine: "standard",
     animateWordWobble: false,
@@ -635,8 +635,7 @@ function showOnboarding() {
                 <label class="loop-onboarding-check"><input class="loop-onboarding-navigation" type="checkbox"> Show previous and next buttons</label>
             </div>
             <div class="loop-onboarding-step" data-step="3" hidden>
-                <p class="loop-onboarding-description">Would you like to enable experimental lyrics? Lyrics are fetched from LRCLIB. You can change this later from the Loop menu.</p>
-                <label class="loop-onboarding-check"><input class="loop-onboarding-lyrics" type="checkbox"> Enable lyrics (experimental)</label>
+                <p class="loop-onboarding-description">Lyrics are always displayed when available. You can choose the rendering engine and provider later from the Loop menu.</p>
                 <label class="loop-onboarding-check"><input class="loop-onboarding-writer-credits" type="checkbox"> Show writer credits</label>
             </div>
             <div class="loop-onboarding-footer">
@@ -659,7 +658,7 @@ function showOnboarding() {
         if (save) {
             loopPreferences.autoOpenMiniPlayer = modal.querySelector(".loop-onboarding-mini-player").checked;
             loopPreferences.showNavigationButtons = modal.querySelector(".loop-onboarding-navigation").checked;
-            loopPreferences.showLyrics = modal.querySelector(".loop-onboarding-lyrics").checked;
+            loopPreferences.showLyrics = true;
             loopPreferences.showWriterCredits = modal.querySelector(".loop-onboarding-writer-credits").checked;
             saveLoopPreferences();
             applyLoopPreferences();
@@ -703,7 +702,6 @@ function showOnboarding() {
     modal.querySelector(".loop-onboarding-config").addEventListener("click", showKawarpConfigEditor);
     modal.querySelector(".loop-onboarding-mini-player").checked = loopPreferences.autoOpenMiniPlayer !== false;
     modal.querySelector(".loop-onboarding-navigation").checked = Boolean(loopPreferences.showNavigationButtons);
-    modal.querySelector(".loop-onboarding-lyrics").checked = Boolean(loopPreferences.showLyrics);
     modal.querySelector(".loop-onboarding-writer-credits").checked = loopPreferences.showWriterCredits !== false;
     modal.addEventListener("keydown", (event) => { if (event.key === "Escape") finish({ save: false }); });
     renderStep();
@@ -1929,7 +1927,7 @@ async function resetLoopData() {
         autoOpenMiniPlayer: true,
         useLegacyFallbackArtwork: false,
         showAlbum: false,
-        showLyrics: false,
+        showLyrics: true,
         trackPresentationModes: {},
         showWriterCredits: true,
         useLyricsCache: true,
@@ -1965,7 +1963,7 @@ function applyLoopPreferences() {
     miniPlayerBridge?.setTheme(loopPreferences.theme);
     loop.classList.toggle("loop-no-vinyl", loopPreferences.hideVinyl);
     loop.classList.toggle("loop-hide-album", !loopPreferences.showAlbum);
-    loop.classList.toggle("loop-lyrics-disabled", !loopPreferences.showLyrics);
+    loopPreferences.showLyrics = true;
     applyVideoPresentationPreferences();
     const vinylToggle = loop.querySelector("#loop-vinyl-toggle");
     if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
@@ -1977,8 +1975,6 @@ function applyLoopPreferences() {
     if (legacyFallbackToggle) legacyFallbackToggle.checked = Boolean(loopPreferences.useLegacyFallbackArtwork);
     const albumToggle = loop.querySelector("#loop-album-toggle");
     if (albumToggle) albumToggle.checked = Boolean(loopPreferences.showAlbum);
-    const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
-    if (lyricsToggle) lyricsToggle.checked = Boolean(loopPreferences.showLyrics);
     const lyricsRenderingEngine = loop.querySelector("#loop-lyrics-rendering-engine");
     if (lyricsRenderingEngine) lyricsRenderingEngine.value = normalizeLyricsRenderingEngine(loopPreferences.lyricsRenderingEngine);
     const lyricsRenderingWarning = loop.querySelector("#loop-lyrics-rendering-warning");
@@ -2020,10 +2016,7 @@ function applyLoopPreferences() {
     const volumeSlider = loop.querySelector("#loop-volume-slider");
     if (volumeSlider) volumeSlider.value = String(preferredVolume);
     const lyricsPanel = loop.querySelector("#loop-lyrics-panel");
-    if (lyricsPanel && !loopPreferences.showLyrics) {
-        lyricsPanel.hidden = true;
-        braccatoLyricsRenderer?.clear();
-    }
+    if (lyricsPanel) lyricsPanel.hidden = false;
     setTrackNavigationButtonsVisible(Boolean(loopPreferences.showNavigationButtons));
     applyArtworkPreference();
     miniPlayerBridge?.sync(getCurrentMedia());
@@ -4871,6 +4864,7 @@ function showKawarpConfigEditor() {
 
 async function loadLoopPreferences() {
     loopPreferences = { ...loopPreferences, ...(await getStoredLoopPreferences()) };
+    loopPreferences.showLyrics = true;
     loopPreferences.trackPresentationModes = normalizeTrackPresentationModes(loopPreferences.trackPresentationModes);
     loopPreferences.lyricsRenderingEngine = normalizeLyricsRenderingEngine(loopPreferences.lyricsRenderingEngine);
     loopPreferences.enableLyricsTranslation = loopPreferences.enableLyricsTranslation === true;
@@ -5589,10 +5583,6 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-legacy-fallback-toggle" type="checkbox">
                         Use legacy fallback artwork
                     </label>
-                    <label class="loop-navigation-toggle">
-                        <input id="loop-lyrics-toggle" type="checkbox">
-                        Show lyrics <span>(experimental)</span>
-                    </label>
                     <label class="loop-navigation-toggle loop-lyrics-rendering-setting">
                         Lyrics rendering engine
                         <select id="loop-lyrics-rendering-engine" aria-label="Lyrics rendering engine">
@@ -5847,12 +5837,7 @@ function updateLoop(artworkURL, trackInfo) {
             saveLoopPreferences();
             applyLoopPreferences();
         });
-        loop.querySelector("#loop-lyrics-toggle").addEventListener("change", (event) => {
-            loopPreferences.showLyrics = event.target.checked;
-            saveLoopPreferences();
-            applyLoopPreferences();
-            if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
-        });
+
         loop.querySelector("#loop-lyrics-rendering-engine").addEventListener("change", (event) => {
             loopPreferences.lyricsRenderingEngine = normalizeLyricsRenderingEngine(event.target.value);
             saveLoopPreferences();
