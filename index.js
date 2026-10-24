@@ -313,9 +313,9 @@ const geniusURL = "https://genius.com";
 const unisonURL = "https://unison.prjktla.my.id/submit";
 const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
 const lyricsProviders = [
+    { id: "unison", label: "Unison", endpoint: "https://unison.boidu.dev" },
     { id: "lyricsplus", label: "LyricsPlus", endpoint: "https://lyricsplus.prjktla.my.id/v2/lyrics/get" },
     { id: "binilyrics-ttml", label: "Binilyrics (lrc.red TTML)", endpoint: "https://lrc.red", format: "ttml" },
-    { id: "unison", label: "Unison", endpoint: "https://unison.boidu.dev" },
     { id: "binilyrics-lrc", label: "Binilyrics (lrc.red LRC)", endpoint: "https://lrc.red", format: "lrc" },
     { id: "lrclib", label: "LRCLIB", endpoint: "https://lrclib.net/api/search" },
     { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/v1/track" },
