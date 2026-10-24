@@ -13,6 +13,11 @@
         "core/bridge.js",
         "ytm/dom.js",
         "services/lyrics-providers.js",
+        "services/groove.js",
+        "services/lyricsplus.js",
+        "services/unison.js",
+        "services/binilyrics.js",
+        "services/lrclib.js",
         "index.js"
       ],
       "css": ["static/loop.css"],
