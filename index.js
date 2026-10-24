@@ -1039,9 +1039,108 @@ function getAllCachedLyrics() {
             }
 
             resolve(Object.entries(result || {})
-                .filter(([key, value]) => key.startsWith(lyricsCacheKeyPrefix) && value?.provider)
+                .filter(([key, value]) => key.startsWith(lyricsCacheKeyPrefix) && !key.startsWith(manualLyricsCacheKeyPrefix) && value?.provider)
                 .map(([key, value]) => ({ trackId: key.slice(lyricsCacheKeyPrefix.length), ...value }))
                 .sort((a, b) => Number(b.cachedAt || 0) - Number(a.cachedAt || 0)));
+        });
+    });
+}
+
+function getAllLyricsCacheEntries() {
+    const storage = getLyricsCacheStorage();
+    if (!storage) return Promise.resolve([]);
+
+    return new Promise((resolve) => {
+        storage.get(null, (result) => {
+            const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+            if (error) {
+                console.warn("[loop.mp3] Could not read lyrics cache entries:", error.message);
+                resolve([]);
+                return;
+            }
+
+            const values = result || {};
+            const lyricEntries = Object.entries(values)
+                .filter(([key, value]) => key.startsWith(lyricsCacheKeyPrefix) && !key.startsWith(manualLyricsCacheKeyPrefix) && value?.provider)
+                .map(([key, value]) => ({
+                    cacheType: "lyrics",
+                    cacheKey: key,
+                    trackId: key.slice(lyricsCacheKeyPrefix.length),
+                    ...value,
+                }));
+            const manualEntries = Object.entries(values)
+                .filter(([key, value]) => key.startsWith(manualLyricsCacheKeyPrefix) && value?.provider)
+                .map(([key, value]) => ({
+                    cacheType: "manual",
+                    cacheKey: key,
+                    trackId: key.slice(manualLyricsCacheKeyPrefix.length),
+                    ...value,
+                }));
+            const metadataByTrackId = new Map([...lyricEntries, ...manualEntries].map((entry) => [entry.trackId, entry]));
+            const translationEntries = Object.entries(values)
+                .filter(([key, value]) => key.startsWith(translationCacheKeyPrefix) && Array.isArray(value?.lines))
+                .map(([key, value]) => {
+                    const match = key.match(/^translation_(.+)_([a-z-]+)$/i);
+                    const trackId = match ? decodeURIComponent(match[1]) : key.slice(translationCacheKeyPrefix.length);
+                    const metadata = metadataByTrackId.get(trackId) || {};
+                    return {
+                        cacheType: "translation",
+                        cacheKey: key,
+                        trackId,
+                        title: metadata.title || "Untitled track",
+                        artist: metadata.artist || "Unknown artist",
+                        provider: "Unison translation",
+                        language: match?.[2] || "unknown",
+                        ...value,
+                    };
+                });
+
+            const lyricEntriesWithTranslations = [...lyricEntries, ...manualEntries];
+            const unmatchedTranslations = [];
+            translationEntries.forEach((translation) => {
+                const matchingEntries = lyricEntriesWithTranslations.filter((entry) => entry.trackId === translation.trackId);
+                if (matchingEntries.length) {
+                    matchingEntries.forEach((entry) => {
+                        entry.translations = [...(entry.translations || []), translation];
+                    });
+                } else {
+                    unmatchedTranslations.push(translation);
+                }
+            });
+
+            resolve([...lyricEntriesWithTranslations, ...unmatchedTranslations]
+                .sort((left, right) => Number(right.cachedAt || 0) - Number(left.cachedAt || 0)));
+        });
+    });
+}
+
+function saveLyricsCacheEntry(entry) {
+    const storage = getLyricsCacheStorage();
+    if (!storage || !entry?.cacheKey) return Promise.resolve(false);
+    const value = { ...entry };
+    delete value.cacheType;
+    delete value.cacheKey;
+    delete value.trackId;
+    return new Promise((resolve) => {
+        storage.set({ [entry.cacheKey]: { ...value, cachedAt: Date.now() } }, () => {
+            const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+            if (error) {
+                console.warn("[loop.mp3] Could not save cache entry:", error.message);
+                resolve(false);
+                return;
+            }
+            resolve(true);
+        });
+    });
+}
+
+function removeLyricsCacheEntry(entry) {
+    const storage = getLyricsCacheStorage();
+    if (!storage || !entry?.cacheKey) return Promise.resolve(false);
+    return new Promise((resolve) => {
+        storage.remove(entry.cacheKey, () => {
+            const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+            resolve(!error);
         });
     });
 }
@@ -1064,11 +1163,14 @@ function showCachedLyricsModal() {
                 <button type="button" class="loop-lyrics-cache-close" aria-label="Close cached lyrics">&#215;</button>
             </header>
             <div class="loop-lyrics-cache-layout">
-                <div class="loop-lyrics-cache-list" role="listbox" aria-label="Cached lyrics tracks">
-                    <div class="loop-lyrics-cache-status">Loading cached lyrics…</div>
+                <div class="loop-lyrics-cache-list-panel">
+                    <input class="loop-lyrics-cache-search" type="search" placeholder="Search cached lyrics…" aria-label="Search cached lyrics">
+                    <div class="loop-lyrics-cache-list" role="listbox" aria-label="Cached lyrics tracks">
+                        <div class="loop-lyrics-cache-status">Loading cached lyrics…</div>
+                    </div>
                 </div>
                 <div class="loop-lyrics-cache-details" aria-live="polite">
-                    <div class="loop-lyrics-cache-empty">Select a cached track to view its metadata.</div>
+                    <div class="loop-lyrics-cache-empty">Select a cached track to view or edit it.</div>
                 </div>
             </div>
         </section>`;
@@ -1077,10 +1179,49 @@ function showCachedLyricsModal() {
     const close = () => modal.remove();
     const list = modal.querySelector(".loop-lyrics-cache-list");
     const details = modal.querySelector(".loop-lyrics-cache-details");
+    const search = modal.querySelector(".loop-lyrics-cache-search");
+    let allEntries = [];
+    let selectedCacheKey = null;
 
-    const showDetails = (entry, button) => {
-        list.querySelectorAll("[aria-selected='true']").forEach((item) => item.setAttribute("aria-selected", "false"));
-        button.setAttribute("aria-selected", "true");
+    const renderEntries = (entries) => {
+        const query = search.value.trim().toLocaleLowerCase();
+        const filteredEntries = entries.filter((entry) =>
+            !query || [entry.title, entry.artist, entry.trackId, entry.provider, entry.language, entry.cacheType,
+                ...(entry.translations || []).flatMap((translation) => [translation.language, ...((translation.lines || []).map((line) => line?.translation || ""))])]
+                .some((value) => String(value || "").toLocaleLowerCase().includes(query))
+        );
+        list.replaceChildren();
+        if (!filteredEntries.length) {
+            const empty = document.createElement("div");
+            empty.className = "loop-lyrics-cache-status";
+            empty.textContent = query ? "No matching cache entries." : "No cached lyrics yet.";
+            list.appendChild(empty);
+            if (!query) details.replaceChildren(empty.cloneNode(true));
+            return;
+        }
+
+        filteredEntries.forEach((entry) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "loop-lyrics-cache-item";
+            button.setAttribute("role", "option");
+            button.setAttribute("aria-selected", entry.cacheKey === selectedCacheKey ? "true" : "false");
+            const title = document.createElement("strong");
+            title.textContent = entry.title || "Untitled track";
+            const subtitle = document.createElement("span");
+            const type = entry.cacheType === "translation" ? `Translation · ${entry.language}` :
+                entry.cacheType === "manual" ? "Manually selected lyrics" : entry.provider;
+            const translationCount = entry.translations?.length || 0;
+            subtitle.textContent = `${entry.artist || "Unknown artist"} · ${type}${translationCount ? ` · ${translationCount} translation${translationCount === 1 ? "" : "s"}` : ""}`;
+            button.append(title, subtitle);
+            button.addEventListener("click", () => showDetails(entry));
+            list.appendChild(button);
+        });
+    };
+
+    const showDetails = (entry) => {
+        selectedCacheKey = entry.cacheKey;
+        renderEntries(allEntries);
         details.replaceChildren();
 
         const heading = document.createElement("h3");
@@ -1088,51 +1229,124 @@ function showCachedLyricsModal() {
         const artist = document.createElement("p");
         artist.className = "loop-lyrics-cache-detail-artist";
         artist.textContent = entry.artist || "Unknown artist";
-
         const metadata = document.createElement("dl");
-        const fields = [
+        [
             ["Track ID", entry.trackId],
+            ["Type", entry.cacheType === "translation" ? `Translation (${entry.language})` : entry.cacheType === "manual" ? "Manually selected lyrics" : "Lyrics"],
             ["Provider", entry.provider],
-            ["Duration", Number.isFinite(Number(entry.duration)) ? `${Math.floor(entry.duration / 60)}:${String(Math.round(entry.duration % 60)).padStart(2, "0")}` : "Unknown"],
+            ["Translations", entry.translations?.map((translation) => translation.language).join(", ") || "None"],
             ["Cached", entry.cachedAt ? new Date(entry.cachedAt).toLocaleString() : "Unknown"],
-        ];
-        fields.forEach(([label, value]) => {
+        ].forEach(([label, value]) => {
             const term = document.createElement("dt");
             term.textContent = label;
             const valueElement = document.createElement("dd");
-            valueElement.textContent = value;
+            valueElement.textContent = value || "Unknown";
             metadata.append(term, valueElement);
         });
 
-        const lyrics = document.createElement("pre");
-        lyrics.className = "loop-lyrics-cache-content";
-        lyrics.textContent = entry.syncedLyrics || entry.plainLyrics || "No lyric text stored.";
+        const editor = document.createElement("div");
+        editor.className = "loop-lyrics-cache-editor";
+        const fields = [];
+        if (entry.cacheType !== "translation") {
+            fields.push(["Title", "title", entry.title || "", "input"]);
+            fields.push(["Artist", "artist", entry.artist || "", "input"]);
+            fields.push(["Synced lyrics (TTML/LRC)", "syncedLyrics", entry.syncedLyrics || "", "textarea"]);
+            fields.push(["Plain lyrics", "plainLyrics", entry.plainLyrics || "", "textarea"]);
+        }
+        const translationEntries = entry.cacheType === "translation" ? [entry] : (entry.translations || []);
+        translationEntries.forEach((translation, index) => {
+            fields.push([`Translation · ${translation.language}`, `translationLines:${index}`, JSON.stringify(translation.lines || [], null, 2), "textarea"]);
+        });
+        const controls = {};
+        fields.forEach(([label, key, value, tagName]) => {
+            const labelElement = document.createElement("label");
+            labelElement.className = "loop-lyrics-cache-editor-field";
+            labelElement.textContent = label;
+            const input = document.createElement(tagName);
+            input.value = value;
+            input.name = key;
+            if (tagName === "textarea") input.rows = key === "translationLines" ? 8 : 6;
+            labelElement.appendChild(input);
+            editor.appendChild(labelElement);
+            controls[key] = input;
+        });
+
         const actions = document.createElement("div");
         actions.className = "loop-lyrics-cache-actions";
+        const save = document.createElement("button");
+        save.type = "button";
+        save.textContent = "Save changes";
         const refresh = document.createElement("button");
         refresh.type = "button";
-        refresh.className = "loop-lyrics-cache-refresh";
         refresh.textContent = "Refresh lyrics";
+        refresh.hidden = entry.cacheType !== "lyrics";
         const remove = document.createElement("button");
         remove.type = "button";
-        remove.className = "loop-lyrics-cache-delete";
         remove.textContent = "Delete cache";
         const status = document.createElement("span");
         status.className = "loop-lyrics-cache-action-status";
         status.setAttribute("role", "status");
-        actions.append(refresh, remove, status);
-        details.append(heading, artist, metadata, lyrics, actions);
+        actions.append(save, refresh, remove, status);
+        details.append(heading, artist, metadata, editor, actions);
+
+        save.addEventListener("click", async () => {
+            const edited = { ...entry };
+            const entriesToSave = [];
+            if (entry.cacheType === "translation") {
+                try {
+                    const lines = JSON.parse(controls["translationLines:0"].value);
+                    if (!Array.isArray(lines)) throw new Error("Translation lines must be a JSON array.");
+                    edited.lines = lines;
+                    entriesToSave.push(edited);
+                } catch (error) {
+                    status.textContent = error.message;
+                    return;
+                }
+            } else {
+                edited.title = controls.title.value.trim();
+                edited.artist = controls.artist.value.trim();
+                edited.syncedLyrics = controls.syncedLyrics.value;
+                edited.plainLyrics = controls.plainLyrics.value;
+                if (!edited.syncedLyrics && !edited.plainLyrics) {
+                    status.textContent = "Add synced or plain lyrics before saving.";
+                    return;
+                }
+                entriesToSave.push(edited);
+                try {
+                    translationEntries.forEach((translation, index) => {
+                        const lines = JSON.parse(controls[`translationLines:${index}`].value);
+                        if (!Array.isArray(lines)) throw new Error("Translation lines must be a JSON array.");
+                        entriesToSave.push({ ...translation, lines });
+                    });
+                } catch (error) {
+                    status.textContent = error.message;
+                    return;
+                }
+            }
+            save.disabled = true;
+            if ((await Promise.all(entriesToSave.map((item) => saveLyricsCacheEntry(item)))).every(Boolean)) {
+                status.textContent = "Saved.";
+                allEntries = await getAllLyricsCacheEntries();
+                if (getCurrentTrackId(getYTMPlayerRoot()) === edited.trackId && loopPreferences.showLyrics) {
+                    fetchLoopLyricsForCurrentTrack(true);
+                }
+                showDetails(allEntries.find((item) => item.cacheKey === entry.cacheKey) || edited);
+            } else {
+                status.textContent = "Save failed.";
+                save.disabled = false;
+            }
+        });
 
         refresh.addEventListener("click", async () => {
             refresh.disabled = true;
             remove.disabled = true;
             status.textContent = "Refreshing…";
             try {
-                const refreshedLyrics = await getLyricsFromTrackInfo(entry.trackId, entry.title, entry.artist, entry.duration, true);
-                if (!refreshedLyrics) throw new Error("No lyrics were returned.");
-                const refreshedEntry = (await getAllCachedLyrics()).find((item) => item.trackId === entry.trackId);
+                await getLyricsFromTrackInfo(entry.trackId, entry.title, entry.artist, entry.duration, true);
+                allEntries = await getAllLyricsCacheEntries();
+                const refreshedEntry = allEntries.find((item) => item.cacheKey === entry.cacheKey);
                 if (!refreshedEntry) throw new Error("No lyrics were returned.");
-                showDetails(refreshedEntry, button);
+                showDetails(refreshedEntry);
             } catch (error) {
                 console.warn("[loop.mp3] Could not refresh cached lyrics:", error);
                 status.textContent = "Refresh failed.";
@@ -1142,50 +1356,37 @@ function showCachedLyricsModal() {
         });
 
         remove.addEventListener("click", async () => {
-            if (!window.confirm(`Delete cached lyrics for “${entry.title || "this track"}”?`)) return;
+            if (!window.confirm(`Delete this cached entry for “${entry.title || "this track"}”?`)) return;
+            save.disabled = true;
             refresh.disabled = true;
             remove.disabled = true;
             status.textContent = "Deleting…";
-            if (!await removeCachedLyrics(entry.trackId)) {
+            const entriesToRemove = [entry, ...(entry.cacheType !== "translation" ? (entry.translations || []) : [])];
+            const removed = (await Promise.all(entriesToRemove.map((item) => removeLyricsCacheEntry(item)))).every(Boolean);
+            if (!removed) {
                 status.textContent = "Delete failed.";
-                refresh.disabled = false;
+                save.disabled = false;
+                refresh.disabled = entry.cacheType !== "lyrics";
                 remove.disabled = false;
                 return;
             }
-            const entries = await getAllCachedLyrics();
-            renderEntries(entries);
+            selectedCacheKey = null;
+            allEntries = await getAllLyricsCacheEntries();
+            renderEntries(allEntries);
+            details.replaceChildren();
+            details.appendChild(Object.assign(document.createElement("div"), {
+                className: "loop-lyrics-cache-empty",
+                textContent: "Select a cached track to view or edit it.",
+            }));
         });
     };
 
-    const renderEntries = (entries, selectedTrackId = entries[0]?.trackId) => {
-        list.replaceChildren();
-        if (!entries.length) {
-            const empty = document.createElement("div");
-            empty.className = "loop-lyrics-cache-status";
-            empty.textContent = "No cached lyrics yet.";
-            list.appendChild(empty);
-            details.replaceChildren(empty.cloneNode(true));
-            return;
-        }
-
-        entries.forEach((entry) => {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.className = "loop-lyrics-cache-item";
-            button.setAttribute("role", "option");
-            button.setAttribute("aria-selected", entry.trackId === selectedTrackId ? "true" : "false");
-            const title = document.createElement("strong");
-            title.textContent = entry.title || "Untitled track";
-            const subtitle = document.createElement("span");
-            subtitle.textContent = `${entry.artist || "Unknown artist"} · ${entry.provider}`;
-            button.append(title, subtitle);
-            button.addEventListener("click", () => showDetails(entry, button));
-            list.appendChild(button);
-            if (entry.trackId === selectedTrackId) showDetails(entry, button);
-        });
-    };
-
-    getAllCachedLyrics().then((entries) => renderEntries(entries));
+    search.addEventListener("input", () => renderEntries(allEntries));
+    getAllLyricsCacheEntries().then((entries) => {
+        allEntries = entries;
+        renderEntries(allEntries);
+        if (entries[0]) showDetails(entries[0]);
+    });
 
     modal.querySelector(".loop-lyrics-cache-close").addEventListener("click", close);
     modal.addEventListener("click", (event) => {

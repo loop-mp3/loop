@@ -1863,13 +1863,33 @@
     font: 14px system-ui, sans-serif;
 }
 
+@media (max-width: 700px) {
+    .loop-lyrics-cache-card {
+        padding: 14px;
+    }
+
+    .loop-lyrics-cache-layout {
+        display: flex;
+        height: calc(min(90vh, 760px) - 90px);
+        flex-direction: column;
+    }
+
+    .loop-lyrics-cache-list-panel {
+        flex: 0 0 34%;
+        min-height: 150px;
+    }
+
+    .loop-lyrics-cache-details {
+        flex: 1 1 auto;
+    }
+}
+
 .loop-lyrics-cache-card {
     box-sizing: border-box;
     width: min(900px, 100%);
     max-height: min(90vh, 760px);
     padding: 22px;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
     overscroll-behavior: contain;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
@@ -1917,13 +1937,34 @@
     display: grid;
     grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.4fr);
     gap: 16px;
-    min-height: 360px;
-    max-height: calc(90vh - 120px);
+    min-height: 0;
+    height: calc(min(90vh, 760px) - 110px);
+    max-height: none;
+}
+
+.loop-lyrics-cache-list-panel {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.loop-lyrics-cache-search {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 36px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font: inherit;
 }
 
 .loop-lyrics-cache-list,
 .loop-lyrics-cache-details {
     min-width: 0;
+    min-height: 0;
     overflow-y: auto;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 8px;
@@ -1964,6 +2005,35 @@
 
 .loop-lyrics-cache-details {
     padding: 16px;
+}
+
+.loop-lyrics-cache-editor {
+    display: grid;
+    gap: 10px;
+}
+
+.loop-lyrics-cache-editor-field {
+    display: grid;
+    gap: 5px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+}
+
+.loop-lyrics-cache-editor-field input,
+.loop-lyrics-cache-editor-field textarea {
+    box-sizing: border-box;
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 6px;
+    padding: 8px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.28);
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+    resize: vertical;
+}
+
+.loop-lyrics-cache-editor-field input {
+    font-family: inherit;
 }
 
 .loop-lyrics-cache-details h3 {
