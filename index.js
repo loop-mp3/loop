@@ -1255,6 +1255,52 @@ function removeLyricsCacheEntry(entry) {
     });
 }
 
+function isLyricsCacheStorageKey(key) {
+    return key.startsWith(lyricsCacheKeyPrefix) ||
+        key.startsWith(manualLyricsCacheKeyPrefix) ||
+        key.startsWith(translationCacheKeyPrefix);
+}
+
+function getLyricsCacheExport() {
+    const storage = getLyricsCacheStorage();
+    if (!storage) return Promise.reject(new Error("Cache storage is unavailable."));
+    return new Promise((resolve, reject) => {
+        storage.get(null, (result) => {
+            const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+            if (error) {
+                reject(new Error(error.message || "Could not read cache storage."));
+                return;
+            }
+            const entries = Object.fromEntries(Object.entries(result || {})
+                .filter(([key, value]) => isLyricsCacheStorageKey(key) && value && typeof value === "object"));
+            resolve({
+                format: "loop-lyrics-cache",
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                entries,
+            });
+        });
+    });
+}
+
+function importLyricsCacheExport(payload) {
+    const storage = getLyricsCacheStorage();
+    if (!storage || payload?.format !== "loop-lyrics-cache" || payload?.version !== 1 ||
+        !payload.entries || typeof payload.entries !== "object" || Array.isArray(payload.entries)) {
+        return Promise.reject(new Error("That file is not a valid Loop lyrics cache export."));
+    }
+    const entries = Object.fromEntries(Object.entries(payload.entries)
+        .filter(([key, value]) => isLyricsCacheStorageKey(key) && value && typeof value === "object" && !Array.isArray(value)));
+    if (!Object.keys(entries).length) return Promise.reject(new Error("The cache export contains no usable entries."));
+    return new Promise((resolve, reject) => {
+        storage.set(entries, () => {
+            const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+            if (error) reject(new Error(error.message || "Could not import cache entries."));
+            else resolve(Object.keys(entries).length);
+        });
+    });
+}
+
 function showCachedLyricsModal() {
     if (document.getElementById("loop-lyrics-cache-modal")) return;
 
@@ -1270,7 +1316,12 @@ function showCachedLyricsModal() {
                     <div class="loop-lyrics-cache-kicker">Loop storage</div>
                     <h2 id="loop-lyrics-cache-title">Cached lyrics</h2>
                 </div>
-                <button type="button" class="loop-lyrics-cache-close" aria-label="Close cached lyrics">&#215;</button>
+                <div class="loop-lyrics-cache-header-actions">
+                    <button type="button" class="loop-lyrics-cache-export">Export</button>
+                    <button type="button" class="loop-lyrics-cache-import">Import</button>
+                    <input class="loop-lyrics-cache-import-input" type="file" accept="application/json,.json" hidden>
+                    <button type="button" class="loop-lyrics-cache-close" aria-label="Close cached lyrics">&#215;</button>
+                </div>
             </header>
             <div class="loop-lyrics-cache-layout">
                 <div class="loop-lyrics-cache-list-panel">
@@ -1290,6 +1341,9 @@ function showCachedLyricsModal() {
     const list = modal.querySelector(".loop-lyrics-cache-list");
     const details = modal.querySelector(".loop-lyrics-cache-details");
     const search = modal.querySelector(".loop-lyrics-cache-search");
+    const exportButton = modal.querySelector(".loop-lyrics-cache-export");
+    const importButton = modal.querySelector(".loop-lyrics-cache-import");
+    const importInput = modal.querySelector(".loop-lyrics-cache-import-input");
     let allEntries = [];
     let selectedCacheKey = null;
 
@@ -1492,6 +1546,41 @@ function showCachedLyricsModal() {
     };
 
     search.addEventListener("input", () => renderEntries(allEntries));
+    exportButton.addEventListener("click", async () => {
+        exportButton.disabled = true;
+        try {
+            const payload = await getLyricsCacheExport();
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `loop-lyrics-cache-${new Date().toISOString().slice(0, 10)}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.warn("[loop.mp3] Could not export lyrics cache:", error);
+            showLoopNotification(error.message || "Could not export lyrics cache", 3000);
+        } finally {
+            exportButton.disabled = false;
+        }
+    });
+    importButton.addEventListener("click", () => importInput.click());
+    importInput.addEventListener("change", async () => {
+        const file = importInput.files?.[0];
+        importInput.value = "";
+        if (!file) return;
+        try {
+            const imported = await importLyricsCacheExport(JSON.parse(await file.text()));
+            allEntries = await getAllLyricsCacheEntries();
+            selectedCacheKey = null;
+            renderEntries(allEntries);
+            if (allEntries[0]) showDetails(allEntries[0]);
+            showLoopNotification(`Imported ${imported} cache entr${imported === 1 ? "y" : "ies"}.`, 3000);
+        } catch (error) {
+            console.warn("[loop.mp3] Could not import lyrics cache:", error);
+            showLoopNotification(error.message || "Could not import lyrics cache", 3000);
+        }
+    });
     getAllLyricsCacheEntries().then((entries) => {
         allEntries = entries;
         renderEntries(allEntries);
