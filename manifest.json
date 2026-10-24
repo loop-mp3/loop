@@ -7,7 +7,14 @@
   "content_scripts": [
     {
       "matches": ["https://music.youtube.com/*"],
-      "js": ["index.js"],
+      "js": [
+        "variable.js",
+        "utils/runtime.js",
+        "core/bridge.js",
+        "ytm/dom.js",
+        "services/lyrics-providers.js",
+        "index.js"
+      ],
       "css": ["static/loop.css"],
       "run_at": "document_start"
     }

@@ -1,72 +1,40 @@
+// The DOM boundary is kept in ytm/dom.js; these small adapters preserve the
+// existing local API used by the player code below.
 function waitForYTM(callback) {
-    const check = () => {
-        const playerPage = document.querySelector("ytmusic-player-page");
-        const playerBar = playerPage || document.querySelector("ytmusic-player-bar");
-        if (playerBar) return callback(playerBar);
-        requestAnimationFrame(check);
-    };
-    check();
+    return LoopYtmDom.waitForYTM(callback);
 }
 
-// YouTube Music moved the live player data under ytmusic-player-page. Keep the
-// old bar as a fallback because older clients still expose it directly.
 function getYTMPlayerRoot() {
-    return document.querySelector("ytmusic-player-page") ||
-        document.querySelector("ytmusic-player-bar");
+    return LoopYtmDom.getYTMPlayerRoot();
 }
 
 function getCurrentTrackId(playerBar) {
-    const urlTrackId = new URL(location.href).searchParams.get("v");
-    if (urlTrackId) return urlTrackId;
-
-    const dataRoot = playerBar?.matches?.("ytmusic-player-page")
-        ? playerBar.querySelector("ytmusic-player-bar") || playerBar
-        : playerBar;
-    const playerTrackLink = dataRoot?.querySelector(
-        'a[href*="watch?v="], a[href*="youtu.be/"]'
-    );
-    if (playerTrackLink) {
-        try {
-            const url = new URL(playerTrackLink.href, location.href);
-            const trackId = url.searchParams.get("v") || url.pathname.split("/").pop();
-            if (trackId) return trackId;
-        } catch {
-        }
-    }
-    return document.querySelector("ytmusic-player-page")?.getAttribute("video-id") ||
-        document.querySelector("ytmusic-player-page")?.dataset.videoId;
+    return LoopYtmDom.getCurrentTrackId(playerBar);
 }
 
 function getFallbackArtwork() {
-    return getExtensionURL(loopPreferences.useLegacyFallbackArtwork
-        ? "static/fallback-legacy.png"
-        : "static/fallback-artwork.png");
+    return LoopYtmDom.getFallbackArtwork(loopPreferences, getExtensionURL);
 }
 
 function getVinylArtwork(trackId) {
-    return trackId ? `https://img.youtube.com/vi/${trackId}/maxresdefault.jpg` : getFallbackArtwork();
+    return LoopYtmDom.getVinylArtwork(trackId, loopPreferences, getExtensionURL);
 }
 
 function getPlayerBarArtwork(playerBar) {
-    const nestedPlayerBar = playerBar?.querySelector("ytmusic-player-bar");
-    const roots = [nestedPlayerBar, playerBar, document.querySelector("ytmusic-player-bar")]
-        .filter((root, index, all) => root && all.indexOf(root) === index);
-    const artwork = roots.flatMap((root) => [...root.querySelectorAll("img")]).find((image) => {
-        const source = image.currentSrc || image.src || "";
-        return source && !source.includes("ytmusic-logo") && !source.includes("favicon");
-    });
-    return artwork?.currentSrc || artwork?.src || "";
+    return LoopYtmDom.getPlayerBarArtwork(playerBar);
 }
 
 function getCurrentArtwork(playerBar, trackId) {
-    return trackId
-        ? getVinylArtwork(trackId)
-        : getPlayerBarArtwork(playerBar) || currentArtworkURL || getFallbackArtwork();
+    return LoopYtmDom.getCurrentArtwork(
+        playerBar,
+        trackId,
+        loopPreferences,
+        currentArtworkURL,
+        getExtensionURL,
+    );
 }
 
-let lastDiscordUpdate = 0;
-let lastDiscordSignature = "";
-let lastElectronMiniPlayerSignature = "";
+let loopBridge;
 
 function getKawarpState() {
     return {
@@ -81,90 +49,27 @@ function getKawarpState() {
 }
 
 function publishElectronKawarpState() {
-    window.postMessage({
-        source: "loop.mp3",
-        type: "loop:electron-kawarp-state",
-        state: getKawarpState(),
-    }, "*");
+    loopBridge?.publishElectronKawarpState();
 }
 
-function publishElectronMiniPlayerState({ force = false } = {}) {
-    const loop = document.getElementById("loop");
-    const media = getCurrentMedia();
-    const state = {
-        title: loop?.querySelector("#loop-track-title")?.textContent.trim() || "Nothing playing",
-        artist: loop?.querySelector("#loop-track-artist")?.textContent.trim() || "Search something to play",
-        album: loopPreferences.showAlbum
-            ? loop?.querySelector("#loop-track-album")?.textContent.trim() || ""
-            : undefined,
-        artwork: loop?.querySelector("#loop-artwork")?.src || getFallbackArtwork(),
-        currentTime: media && Number.isFinite(media.currentTime) ? media.currentTime : 0,
-        duration: media && Number.isFinite(media.duration) ? media.duration : 0,
-        paused: !media || media.paused,
-        theme: loop?.dataset.theme || loopPreferences.theme || "default",
-    };
-    const signature = JSON.stringify({ ...state, currentTime: Math.floor(state.currentTime) });
-    if (!force && signature === lastElectronMiniPlayerSignature) return;
-    lastElectronMiniPlayerSignature = signature;
-    window.postMessage({
-        source: "loop.mp3",
-        type: "loop:electron-mini-player-state",
-        state,
-    }, "*");
+function publishElectronMiniPlayerState(options) {
+    loopBridge?.publishElectronMiniPlayerState(options);
 }
 
 function publishElectronMiniPlayerCommand(type) {
-    window.postMessage({ source: "loop.mp3", type }, "*");
+    loopBridge?.publishElectronMiniPlayerCommand(type);
 }
 
-function publishDiscordActivity({ force = false } = {}) {
-    const loop = document.getElementById("loop");
-    const media = getCurrentMedia();
-    if (!media) {
-      return;
-    }
-    const title = loop?.querySelector("#loop-track-title")?.textContent.trim() || "";
-    const artist = media.paused ? `Paused` : loop?.querySelector("#loop-track-artist")?.textContent.trim() || "";
-    const album = loop?.querySelector("#loop-track-album")?.textContent.trim() || "";
-    const artwork = loop?.querySelector("#loop-artwork")?.src || "";
-    const now = Date.now();
-
-    if (!loop || loop.classList.contains("loop-empty") || !title || !artist || !media) {
-        if (!force && now - lastDiscordUpdate < 1000 && lastDiscordSignature === "clear") return;
-        lastDiscordUpdate = now;
-        lastDiscordSignature = "clear";
-        window.postMessage({
-            source: "loop.mp3",
-            type: "discord-rpc:clear",
-        }, "*");
-        return;
-    }
-
-    const duration = Number(media.duration);
-    const position = Number(media.currentTime);
-    const signature = `${title}|${artist}|${album}|${artwork}|${media.paused}|${Math.floor(position)}`;
-    if (!force && now - lastDiscordUpdate < 1000 && signature === lastDiscordSignature) return;
-    lastDiscordUpdate = now;
-    lastDiscordSignature = signature;
-
-    const activity = {
-        details: "Listening to Loop",
-        state: title,
-        largeImageKey: artwork,
-        largeImageText: artist,
-    };
-    if (!media.paused && Number.isFinite(duration) && duration > 0) {
-        const startTimestamp = now - Math.floor(position * 1000);
-        activity.startTimestamp = startTimestamp;
-        activity.endTimestamp = startTimestamp + Math.floor(duration * 1000);
-    }
-
-    window.postMessage({
-        source: "loop.mp3",
-        type: "discord-rpc:update",
-        activity,
-    }, "*");
+function publishDiscordActivity(options) {
+    loopBridge?.publishDiscordActivity(options);
 }
+
+loopBridge = LoopCore.createBridge({
+    getKawarpState,
+    getCurrentMedia,
+    getFallbackArtwork,
+    getPreferences: () => loopPreferences,
+});
 
 function loadFontAwesome() {
     if (document.querySelector('link[data-loop-font-awesome="true"]')) return;
@@ -193,38 +98,35 @@ async function checkYTMusicAuth() {
     }
 }
 
-const defaultKawarpSettings = {
-    enabled: true,
-    kawarpOpacity: 0.57,
-    kawarpWarpIntensity: 1,
-    kawarpBlurPasses: 7,
-    kawarpAnimationSpeed: 0.3,
-    kawarpTransitionDuration: 1000,
-    kawarpSaturation: 2,
-    kawarpDithering: 0.004,
-    kawarpAudioScaleBoost: 1.1,
-    audioResponsive: true,
-    audioSpeedMultiplier: 4.5,
-    audioBeatThreshold: 0.01,
-    pauseOnInactive: true,
-    showLogs: true,
-    showOnBrowsePages: false,
-    enableAnimatedArt: true,
-    shaderType: "kawarp",
-    distortion: 0.93,
-    swirl: 0.97,
-    offsetX: 0,
-    offsetY: 0,
-    scale: 1.25,
-    rotation: 0,
-    speed: 0.07,
-    opacity: 0.33,
-    audioScaleBoost: 1.3,
-    boostDullColors: true,
-    vibrantSaturationThreshold: 30,
-    vibrantRatioThreshold: 50,
-    boostIntensity: 50,
-};
+const {
+    defaultKawarpSettings,
+    defaultLoopPreferences,
+    loopPreferencesKey,
+    defaultLoopUpdateInterval,
+    defaultKawarpFpsCap,
+    defaultLyricsGapNoteThreshold,
+    minimumLyricsGapNoteThreshold,
+    maximumLyricsGapNoteThreshold,
+    kawarpFpsOptions,
+    lyricsRetryIntervalMs: LYRICS_RETRY_INTERVAL_MS,
+    minimumLoopUpdateInterval,
+    maximumLoopUpdateInterval,
+    kawarpConfigKey,
+    kawarpCustomPresetsKey,
+    lyricsCacheKeyPrefix,
+    manualLyricsCacheKeyPrefix,
+    translationCacheKeyPrefix,
+    defaultUpdateURL,
+    lyricsTranslationEndpoint,
+    unisonTranslationRetryDelaysMs,
+    grooveEditorURL,
+    geniusURL,
+    unisonURL,
+    onboardingChangelogURL,
+    lyricsProviders,
+    defaultLyricsProviderIds,
+    supportedLyricsTranslationLanguages,
+} = globalThis.LoopVariables;
 
 let kawarpSettings = { ...defaultKawarpSettings };
 let kawarpBackground;
@@ -234,35 +136,7 @@ let videoBackgroundSyncFrame;
 let videoBackgroundLastSyncedTime;
 let videoBackgroundLastPaused;
 let videoUiHideTimer;
-let loopPreferences = {
-    animatedBackground: true,
-    hideVinyl: true,
-    hideArtwork: false,
-    showNavigationButtons: false,
-    autoOpenMiniPlayer: true,
-    useLegacyFallbackArtwork: false,
-    showAlbum: false,
-    showLyrics: true,
-    trackPresentationModes: {},
-    lyricsRenderingEngine: "standard",
-    animateWordWobble: false,
-    showWriterCredits: true,
-    useLyricsCache: true,
-    useGrooveOverrides: true,
-    enableLyricsTranslation: false,
-    lyricsTranslationLanguage: "en",
-    lyricsGapNoteThreshold: 5,
-    lyricsProviderOrder: ["unison", "lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
-    lyricsDisabledProviderIds: [],
-    lyricsRemovedProviderIds: [],
-    loopUpdateInterval: 500,
-    kawarpFpsCap: 60,
-    kawarpFpsLogging: false,
-    volume: 1,
-    theme: "default",
-    videoBehaviorEnabled: true,
-    videoUiRearrangement: true,
-};
+let loopPreferences = { ...defaultLoopPreferences, trackPresentationModes: {} };
 let currentArtworkURL = "";
 let forcedVideoMode = false;
 let forcedArtworkMode = false;
@@ -291,42 +165,6 @@ let loopUpdateBlocked = false;
 let loopVisible = false;
 let loopUpdateIntervalId;
 let loopUpdatePlayerBar;
-
-const loopPreferencesKey = "loop.mp3.preferences";
-const defaultLoopUpdateInterval = 500;
-const defaultKawarpFpsCap = 60;
-const defaultLyricsGapNoteThreshold = 5;
-const minimumLyricsGapNoteThreshold = 0;
-const maximumLyricsGapNoteThreshold = 30;
-const kawarpFpsOptions = [15, 30, 60, 120, 144, 0];
-const LYRICS_RETRY_INTERVAL_MS = 5000;
-const minimumLoopUpdateInterval = 100;
-const maximumLoopUpdateInterval = 1000;
-const kawarpConfigKey = "loop.mp3.kawarp-config";
-const kawarpCustomPresetsKey = "loop.mp3.kawarp-custom-presets";
-const lyricsCacheKeyPrefix = "lyrics_";
-const manualLyricsCacheKeyPrefix = "lyrics_manual_";
-const translationCacheKeyPrefix = "translation_";
-const defaultUpdateURL = "https://loop.mizucode.qzz.io/update";
-const lyricsTranslationEndpoint = "https://unison.boidu.dev/translate";
-const unisonTranslationRetryDelaysMs = [3_000, 5_000, 10_000, 15_000];
-const grooveEditorURL = "https://loop.mizucode.qzz.io/groove/";
-const geniusURL = "https://genius.com";
-const unisonURL = "https://unison.prjktla.my.id/submit";
-const onboardingChangelogURL = "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md";
-const lyricsProviders = [
-    { id: "unison", label: "Unison", endpoint: "https://unison.boidu.dev" },
-    { id: "lyricsplus", label: "LyricsPlus", endpoint: "https://lyricsplus.prjktla.my.id/v2/lyrics/get" },
-    { id: "binilyrics-ttml", label: "Binilyrics (lrc.red TTML)", endpoint: "https://lrc.red", format: "ttml" },
-    { id: "binilyrics-lrc", label: "Binilyrics (lrc.red LRC)", endpoint: "https://lrc.red", format: "lrc" },
-    { id: "lrclib", label: "LRCLIB", endpoint: "https://lrclib.net/api/search" },
-    { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/v1/track" },
-    { id: "groove-dev", label: "Groove (dev)", endpoint: "http://127.0.0.1:8787/api/v1/track" },
-];
-const defaultLyricsProviderIds = ["lyricsplus", "binilyrics-ttml", "unison", "binilyrics-lrc", "lrclib", "groove", "groove-dev"];
-const supportedLyricsTranslationLanguages = new Set([
-    "ar", "bn", "de", "en", "es", "fr", "hi", "id", "it", "ja", "ko", "pt", "ru", "tr", "vi", "zh",
-]);
 const translationRequestCache = new Map();
 
 function normalizeLyricsTranslationLanguage(value) {
@@ -662,12 +500,7 @@ function completeOnboarding() {
 }
 
 function escapeHTML(value) {
-    return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+    return LoopUtils.escapeHTML(value);
 }
 
 function renderChangelogMarkdown(markdown) {
@@ -2907,13 +2740,7 @@ async function warnIfNotSignedIn() {
 }
 
 function getExtensionURL(path) {
-    const runtime = globalThis.chrome?.runtime || globalThis.browser?.runtime;
-    try {
-        return runtime?.getURL(path) || path;
-    } catch (error) {
-        console.warn("[loop.mp3] Extension context unavailable while resolving asset:", error);
-        return path;
-    }
+    return LoopUtils.getExtensionURL(path);
 }
 
 function escapeTTMLText(value) {
@@ -3442,31 +3269,10 @@ async function getLrclibCandidateResults(trackId, title, artist, signal, queryOv
     return results;
 }
 
-async function getLyricsCandidatesForAllProviders(trackId, title, artist, duration, queryOverride = "") {
-    const enabledProviderIds = new Set(getLyricsProviderOrder());
-    const providerResults = await Promise.all(lyricsProviders.filter((provider) => enabledProviderIds.has(provider.id)).map(async (provider) => {
-        try {
-            const candidates = provider.id === "lrclib"
-                ? await getLrclibCandidateResults(trackId, title, artist, undefined, queryOverride)
-                : provider.id === "lyricsplus"
-                    ? [await getLyricsFromLyricsPlus(trackId, title, artist)]
-                    : provider.id === "unison"
-                        ? [await getLyricsFromUnison(trackId, title, artist, duration)]
-                        : provider.id.startsWith("binilyrics-")
-                            ? [await getLyricsFromBinilyrics(title, artist, duration, provider.id)]
-                            : [await getLyricsFromGroove(trackId, title, artist, duration, provider.id)];
-            return { provider, candidates };
-        } catch (error) {
-            console.warn(`[loop.mp3] ${provider.label} candidate search failed:`, error);
-            return { provider, candidates: [], error };
-        }
-    }));
+let lyricsProviderService;
 
-    return providerResults.flatMap(({ provider, candidates }) => candidates.map((lyrics, index) => ({
-        lyrics,
-        provider,
-        index,
-    })));
+async function getLyricsCandidatesForAllProviders(trackId, title, artist, duration, queryOverride = "") {
+    return lyricsProviderService.getCandidates(trackId, title, artist, duration, queryOverride);
 }
 
 function applyLyricsTimestampOffset(syncedLyrics, offsetSeconds) {
@@ -3853,6 +3659,25 @@ function normalizeWriterCreditText(value) {
         .trim()
         .toLocaleLowerCase();
 }
+
+lyricsProviderService = LoopLyricsServices.createLyricsProviderService({
+    providers: lyricsProviders,
+    getEnabledProviderIds: getLyricsProviderOrder,
+    adapters: {
+        lrclib: ({ trackId, title, artist, queryOverride }) =>
+            getLrclibCandidateResults(trackId, title, artist, undefined, queryOverride),
+        lyricsplus: ({ trackId, title, artist }) => getLyricsFromLyricsPlus(trackId, title, artist),
+        unison: ({ trackId, title, artist, duration }) => getLyricsFromUnison(trackId, title, artist, duration),
+        "binilyrics-ttml": ({ title, artist, duration, provider }) =>
+            getLyricsFromBinilyrics(title, artist, duration, provider.id),
+        "binilyrics-lrc": ({ title, artist, duration, provider }) =>
+            getLyricsFromBinilyrics(title, artist, duration, provider.id),
+        groove: ({ trackId, title, artist, duration, provider }) =>
+            getLyricsFromGroove(trackId, title, artist, duration, provider.id),
+        "groove-dev": ({ trackId, title, artist, duration, provider }) =>
+            getLyricsFromGroove(trackId, title, artist, duration, provider.id),
+    },
+});
 
 function removeTrailingWriterCreditLines(lines, songwriters) {
     const names = songwriters.filter(Boolean).map((name) => String(name).trim()).filter(Boolean);
@@ -5264,53 +5089,7 @@ function updateKawarpArtwork(artworkURL) {
 }
 
 function getTrackInfo(playerBar) {
-    const root = playerBar || getYTMPlayerRoot();
-    if (!root) {
-        return { title: "Unknown track", artist: "Unknown artist", album: "Unknown album" };
-    }
-
-    // ytmusic-player-page also contains the queue/context UI. Its first
-    // `.title` can be labels such as "Playing from", so prefer the actual
-    // nested player bar whenever YouTube still exposes one.
-    const dataRoot = root.matches?.("ytmusic-player-page")
-        ? root.querySelector("ytmusic-player-bar") || root
-        : root;
-
-    const titleRoots = [dataRoot, root, document].filter((node, index, all) => node && all.indexOf(node) === index);
-    // Yo sir we no longer require you cuz we are hard coding the shi we cannot afford random strings leaking due to THIS STUPID FUCKING DOM FETCHING I CAN JUST FETCH THE FUCKING TITLE FORM THE OEMBED AND PLACE A PLACEHOLDER HERE
-    /*
-    const title = titleRoots
-        .flatMap((node) => [...node.querySelectorAll(
-            "span.ytAttributedStringHost, .title, #title, yt-formatted-string.title, [class~='title']"
-        )])
-        .map((node) => node.textContent.trim())
-        .find((text) => text && !/^(playing from|auto-?play(?:\s+is\s+on)?)(?:\s*[•·-].*)?$/i.test(text)) || "Unknown track";
-        */
-    const title = "Unknown track";
-    const byline = dataRoot.querySelector("yt-formatted-string.byline.ytmusic-player-bar") ||
-        dataRoot.querySelector(".subtitle.ytmusic-player-bar yt-formatted-string.byline") ||
-        dataRoot.querySelector(".byline, .subtitle, [class*='byline'], [class*='subtitle']");
-    const links = byline?.querySelectorAll("a") || [];
-    const playerInfoLinks = [...document.querySelectorAll(
-        "ytmusic-track-info .ytmusicTrackInfoByline a.ytAttributedStringLink.ytAttributedStringLinkCallToActionColor"
-    )];
-    const albumLink = playerInfoLinks[1] || dataRoot.querySelector(
-        "a.ytAttributedStringLink.ytAttributedStringLinkCallToActionColor"
-    ) || dataRoot.querySelector("a.ytAttributedStringLink");
-    const parsedByline = byline?.textContent
-        ?.split(/\s*[\u2022\u00b7]\s*/)
-        .map((part) => part.trim())
-        .filter(Boolean) || [];
-    const bylineText = byline?.textContent.split("•").map((part) => part.trim()).filter(Boolean) || [];
-    return {
-        title,
-        artist: links[0]?.textContent.trim() || parsedByline[0] || bylineText[0] || "Unknown artist",
-        artistUrl: links[0]?.href || "",
-        album: albumLink?.textContent.trim() || (links.length >= 2
-            ? links[links.length - 1].textContent.trim()
-            : parsedByline[1] || bylineText[1] || "Unknown album"),
-        albumUrl: albumLink?.href || (links.length >= 2 ? links[links.length - 1].href : ""),
-    };
+    return LoopYtmDom.getTrackInfo(playerBar);
 }
 
 function getMusicAuthorUrl(authorUrl) {
@@ -6327,10 +6106,7 @@ window.addEventListener("beforeunload", (event) => {
 });
 
 function formatTime(seconds) {
-    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60).toString().padStart(2, "0");
-    return `${minutes}:${remainingSeconds}`;
+    return LoopUtils.formatTime(seconds);
 }
 
 function updatePlaybackControls(media = getCurrentMedia()) {
