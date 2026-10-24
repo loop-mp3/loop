@@ -29,3 +29,7 @@ Recent commits use short imperative-style prefixes such as `feat:`, `refactor:`,
 ## Security & Configuration Tips
 
 Treat YouTube Music DOM assumptions and extension permissions as sensitive integration points. Do not commit secrets or personal data. When changing `manifest.json`, review host permissions and web-accessible resources for least privilege, and test the extension from a clean reload.
+
+## Project Structure and Implimentation mappings
+
+look at the SKILL.md file and you would be able to see all the implimentations and the project structure
