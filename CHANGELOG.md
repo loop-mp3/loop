@@ -1,6 +1,27 @@
 
 All notable changes to Loop are documented here.
 
+## [0.7.8] - 2026-10-24
+
+### Highlights
+
+* Added Unison as a lyrics provider, including TTML lyrics retrieval, duration-aware search matching, and a direct lyrics-submission action.
+* Made lyrics available by default whenever a track has usable lyrics, and combined provider search, manual lyrics selection, and translation controls in a single modal workflow.
+* Added configurable lyric gap notes for instrumental openings and endings, with a setting for the minimum gap duration.
+* Replaced the single lyrics-provider selector with a drag-and-drop priority manager that can enable, disable, remove, and restore providers.
+* Expanded cached lyrics management with search, metadata and lyric editing, translation editing, refresh, deletion, and responsive mobile layout support.
+* Added JSON export and import for lyrics, manually selected lyrics, and translation cache entries.
+
+### Fixes
+
+* Preserved meaningful whitespace between TTML syllables and inline spans, including whitespace marked with `xml:space="preserve"`.
+* Kept manually selected lyrics and translations associated with their cached track entries while editing or deleting cache data.
+
+### Internal and maintenance changes
+
+* Added coverage for TTML syllable spacing, lyric gap-note parsing, provider and lyrics-selection workflows, and cache handling.
+* Updated the default and reset provider configuration to use Unison as the first lyrics provider.
+
 ## [0.7.7] - 2026-10-23
 
 ### Highlights
