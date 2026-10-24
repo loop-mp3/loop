@@ -56,7 +56,7 @@
         lyricsDisabledProviderIds: [],
         lyricsRemovedProviderIds: [],
         loopUpdateInterval: 500,
-        kawarpFpsCap: 60,
+        kawarpFpsCap: 30,
         kawarpFpsLogging: false,
         volume: 1,
         theme: "default",
