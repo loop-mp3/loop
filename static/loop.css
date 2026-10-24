@@ -1020,25 +1020,91 @@
 }
 
 .loop-lyrics-provider-setting {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.loop-lyrics-provider-heading {
+    font-weight: 600;
+}
+
+#loop-lyrics-provider-priority-list {
+    display: grid;
+    gap: 5px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.loop-lyrics-provider-priority-item {
+    display: grid;
+    grid-template-columns: 24px 20px minmax(0, 1fr) auto auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-#loop-lyrics-provider-select {
-    min-width: 150px;
-    padding: 5px 8px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    gap: 7px;
+    min-height: 36px;
+    padding: 5px 7px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    font: inherit;
-    cursor: pointer;
+    background: rgba(255, 255, 255, 0.06);
+    cursor: grab;
 }
 
-#loop-lyrics-provider-select option {
-    background: #181818;
-    color: #fff;
+.loop-lyrics-provider-priority-item.is-disabled {
+    opacity: 0.5;
+}
+
+.loop-lyrics-provider-priority-item.is-dragging {
+    opacity: 0.35;
+}
+
+.loop-lyrics-provider-priority-rank {
+    color: rgba(255, 255, 255, 0.58);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
+.loop-lyrics-provider-priority-handle {
+    color: rgba(255, 255, 255, 0.56);
+    font-size: 18px;
+    line-height: 1;
+}
+
+.loop-lyrics-provider-priority-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.loop-lyrics-provider-priority-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.loop-lyrics-provider-priority-remove,
+.loop-lyrics-provider-restore {
+    padding: 5px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.08);
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    font-size: 11px;
+}
+
+.loop-lyrics-provider-priority-remove:hover,
+.loop-lyrics-provider-restore:hover {
+    background: rgba(255, 255, 255, 0.17);
 }
 
 #loop-lyrics-translation-language {

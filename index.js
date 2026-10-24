@@ -252,7 +252,9 @@ let loopPreferences = {
     enableLyricsTranslation: false,
     lyricsTranslationLanguage: "en",
     lyricsGapNoteThreshold: 5,
-    lyricsProviderOrder: ["lyricsplus", "binilyrics-ttml", "unison", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
+    lyricsProviderOrder: ["unison", "lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
+    lyricsDisabledProviderIds: [],
+    lyricsRemovedProviderIds: [],
     loopUpdateInterval: 500,
     kawarpFpsCap: 60,
     kawarpFpsLogging: false,
@@ -373,23 +375,133 @@ function cacheTranslation(trackId, targetLanguage, result) {
     });
 }
 
-function getLyricsProviderOrder() {
+function getLyricsProviderDisplayOrder() {
     const storedOrder = Array.isArray(loopPreferences.lyricsProviderOrder)
         ? loopPreferences.lyricsProviderOrder
         : [];
     const knownIds = new Set(lyricsProviders.map((provider) => provider.id));
+    const removedIds = new Set(Array.isArray(loopPreferences.lyricsRemovedProviderIds)
+        ? loopPreferences.lyricsRemovedProviderIds
+        : []);
     return [...new Set([
-        ...storedOrder.filter((providerId) => knownIds.has(providerId)),
-        ...defaultLyricsProviderIds,
+        ...storedOrder.filter((providerId) => knownIds.has(providerId) && !removedIds.has(providerId)),
+        ...defaultLyricsProviderIds.filter((providerId) => !removedIds.has(providerId)),
+        ...lyricsProviders.map((provider) => provider.id).filter((providerId) => !removedIds.has(providerId)),
     ])];
 }
 
-function setLyricsProviderOrder(providerId) {
-    const order = getLyricsProviderOrder();
-    if (!lyricsProviders.some((provider) => provider.id === providerId)) return;
-    loopPreferences.lyricsProviderOrder = [providerId, ...order.filter((id) => id !== providerId)];
+function getLyricsProviderOrder() {
+    const disabledIds = new Set(Array.isArray(loopPreferences.lyricsDisabledProviderIds)
+        ? loopPreferences.lyricsDisabledProviderIds
+        : []);
+    return getLyricsProviderDisplayOrder().filter((providerId) => !disabledIds.has(providerId));
+}
+
+function saveLyricsProviderState() {
+    loopPreferences.lyricsProviderOrder = getLyricsProviderDisplayOrder();
     saveLoopPreferences();
     applyLoopPreferences();
+}
+
+function setLyricsProviderOrder(order) {
+    const knownIds = new Set(lyricsProviders.map((provider) => provider.id));
+    const removedIds = new Set(loopPreferences.lyricsRemovedProviderIds || []);
+    loopPreferences.lyricsProviderOrder = [...new Set(order.filter((providerId) => knownIds.has(providerId) && !removedIds.has(providerId)))];
+    saveLyricsProviderState();
+}
+
+function setLyricsProviderEnabled(providerId, enabled) {
+    const disabledIds = new Set(loopPreferences.lyricsDisabledProviderIds || []);
+    if (enabled) disabledIds.delete(providerId);
+    else disabledIds.add(providerId);
+    loopPreferences.lyricsDisabledProviderIds = [...disabledIds];
+    saveLyricsProviderState();
+    if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack(true);
+}
+
+function removeLyricsProvider(providerId) {
+    loopPreferences.lyricsRemovedProviderIds = [...new Set([...(loopPreferences.lyricsRemovedProviderIds || []), providerId])];
+    loopPreferences.lyricsDisabledProviderIds = (loopPreferences.lyricsDisabledProviderIds || []).filter((id) => id !== providerId);
+    saveLyricsProviderState();
+    if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack(true);
+}
+
+function restoreLyricsProviders() {
+    loopPreferences.lyricsRemovedProviderIds = [];
+    saveLyricsProviderState();
+}
+
+function renderLyricsProviderPriorityUI() {
+    const loop = document.querySelector("#loop");
+    const container = loop?.querySelector("#loop-lyrics-provider-priority-list");
+    if (!container) return;
+
+    const disabledIds = new Set(loopPreferences.lyricsDisabledProviderIds || []);
+    const order = getLyricsProviderDisplayOrder();
+    container.replaceChildren();
+    order.forEach((providerId, index) => {
+        const provider = lyricsProviders.find((entry) => entry.id === providerId);
+        if (!provider) return;
+        const row = document.createElement("div");
+        row.className = "loop-lyrics-provider-priority-item";
+        row.draggable = true;
+        row.dataset.providerId = provider.id;
+        row.classList.toggle("is-disabled", disabledIds.has(provider.id));
+
+        const rank = document.createElement("span");
+        rank.className = "loop-lyrics-provider-priority-rank";
+        rank.textContent = String(index + 1);
+        const dragHandle = document.createElement("span");
+        dragHandle.className = "loop-lyrics-provider-priority-handle";
+        dragHandle.textContent = "⠿";
+        dragHandle.setAttribute("aria-hidden", "true");
+        const label = document.createElement("span");
+        label.className = "loop-lyrics-provider-priority-label";
+        label.textContent = provider.label;
+        const toggleLabel = document.createElement("label");
+        toggleLabel.className = "loop-lyrics-provider-priority-toggle";
+        const toggle = document.createElement("input");
+        toggle.type = "checkbox";
+        toggle.checked = !disabledIds.has(provider.id);
+        toggle.setAttribute("aria-label", `Enable ${provider.label}`);
+        toggle.addEventListener("change", () => setLyricsProviderEnabled(provider.id, toggle.checked));
+        toggleLabel.append(toggle, document.createTextNode("Enabled"));
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "loop-lyrics-provider-priority-remove";
+        remove.textContent = "Remove";
+        remove.addEventListener("click", () => removeLyricsProvider(provider.id));
+        row.append(rank, dragHandle, label, toggleLabel, remove);
+
+        row.addEventListener("dragstart", (event) => {
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", provider.id);
+            row.classList.add("is-dragging");
+        });
+        row.addEventListener("dragend", () => row.classList.remove("is-dragging"));
+        row.addEventListener("dragover", (event) => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+        });
+        row.addEventListener("drop", (event) => {
+            event.preventDefault();
+            const draggedId = event.dataTransfer.getData("text/plain");
+            if (!draggedId || draggedId === provider.id) return;
+            const dragged = container.querySelector(`[data-provider-id="${CSS.escape(draggedId)}"]`);
+            if (!dragged) return;
+            const rows = [...container.children];
+            if (rows.indexOf(dragged) < rows.indexOf(row)) container.insertBefore(dragged, row);
+            else container.insertBefore(dragged, row.nextSibling);
+            setLyricsProviderOrder([...container.children].map((item) => item.dataset.providerId));
+        });
+        container.appendChild(row);
+    });
+
+    const restore = loop.querySelector("#loop-lyrics-provider-restore");
+    if (restore) {
+        restore.hidden = !(loopPreferences.lyricsRemovedProviderIds || []).length;
+        restore.onclick = restoreLyricsProviders;
+    }
 }
 
 function normalizeLyricsGapNoteThreshold(value) {
@@ -1935,7 +2047,9 @@ async function resetLoopData() {
         enableLyricsTranslation: false,
         lyricsTranslationLanguage: "en",
         lyricsGapNoteThreshold: defaultLyricsGapNoteThreshold,
-        lyricsProviderOrder: ["lyricsplus", "binilyrics-ttml", "unison", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
+        lyricsProviderOrder: ["unison", "lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
+        lyricsDisabledProviderIds: [],
+        lyricsRemovedProviderIds: [],
         loopUpdateInterval: defaultLoopUpdateInterval,
         kawarpFpsCap: defaultKawarpFpsCap,
         kawarpFpsLogging: false,
@@ -2000,19 +2114,7 @@ function applyLoopPreferences() {
     const kawarpFpsLoggingToggle = loop.querySelector("#loop-kawarp-fps-logging-toggle");
     if (kawarpFpsLoggingToggle) kawarpFpsLoggingToggle.checked = loopPreferences.kawarpFpsLogging;
     miniPlayerBridge?.syncEffects();
-    const lyricsProviderSelect = loop.querySelector("#loop-lyrics-provider-select");
-    if (lyricsProviderSelect) {
-        const order = getLyricsProviderOrder();
-        const displayOrder = [...order, ...lyricsProviders
-            .map((provider) => provider.id)
-            .filter((providerId) => !order.includes(providerId))];
-        lyricsProviderSelect.replaceChildren(...displayOrder.map((providerId, index) => {
-            const provider = lyricsProviders.find((entry) => entry.id === providerId);
-            const option = new Option(`${provider.label} (priority ${index + 1})`, provider.id);
-            return option;
-        }));
-        lyricsProviderSelect.value = order[0];
-    }
+    renderLyricsProviderPriorityUI();
     const volumeSlider = loop.querySelector("#loop-volume-slider");
     if (volumeSlider) volumeSlider.value = String(preferredVolume);
     const lyricsPanel = loop.querySelector("#loop-lyrics-panel");
@@ -3252,7 +3354,8 @@ async function getLrclibCandidateResults(trackId, title, artist, signal, queryOv
 }
 
 async function getLyricsCandidatesForAllProviders(trackId, title, artist, duration, queryOverride = "") {
-    const providerResults = await Promise.all(lyricsProviders.map(async (provider) => {
+    const enabledProviderIds = new Set(getLyricsProviderOrder());
+    const providerResults = await Promise.all(lyricsProviders.filter((provider) => enabledProviderIds.has(provider.id)).map(async (provider) => {
         try {
             const candidates = provider.id === "lrclib"
                 ? await getLrclibCandidateResults(trackId, title, artist, undefined, queryOverride)
@@ -4865,6 +4968,8 @@ function showKawarpConfigEditor() {
 async function loadLoopPreferences() {
     loopPreferences = { ...loopPreferences, ...(await getStoredLoopPreferences()) };
     loopPreferences.showLyrics = true;
+    loopPreferences.lyricsDisabledProviderIds = [...new Set((Array.isArray(loopPreferences.lyricsDisabledProviderIds) ? loopPreferences.lyricsDisabledProviderIds : []).filter((id) => lyricsProviders.some((provider) => provider.id === id)))];
+    loopPreferences.lyricsRemovedProviderIds = [...new Set((Array.isArray(loopPreferences.lyricsRemovedProviderIds) ? loopPreferences.lyricsRemovedProviderIds : []).filter((id) => lyricsProviders.some((provider) => provider.id === id)))];
     loopPreferences.trackPresentationModes = normalizeTrackPresentationModes(loopPreferences.trackPresentationModes);
     loopPreferences.lyricsRenderingEngine = normalizeLyricsRenderingEngine(loopPreferences.lyricsRenderingEngine);
     loopPreferences.enableLyricsTranslation = loopPreferences.enableLyricsTranslation === true;
@@ -5666,10 +5771,11 @@ function updateLoop(artworkURL, trackInfo) {
                         <input id="loop-update-interval-slider" type="range" min="100" max="1000" step="50" value="500" aria-label="Loop update interval in milliseconds">
                     </label>
                     <div id="loop-update-interval-warning" class="loop-setting-warning" role="note" hidden></div>
-                    <label class="loop-navigation-toggle loop-lyrics-provider-setting">
-                        Lyrics provider
-                        <select id="loop-lyrics-provider-select" aria-label="Preferred lyrics provider"></select>
-                    </label>
+                    <div class="loop-lyrics-provider-setting">
+                        <div class="loop-lyrics-provider-heading">Lyrics provider priority</div>
+                        <div id="loop-lyrics-provider-priority-list" role="list" aria-label="Lyrics provider priority list"></div>
+                        <button id="loop-lyrics-provider-restore" class="loop-lyrics-provider-restore" type="button" hidden>Restore removed providers</button>
+                    </div>
                     <button id="loop-lyrics-submit-button" class="loop-menu-action" type="button">
                         Submit lyrics to Unison
                     </button>
@@ -5904,10 +6010,7 @@ function updateLoop(artworkURL, trackInfo) {
             kawarpBackground?.setOptions({ fpsLogging: loopPreferences.kawarpFpsLogging });
             miniPlayerBridge?.syncEffects();
         });
-        loop.querySelector("#loop-lyrics-provider-select").addEventListener("change", (event) => {
-            setLyricsProviderOrder(event.target.value);
-            if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
-        });
+
         loop.querySelector("#loop-theme-select").addEventListener("change", (event) => {
             loopPreferences.theme = event.target.value;
             saveLoopPreferences();
