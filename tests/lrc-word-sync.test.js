@@ -3,12 +3,11 @@ import fs from "node:fs";
 import vm from "node:vm";
 import test from "node:test";
 
-// Exercise the actual parser in index.js instead of maintaining a copied test implementation.
-const source = fs.readFileSync(new URL("../index.js", import.meta.url), "utf8");
-const start = source.indexOf("function parseTTMLTimestamp(");
-const end = source.indexOf("\nfunction normalizeWriterCreditText(", start);
-assert.notEqual(start, -1, "parseSyncedLyrics must exist in index.js");
-assert.notEqual(end, -1, "could not find end of parseSyncedLyrics");
+// Exercise the actual parser module instead of maintaining a copied test implementation.
+const source = fs.readFileSync(new URL("../utils/lyrics-parser.js", import.meta.url), "utf8");
+const start = 0;
+const end = source.length;
+assert.notEqual(source.indexOf("function parseSyncedLyrics("), -1, "parseSyncedLyrics must exist in utils/lyrics-parser.js");
 function decodeXmlText(value) {
     return value
         .replace(/&lt;/g, "<")
