@@ -63,6 +63,12 @@
 
             const lyricsResponse = await fetch(`${provider.endpoint}/lyrics/variants/${encodeURIComponent(matchedVideoId)}`, { signal });
             if (!lyricsResponse.ok) throw new Error(`${provider.label} lyrics returned ${lyricsResponse.status}`);
+            // checks if the lyircs vid title matches the song's cuz sometimes we hit slowed ones and it just shits itself
+            const unisonResponseJson = await lyricsResponse.json()
+            const unisonLyricsTrackTitle = unisonResponseJson.data[0]?.song;
+            if (unisonLyricsTrackTitle.toLowerCase() !== title.toLowerCase()) {
+              throw new Error(`${provider.label} returned invalid lyrics (the title didnt matched)`);
+            }
             const lyrics = normalizeUnisonLyrics(await lyricsResponse.json(), selectedResult);
             if (!lyrics) throw new Error(`${provider.label} returned invalid lyrics`);
             return lyrics;
