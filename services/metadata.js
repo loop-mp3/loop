@@ -213,8 +213,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             album,
             albumUrl,
             TrackWriters,
-            isVideo: Number(details.width ?? details.thumbnail_width) !== 200 ||
-                Number(details.height ?? details.thumbnail_height) !== 150,
+            isVideo: Number(details.width ?? details.thumbnail_width) !== Number(details.height ?? details.thumbnail_height)
         };
     } catch (error) {
         showLoopNotification("Could not fetch track metadata. Information might not load correctly press F5 to try again", 4000);
