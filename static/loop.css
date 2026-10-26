@@ -1156,6 +1156,45 @@
     --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5));
 }
 
+#loop-app-loading {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483646;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    pointer-events: none;
+}
+
+#loop-app-loader {
+    --m3-loader-size: 32px;
+    position: relative;
+    display: block;
+    overflow: visible !important;
+    width: var(--m3-loader-size) !important;
+    height: var(--m3-loader-size) !important;
+    min-width: var(--m3-loader-size) !important;
+    min-height: var(--m3-loader-size) !important;
+}
+
+#loop-app-loader::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-color: var(--m3-loader-color, #fff);
+    -webkit-mask-image: var(--loop-app-loader-image, url("material3-loader.svg"));
+    mask-image: var(--loop-app-loader-image, url("material3-loader.svg"));
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--m3-loader-color, #fff) 35%, transparent));
+}
+
 #loop-lyrics-loading {
     position: absolute;
     top: 50%;

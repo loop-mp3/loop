@@ -1,10 +1,41 @@
 // YouTube Music DOM access lives here so selectors stay isolated from player logic.
 (function initializeYtmDom(global) {
+    const appLoadingId = "loop-app-loading";
+    const appLoaderId = "loop-app-loader";
+
+    function showAppLoading() {
+        if (document.getElementById(appLoadingId)) return;
+
+        const loadingOverlay = document.createElement("div");
+        loadingOverlay.id = appLoadingId;
+        loadingOverlay.setAttribute("role", "status");
+        loadingOverlay.setAttribute("aria-label", "Loading YouTube Music");
+
+        const loader = document.createElement("span");
+        loader.id = appLoaderId;
+        loader.setAttribute("aria-hidden", "true");
+        const material3LoaderURL = global.LoopUtils?.getExtensionURL?.(
+            "static/material3-loader.svg"
+        ) || "material3-loader.svg";
+        loader.style.setProperty("--loop-app-loader-image", `url(${material3LoaderURL})`);
+        loadingOverlay.appendChild(loader);
+
+        (document.body || document.documentElement).appendChild(loadingOverlay);
+    }
+
+    function hideAppLoading() {
+        document.getElementById(appLoadingId)?.remove();
+    }
+
     function waitForYTM(callback) {
+        showAppLoading();
         const check = () => {
             const playerPage = document.querySelector("ytmusic-player-page");
             const playerBar = playerPage || document.querySelector("ytmusic-player-bar");
-            if (playerBar) return callback(playerBar);
+            if (playerBar) {
+                hideAppLoading();
+                return callback(playerBar);
+            }
             requestAnimationFrame(check);
         };
         check();
