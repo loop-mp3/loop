@@ -1,6 +1,24 @@
 
 All notable changes to Loop are documented here.
 
+## [0.7.9] - 2026-10-26
+
+### Highlights
+
+* Added configurable music-video avoidance, allowing Loop to automatically skip detected music videos while preserving per-track presentation overrides.
+* Added Unison LRC handling with title validation so mismatched or alternate-version lyrics are rejected before rendering.
+* Added the Material 3 expressive animated SVG loader to lyrics loading and Loop startup while YouTube Music initializes.
+
+### Fixes
+
+* Improved music-video detection by using YouTube Music's `musicVideoType` metadata instead of unreliable thumbnail dimensions, preventing audio-only tracks from being treated as videos.
+
+### Internal and maintenance changes
+
+* Refactored the monolithic content script into focused core, service, YouTube Music, and utility modules with explicit cross-module runtime bridges.
+* Added Unison LRC test coverage and maintained parser regression coverage during the module split.
+* Reduced the default Kawarp frame-rate cap to 30 FPS to lower rendering overhead.
+
 ## [0.7.8] - 2026-10-24
 
 ### Highlights
@@ -522,4 +540,6 @@ Load the extension directory as an unpacked Manifest V3 extension, then open You
 [0.7.4]: https://github.com/loop-mp3/loop/releases/tag/v0.7.4
 [0.7.5]: https://github.com/loop-mp3/loop/releases/tag/v0.7.5
 [0.7.6]: https://github.com/loop-mp3/loop/releases/tag/v0.7.6
+[0.7.9]: https://github.com/loop-mp3/loop/releases/tag/v0.7.9
+[0.7.8]: https://github.com/loop-mp3/loop/releases/tag/v0.7.8
 [0.7.7]: https://github.com/loop-mp3/loop/releases/tag/v0.7.7
