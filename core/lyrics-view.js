@@ -1,3 +1,5 @@
+const material3LoaderURL = LoopUtils.getExtensionURL("static/material3-loader.svg");
+
 const braccatoLyricsShadowCSS = `
     :host { display: block; width: 100%; height: 100%; color: #fff; font-family: Satoshi, system-ui, sans-serif; }
     #loop-lyrics-shell { position: relative; display: block; width: 100%; height: 100%; min-height: 0; }
@@ -12,8 +14,8 @@ const braccatoLyricsShadowCSS = `
     #loop-lyrics-view.loop-ludo-progression .blyrics--line.blyrics--active { filter: none; }
     #loop-lyrics-loading { position: absolute; top: 50%; left: 50%; display: flex; align-items: center; gap: 12px; transform: translate(-50%, -50%); color: rgba(255,255,255,.7); font-size: 15px; white-space: nowrap; }
     .loop-lyrics-loading-content { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-    .loop-lyrics-spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.22); border-top-color: #fff; border-radius: 50%; animation: loop-lyrics-spin 800ms linear infinite; }
-    @keyframes loop-lyrics-spin { to { transform: rotate(360deg); } }
+    #blyrics-loader { --m3-loader-size: 28px; position: relative; display: block; overflow: visible !important; flex: 0 0 var(--m3-loader-size) !important; width: var(--m3-loader-size) !important; height: var(--m3-loader-size) !important; min-width: var(--m3-loader-size) !important; min-height: var(--m3-loader-size) !important; }
+    #blyrics-loader::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background-color: var(--m3-loader-color, var(--blyrics-ui-text-color, #fff)); -webkit-mask-image: url("${material3LoaderURL}"); mask-image: url("${material3LoaderURL}"); -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; -webkit-mask-size: contain; mask-size: contain; filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--m3-loader-color, var(--blyrics-ui-text-color, #fff)) 35%, transparent)); }
     .blyrics-container { --blyrics-font-family: Satoshi, system-ui, sans-serif; --blyrics-font-size: 3rem; --blyrics-line-height: 1.333; --blyrics-padding: 2rem; --blyrics-animate-word-wobble: 0; --blyrics-word-wobble-transform-from: scaleX(1); --blyrics-word-wobble-transform-peak: translateX(0.05em) scaleX(1.025); --blyrics-word-wobble-transform-settle: translateX(0) scaleX(1); --blyrics-word-wobble-transform-to: scaleX(1); }
     #loop-lyrics-view .blyrics-container { display: flex; flex-direction: column; min-height: 100%; }
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
@@ -676,6 +678,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         loading.id = "loop-lyrics-loading";
         loading.setAttribute("role", "status");
         const spinner = document.createElement("span");
+        spinner.id = "blyrics-loader";
         spinner.className = "loop-lyrics-spinner";
         spinner.setAttribute("aria-hidden", "true");
         const loadingLabel = document.createElement("span");

@@ -50,7 +50,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["config/shader.json", "config/presets/*", "modules/kawarp.js", "modules/braccato/*", "modules/braccato/styles/*", "ludo/index.js", "static/fallback-artwork.png", "static/fallback-legacy.png"],
+      "resources": ["config/shader.json", "config/presets/*", "modules/kawarp.js", "modules/braccato/*", "modules/braccato/styles/*", "ludo/index.js", "static/fallback-artwork.png", "static/fallback-legacy.png", "static/material3-loader.svg"],
       "matches": ["https://music.youtube.com/*"]
     }
   ],

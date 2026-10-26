@@ -1171,13 +1171,34 @@
     pointer-events: auto;
 }
 
-.loop-lyrics-spinner {
-    width: 18px;
-    height: 18px;
-    border: 2px solid rgba(255, 255, 255, 0.22);
-    border-top-color: #fff;
-    border-radius: 50%;
-    animation: loop-lyrics-spin 800ms linear infinite;
+#blyrics-loader {
+    --m3-loader-size: 28px;
+    position: relative;
+    display: block;
+    overflow: visible !important;
+    flex: 0 0 var(--m3-loader-size) !important;
+    width: var(--m3-loader-size) !important;
+    height: var(--m3-loader-size) !important;
+    min-width: var(--m3-loader-size) !important;
+    min-height: var(--m3-loader-size) !important;
+}
+
+#blyrics-loader::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background-color: var(--m3-loader-color, var(--blyrics-ui-text-color, #fff));
+    -webkit-mask-image: url("material3-loader.svg");
+    mask-image: url("material3-loader.svg");
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--m3-loader-color, var(--blyrics-ui-text-color, #fff)) 35%, transparent));
 }
 
 #loop-lyrics-candidate-modal {
@@ -1446,9 +1467,6 @@
     }
 }
 
-@keyframes loop-lyrics-spin {
-    to { transform: rotate(360deg); }
-}
 
 @media (max-width: 800px) {
     #loop-lyrics-panel {
