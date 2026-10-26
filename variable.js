@@ -62,6 +62,7 @@
         theme: "default",
         videoBehaviorEnabled: true,
         videoUiRearrangement: true,
+        videoAvoidance: true,
     };
 
     const lyricsProviders = [

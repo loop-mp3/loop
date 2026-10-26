@@ -83,6 +83,10 @@ function updateLoop(artworkURL, trackInfo) {
                         Enable video behavior
                     </label>
                     <label class="loop-navigation-toggle">
+                        <input id="loop-video-avoidance-toggle" type="checkbox" checked>
+                        Avoid music videos
+                    </label>
+                    <label class="loop-navigation-toggle">
                         <input id="loop-video-ui-rearrangement-toggle" type="checkbox" checked>
                         Rearrange video UI
                     </label>
@@ -329,6 +333,23 @@ function updateLoop(artworkURL, trackInfo) {
             saveLoopPreferences();
             applyVideoPresentationPreferences();
         });
+        loop.querySelector("#loop-video-avoidance-toggle").addEventListener("change", (event) => {
+            loopPreferences.videoAvoidance = event.target.checked;
+            saveLoopPreferences();
+            const currentLoop = document.getElementById("loop");
+            const presentationMode = getTrackPresentationMode(lastTrackId);
+            const trackIsVideo = currentLoop?.dataset.trackVideo === "true";
+            if (currentLoop) {
+                currentLoop.dataset.videoBackground = String(
+                    !event.target.checked && (
+                        presentationMode === "video" ||
+                        (presentationMode === "auto" && trackIsVideo)
+                    )
+                );
+                applyVideoPresentationPreferences();
+            }
+            if (event.target.checked && trackIsVideo) avoidMusicVideo();
+        });
         loop.querySelector("#loop-video-ui-rearrangement-toggle").addEventListener("change", (event) => {
             if (loopPreferences.videoBehaviorEnabled === false) {
                 event.target.checked = false;
@@ -561,9 +582,16 @@ function updateLoop(artworkURL, trackInfo) {
     forcedArtworkMode = presentationMode === "audio";
     loop.dataset.trackVideo = !trackInfo.empty && trackInfo.isVideo === true ? "true" : "false";
     loop.dataset.videoBackground = String(presentationMode === "video" ||
-        (presentationMode === "auto" && loop.dataset.trackVideo === "true"));
+        (presentationMode === "auto" && loop.dataset.trackVideo === "true" &&
+            loopPreferences.videoAvoidance !== true));
     applyVideoPresentationPreferences();
-    if (trackInfo.isVideo === true && loopPreferences.videoBehaviorEnabled !== false) showVideoUi();
+    if (trackInfo.isVideo === true) {
+        if (loopPreferences.videoAvoidance === true) {
+            avoidMusicVideo();
+        } else if (loopPreferences.videoBehaviorEnabled !== false) {
+            showVideoUi();
+        }
+    }
     emptyRecommendations.hidden = !trackInfo.empty;
     lyricsHost.hidden = Boolean(trackInfo.empty);
     if (trackInfo.empty) renderEmptyStateRecommendations(loop);
@@ -581,6 +609,16 @@ function updateLoop(artworkURL, trackInfo) {
     updatePlaybackControls(getCurrentMedia());
     syncVideoBackgroundPlayback();
     publishDiscordActivity({ force: true });
+}
+
+function avoidMusicVideo() {
+    try {
+        globalThis.playNextTrack();
+        console.log("[loop.mp3] Skipping track because a video was detected");
+        showLoopNotification("Skipping track because video mode is disabled", 3000);
+    } catch (error) {
+        console.error("[loop.mp3] Could not skip video track:", error);
+    }
 }
 
 // Explicit cross-file API: MV3 classic content scripts do not share lexical bindings.
