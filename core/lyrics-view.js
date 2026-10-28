@@ -43,6 +43,11 @@ const braccatoLyricsShadowCSS = `
     #loop-lyrics-resume { position: absolute; top: 16px; left: 50%; z-index: 3; display: inline-flex; align-items: center; justify-content: center; min-height: 34px; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; padding: 0 14px; color: #fff; background: rgba(12,20,19,.88); box-shadow: 0 8px 24px rgba(0,0,0,.24); backdrop-filter: blur(10px); font: inherit; font-size: 12px; cursor: pointer; transform: translateX(-50%); transition: border-color 150ms ease, background 150ms ease; }
     #loop-lyrics-resume:hover, #loop-lyrics-resume:focus-visible { border-color: rgba(255,255,255,.68); background: rgba(255,255,255,.16); }
     #loop-lyrics-resume[hidden] { display: none; }
+    @media (orientation: portrait), (max-aspect-ratio: 4/5) {
+        .blyrics-container { --blyrics-font-size: clamp(1.5rem, 8vw, 2.25rem); --blyrics-padding: clamp(.75rem, 4vw, 1.25rem); }
+        #loop-track-writers { bottom: 64px; font-size: clamp(1.25rem, 6vw, 2rem); }
+        #loop-lyrics-footer { padding: 8px 0 10px .25em !important; }
+    }
 `;
 lyricsProviderService = LoopLyricsServices.createLyricsProviderService({
     providers: lyricsProviders,

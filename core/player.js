@@ -47,6 +47,9 @@ function updateLoop(artworkURL, trackInfo) {
                     <div class="loop-notification-progress" aria-hidden="true"></div>
                 </div>
                 <div id="loop-shortcuts-panel" hidden>
+                    <button id="loop-shortcuts-drawer-handle" class="loop-shortcuts-drawer-handle" type="button" aria-label="Expand or collapse Loop menu">
+                        <span aria-hidden="true"></span>
+                    </button>
                     <div class="loop-shortcuts-title">Loop menu</div>
                     <label class="loop-theme-picker">
                         <span>Theme</span>
@@ -251,6 +254,9 @@ function updateLoop(artworkURL, trackInfo) {
                         <span id="loop-duration">0:00</span>
                     </div>
                 </div>
+                <button id="loop-lyrics-toggle" type="button" aria-controls="loop-lyrics-panel" aria-expanded="false">
+                    Show lyrics
+                </button>
                 <section id="loop-lyrics-panel" aria-label="Synchronized lyrics" hidden>
                     <div id="loop-empty-recommendations" hidden aria-label="YouTube Music recommendations"></div>
                     <div id="loop-lyrics-host"></div>
@@ -286,6 +292,13 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-previous-button").addEventListener("click", playPreviousTrack);
         loop.querySelector("#loop-next-button").addEventListener("click", playNextTrack);
         loop.querySelector("#loop-seek").addEventListener("input", seekTrack);
+        loop.querySelector("#loop-lyrics-toggle").addEventListener("click", () => {
+            const expanded = loop.classList.toggle("loop-lyrics-expanded");
+            const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
+            lyricsToggle.setAttribute("aria-expanded", String(expanded));
+            lyricsToggle.textContent = expanded ? "Hide lyrics" : "Show lyrics";
+            if (expanded) loopPlayer.scrollTo({ top: 0, behavior: "smooth" });
+        });
         loop.querySelector("#loop-like-button").addEventListener("click", () => triggerYTMAction("like"));
         loop.querySelector("#loop-dislike-button").addEventListener("click", () => triggerYTMAction("dislike"));
         loop.querySelector("#loop-artwork-toggle").addEventListener("click", () => {
@@ -468,9 +481,71 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-shortcuts-button").addEventListener("click", (event) => {
             event.stopPropagation();
             const panel = loop.querySelector("#loop-shortcuts-panel");
-            panel.hidden = !panel.hidden;
-            if (!panel.hidden) requestAnimationFrame(() => updateLoopMenuOverflow(panel));
+            const isOpening = panel.hidden;
+            if (isOpening) {
+                panel.hidden = false;
+                panel.style.removeProperty("--loop-menu-drag-offset");
+                requestAnimationFrame(() => {
+                    panel.classList.add("loop-menu-open");
+                    updateLoopMenuOverflow(panel);
+                });
+            } else {
+                panel.classList.remove("loop-menu-open");
+                panel.hidden = true;
+            }
         });
+        const shortcutsPanel = loop.querySelector("#loop-shortcuts-panel");
+        const drawerHandle = loop.querySelector("#loop-shortcuts-drawer-handle");
+        if (shortcutsPanel && drawerHandle) {
+            let dragStartY = null;
+            let dragOffset = 0;
+            let didDrag = false;
+
+            const finishDrawerDrag = (event) => {
+                if (dragStartY === null) return;
+                if (drawerHandle.hasPointerCapture?.(event.pointerId)) {
+                    drawerHandle.releasePointerCapture(event.pointerId);
+                }
+                shortcutsPanel.classList.remove("loop-menu-dragging");
+                if (dragOffset > 72) {
+                    shortcutsPanel.classList.remove("loop-menu-open");
+                    shortcutsPanel.hidden = true;
+                } else if (dragOffset < -72) {
+                    shortcutsPanel.classList.add("loop-shortcuts-expanded");
+                    updateLoopMenuOverflow(shortcutsPanel);
+                }
+                shortcutsPanel.style.removeProperty("--loop-menu-drag-offset");
+                dragStartY = null;
+                dragOffset = 0;
+            };
+
+            drawerHandle.addEventListener("pointerdown", (event) => {
+                if (shortcutsPanel.hidden) return;
+                dragStartY = event.clientY;
+                dragOffset = 0;
+                didDrag = false;
+                shortcutsPanel.classList.add("loop-menu-dragging");
+                drawerHandle.setPointerCapture?.(event.pointerId);
+                event.preventDefault();
+            });
+            drawerHandle.addEventListener("pointermove", (event) => {
+                if (dragStartY === null) return;
+                dragOffset = Math.max(-window.innerHeight, Math.min(window.innerHeight, event.clientY - dragStartY));
+                didDrag = Math.abs(dragOffset) > 4;
+                shortcutsPanel.style.setProperty("--loop-menu-drag-offset", `${dragOffset}px`);
+                event.preventDefault();
+            });
+            drawerHandle.addEventListener("pointerup", finishDrawerDrag);
+            drawerHandle.addEventListener("pointercancel", finishDrawerDrag);
+            drawerHandle.addEventListener("click", () => {
+                if (didDrag) {
+                    didDrag = false;
+                    return;
+                }
+                shortcutsPanel.classList.toggle("loop-shortcuts-expanded");
+                updateLoopMenuOverflow(shortcutsPanel);
+            });
+        }
         loop.querySelector("#loop-shortcuts-expand-button")?.addEventListener("click", (event) => {
             event.stopPropagation();
             const panel = loop.querySelector("#loop-shortcuts-panel");
@@ -577,6 +652,14 @@ function updateLoop(artworkURL, trackInfo) {
     album.toggleAttribute("href", Boolean(trackInfo.albumUrl));
     if (trackInfo.albumUrl) album.href = trackInfo.albumUrl;
     loop.classList.toggle("loop-empty", Boolean(trackInfo.empty));
+    if (trackInfo.empty) {
+        loop.classList.remove("loop-lyrics-expanded");
+        const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
+        if (lyricsToggle) {
+            lyricsToggle.setAttribute("aria-expanded", "false");
+            lyricsToggle.textContent = "Show lyrics";
+        }
+    }
     const presentationMode = getTrackPresentationMode(lastTrackId);
     forcedVideoMode = presentationMode === "video";
     forcedArtworkMode = presentationMode === "audio";
