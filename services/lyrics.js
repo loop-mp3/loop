@@ -3,6 +3,13 @@ function clearLyricsRetryTimer() {
     lyricsRetryTimer = undefined;
 }
 
+function invalidateLyricsRequest() {
+    clearLyricsRetryTimer();
+    lyricsRequestId += 1;
+    lyricsFetchInFlightTrackId = null;
+    lyricsFetchInFlightRequestId = null;
+}
+
 function scheduleLyricsRetry(trackId) {
     if (lyricsRetryTimer || !trackId || !loopPreferences.showLyrics) return;
     lyricsRetryTimer = setTimeout(() => {
@@ -348,6 +355,7 @@ function getBraccatoLyricsTheme() {
 // Explicit cross-file API: MV3 classic content scripts do not share lexical bindings.
 (function publishLoopModule(global) {
     global.clearLyricsRetryTimer = clearLyricsRetryTimer;
+    global.invalidateLyricsRequest = invalidateLyricsRequest;
     global.scheduleLyricsRetry = scheduleLyricsRetry;
     global.getCurrentTrackDurationInSeconds = getCurrentTrackDurationInSeconds;
     global.waitForCurrentTrackDuration = waitForCurrentTrackDuration;

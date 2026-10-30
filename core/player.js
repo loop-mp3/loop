@@ -12,6 +12,7 @@ function syncWindowTitle() {
 
 function goBackToNormal() {
     loopVisible = false;
+    resetLoopLyricsState();
     if (!getCurrentTrackId()) emptyScreenDismissed = true;
     restoreYTMSearch();
     document.title = "loop";

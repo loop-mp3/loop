@@ -21,6 +21,7 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
     // a request is already running must not invalidate the request that is about to finish.
     const requestId = ++lyricsRequestId;
     lyricsFetchInFlightTrackId = trackId;
+    lyricsFetchInFlightRequestId = requestId;
     // During a forced refresh keep the current valid render on screen. The new result
     // should only replace it after it has been parsed successfully.
     if (!currentParsedLyrics.length || lyricsLoadedTrackId !== trackId) updateLoopLyrics(undefined);
@@ -53,7 +54,13 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
         !loopPreferences.showLyrics ||
         trackId !== (getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId)
     ) {
-        if (lyricsFetchInFlightTrackId === trackId) lyricsFetchInFlightTrackId = null;
+        if (
+            lyricsFetchInFlightTrackId === trackId &&
+            lyricsFetchInFlightRequestId === requestId
+        ) {
+            lyricsFetchInFlightTrackId = null;
+            lyricsFetchInFlightRequestId = null;
+        }
         return;
     }
     // Do not clear a successful intermediate provider result if every later provider failed.
@@ -72,7 +79,13 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
             plainLyrics: null,
         });
     }
-    if (lyricsFetchInFlightTrackId === trackId) lyricsFetchInFlightTrackId = null;
+    if (
+        lyricsFetchInFlightTrackId === trackId &&
+        lyricsFetchInFlightRequestId === requestId
+    ) {
+        lyricsFetchInFlightTrackId = null;
+        lyricsFetchInFlightRequestId = null;
+    }
 }
 
 // Explicit cross-file API: MV3 classic content scripts do not share lexical bindings.

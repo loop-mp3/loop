@@ -659,6 +659,18 @@ function applyTranslatedLyrics(shadow, parsedLyrics, result, injectTranslation) 
     );
 }
 
+function resetLoopLyricsState() {
+    invalidateLyricsRequest();
+    currentParsedLyrics = [];
+    currentLyricsRenderOptions = {};
+    lyricsLoadedTrackId = null;
+    ludoLyricsController?.destroy();
+    ludoLyricsController = null;
+    braccatoLyricsRenderer?.destroy();
+    braccatoLyricsRenderer = null;
+    braccatoLyricsMount = null;
+}
+
 function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWriters) {
     const panel = document.querySelector("#loop-lyrics-panel");
     const host = panel?.querySelector("#loop-lyrics-host");
@@ -891,6 +903,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
     global.waitForUnisonTranslationRetry = waitForUnisonTranslationRetry;
     global.translateLyricsLinesWithRetry = translateLyricsLinesWithRetry;
     global.applyTranslatedLyrics = applyTranslatedLyrics;
+    global.resetLoopLyricsState = resetLoopLyricsState;
     global.updateLoopLyrics = updateLoopLyrics;
     Object.defineProperty(global, 'braccatoLyricsShadowCSS', { configurable: true, get: () => braccatoLyricsShadowCSS, set: (value) => { braccatoLyricsShadowCSS = value; } });
 })(globalThis);
