@@ -359,13 +359,10 @@ async function updateForCurrentTrack(playerBar) {
     const trackId = getCurrentTrackId(currentPlayerBar) || lastTrackId;
     const liveTrackInfo = getTrackInfo(currentPlayerBar);
     const artworkURL = getCurrentArtwork(currentPlayerBar, trackId);
-    const trackSignature = [
-        trackId || "",
-        liveTrackInfo.title,
-        liveTrackInfo.artist,
-        liveTrackInfo.album,
-        artworkURL,
-    ].join("|");
+    // Album and artwork metadata can arrive after the player has already exposed the
+    // video ID. They are presentation details, not a new track; including them here
+    // invalidates an in-flight lyrics request when YouTube Music finishes its metadata.
+    const trackSignature = trackId || [liveTrackInfo.title, liveTrackInfo.artist].join("|");
     if (!trackId && !getCurrentMedia()) {
         clearLyricsRetryTimer();
         lyricsRequestId += 1;
@@ -413,13 +410,7 @@ async function updateForCurrentTrack(playerBar) {
     const activePlayerBar = getYTMPlayerRoot() || playerBar;
     const activeTrackId = getCurrentTrackId(activePlayerBar) || lastTrackId;
     const currentInfo = getTrackInfo(activePlayerBar);
-    const currentSignature = [
-        activeTrackId || "",
-        currentInfo.title,
-        currentInfo.artist,
-        currentInfo.album,
-        getCurrentArtwork(activePlayerBar, activeTrackId),
-    ].join("|");
+    const currentSignature = activeTrackId || [currentInfo.title, currentInfo.artist].join("|");
     if (requestId !== metadataRequest || trackSignature !== currentSignature) return;
     updateLoop(artworkURL, trackInfo);
     syncRecordMotion();

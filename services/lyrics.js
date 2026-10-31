@@ -192,20 +192,12 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
 
         const promise = request.then((lyrics) => {
             if (!lyrics) throw new Error(`${providerId} returned no usable lyrics`);
-            return { lyrics, providerId, controller, elapsedMs: performance.now() - providerStartedAt };
-        }).catch((error) => {
-            if (error?.name !== "AbortError") {
-                console.warn(`[loop.mp3] ${providerId} lyrics provider failed after ${(performance.now() - providerStartedAt).toFixed(1)} ms:`, error);
-            }
-            throw error;
-        });
+            const result = { lyrics, providerId, controller, elapsedMs: performance.now() - providerStartedAt };
 
-        promise.then((result) => {
-            if (providerIndex >= bestProviderIndex) return;
-
-            // Validate the candidate using the same parser the renderer uses before it is
-            // allowed to replace a result already on screen. Providers can return nonempty
-            // payloads that still parse to zero usable lines.
+            // Validate the candidate before it participates in provider resolution. A
+            // nonempty payload that parses to zero lines must count as a failed provider;
+            // otherwise Promise.allSettled can report success while firstLyricsPromise is
+            // still waiting forever.
             const durationMs = Number.isFinite(trackDurationInSeconds) && trackDurationInSeconds > 0
                 ? trackDurationInSeconds * 1_000
                 : Number(result.lyrics?.meta?.duration) * 1_000;
@@ -218,6 +210,16 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
             if (!candidateLines.length) {
                 throw new Error(`${providerId} returned lyrics that could not be parsed`);
             }
+            return result;
+        }).catch((error) => {
+            if (error?.name !== "AbortError") {
+                console.warn(`[loop.mp3] ${providerId} lyrics provider failed after ${(performance.now() - providerStartedAt).toFixed(1)} ms:`, error);
+            }
+            throw error;
+        });
+
+        promise.then((result) => {
+            if (providerIndex >= bestProviderIndex) return;
 
             bestProviderIndex = providerIndex;
             if (!firstLyricsDelivered) {
