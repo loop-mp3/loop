@@ -145,10 +145,27 @@
 	transition: color 80ms linear;
 }
 
-.blyrics--word[data-word-state="active"] {
-	/* Hard contrast keeps the current karaoke progression readable against bright artwork. */
-	color: #636363;
-	transition: color 80ms linear;
+.blyrics--word[data-word-state="active"]:not(.blyrics-line-synced-word) {
+	/* Rich-sync words use the active color as soon as their timestamp is reached. */
+	color: var(--blyrics-lyric-active-color);
+	transition: color 120ms ease-out;
+}
+
+/* The source word is animated rather than the highlight overlay, so this remains a small,
+   compositor-friendly visual cue and does not interfere with the timestamped reveal. */
+.blyrics--word[data-word-state="active"]:not(.blyrics-line-synced-word):not(.blyrics-word-highlight) {
+	animation: blyrics-word-activate 180ms ease-out both;
+}
+
+@keyframes blyrics-word-activate {
+	from {
+		filter: brightness(0.95);
+		opacity: 0.86;
+	}
+	to {
+		filter: brightness(1.05);
+		opacity: 1;
+	}
 }
 
 .blyrics--word[data-word-state="past"] {
