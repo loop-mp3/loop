@@ -1,6 +1,29 @@
 
 All notable changes to Loop are documented here.
 
+## [0.8.0] - 2026-11-07
+
+### Highlights
+
+* Added a responsive portrait and vertical layout for Loop, including collapsible lyrics and a draggable shortcuts drawer.
+* Added MusicBrainz fallback resolution for track writer credits when YouTube Music does not provide them, with credits applied as metadata becomes available.
+* Added writer-credit entries to the cached lyrics manager, including search, editing, and storage support.
+* Updated Discord Rich Presence to show the track title and artist in the activity and album-art details.
+
+### Fixes
+
+* Filtered Quick Picks and Listen Again recommendations to playable watch links, preventing playlist selections from entering the recommendation list.
+* Fixed Groove results not being selected after they were fetched.
+* Fixed lyrics state and in-flight requests being lost when the Loop UI was destroyed and recreated.
+* Fixed ended lyric words and syllables remaining highlighted.
+
+### Internal and maintenance changes
+
+* Cached YouTube and MusicBrainz writer credits per track and source to avoid repeating metadata lookups.
+* Loaded primary track metadata without waiting for slower MusicBrainz fallback requests, then updated the lyrics writer credits when the fallback completed.
+* Updated the document title and project branding to use the `loopᵇᵉᵗᵃ` name.
+* Added MusicBrainz and writer-credit cache test coverage.
+
 ## [0.7.9] - 2026-10-26
 
 ### Highlights
