@@ -14,9 +14,9 @@
             }, "*");
         }
 
-        function publishElectronMiniPlayerState({ force = false } = {}) {
+        function publishElectronMiniPlayerState({ force = false, media: providedMedia } = {}) {
             const loop = document.getElementById("loop");
-            const media = getCurrentMedia();
+            const media = providedMedia === undefined ? getCurrentMedia() : providedMedia;
             const preferences = getPreferences();
             const state = {
                 title: loop?.querySelector("#loop-track-title")?.textContent.trim() || "Nothing playing",
@@ -44,9 +44,9 @@
             global.window.postMessage({ source: "loop.mp3", type }, "*");
         }
 
-        function publishDiscordActivity({ force = false } = {}) {
+        function publishDiscordActivity({ force = false, media: providedMedia } = {}) {
             const loop = document.getElementById("loop");
-            const media = getCurrentMedia();
+            const media = providedMedia === undefined ? getCurrentMedia() : providedMedia;
             if (!media) return;
 
             const title = loop?.querySelector("#loop-track-title")?.textContent.trim() || "";

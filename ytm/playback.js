@@ -1,9 +1,29 @@
 let recordFrame;
+let playbackControlsFrame;
+
+function schedulePlaybackControlsUpdate() {
+    if (playbackControlsFrame !== undefined) return;
+
+    const update = () => {
+        playbackControlsFrame = undefined;
+        updatePlaybackControls();
+    };
+    if (document.visibilityState === "hidden") {
+        update();
+    } else {
+        playbackControlsFrame = requestAnimationFrame(update);
+    }
+}
 
 function getCurrentMedia() {
-    const media = [...document.querySelectorAll("video, audio")]
-        .filter((element) => Number.isFinite(element.duration) && element.duration > 0);
-    return media.find((element) => !element.paused && !element.ended) || media[0];
+    const mediaElements = document.querySelectorAll("video, audio");
+    let firstPlayableMedia;
+    for (const media of mediaElements) {
+        if (!Number.isFinite(media.duration) || media.duration <= 0) continue;
+        firstPlayableMedia ??= media;
+        if (!media.paused && !media.ended) return media;
+    }
+    return firstPlayableMedia;
 }
 
 function showCloseProtectionModal(media) {
@@ -101,19 +121,22 @@ function updatePlaybackControls(media = getCurrentMedia()) {
         duration.textContent = formatTime(media.duration);
         if (volumeSlider) volumeSlider.value = String(media.volume);
     }
-    braccatoLyricsRenderer?.tick(media ? media.currentTime : 0, {
-        isPlaying: Boolean(media && !media.paused && !media.ended),
-        playbackRate: media?.playbackRate,
-    });
-    if (loopPreferences.lyricsRenderingEngine === "ludo") {
-        ludoLyricsController?.tick(media ? media.currentTime : 0);
+    if (document.visibilityState !== "hidden") {
+        braccatoLyricsRenderer?.tick(media ? media.currentTime : 0, {
+            isPlaying: Boolean(media && !media.paused && !media.ended),
+            playbackRate: media?.playbackRate,
+        });
+        if (loopPreferences.lyricsRenderingEngine === "ludo") {
+            ludoLyricsController?.tick(media ? media.currentTime : 0);
+        }
     }
     const lyricsShadow = document.querySelector("#loop-lyrics-host")?.shadowRoot;
-    if (lyricsShadow) syncLyricsFooterVisibility(lyricsShadow);
+    if (lyricsShadow && document.visibilityState !== "hidden") syncLyricsFooterVisibility(lyricsShadow);
     syncVideoBackgroundPlayback();
     miniPlayerBridge?.sync(media);
-    publishElectronMiniPlayerState();
-    publishDiscordActivity();
+    const bridgeMedia = media || null;
+    publishElectronMiniPlayerState({ media: bridgeMedia });
+    publishDiscordActivity({ media: bridgeMedia });
 }
 
 function togglePlayback() {
@@ -246,6 +269,8 @@ let emptyScreenDismissed = false;
 let trackSyncTimer;
 let trackSyncObserver;
 let trackSyncHostObserver;
+let trackHostCheckFrame;
+let trackLifecycleEventsBound = false;
 let observedMedia = new Set();
 
 function scheduleTrackSync(playerBar, delay = 0) {
@@ -270,13 +295,22 @@ function changeMusicLogo() {
         logo.dataset.loopLogoFallback = "true";
         logo.src = localLogoURL;
     };
-    logo.src = remoteLogoURL;
+    if (logo.src !== remoteLogoURL) logo.src = remoteLogoURL;
+}
+
+let logoChangeFrame;
+function scheduleMusicLogoChange() {
+    if (logoChangeFrame !== undefined) return;
+    logoChangeFrame = requestAnimationFrame(() => {
+        logoChangeFrame = undefined;
+        changeMusicLogo();
+    });
 }
 
 function initMusicLogo() {
     changeMusicLogo();
 
-    const observer = new MutationObserver(changeMusicLogo);
+    const observer = new MutationObserver(scheduleMusicLogoChange);
 
     observer.observe(document.body, {
         childList: true,
@@ -303,14 +337,27 @@ function observeMediaTrackChanges(playerBar) {
         });
         media.volume = getPreferredVolume();
         ["timeupdate", "play", "playing", "pause", "seeking", "seeked", "ratechange", "volumechange"].forEach((eventName) => {
-            media.addEventListener(eventName, () => updatePlaybackControls());
+            media.addEventListener(eventName, schedulePlaybackControlsUpdate);
         });
         const mediaObserver = new MutationObserver(() => scheduleTrackSync(playerBar));
         mediaObserver.observe(media, { attributes: true, attributeFilter: ["src"] });
     }
 }
 
+function scheduleTrackHostCheck() {
+    if (trackHostCheckFrame !== undefined) return;
+    trackHostCheckFrame = requestAnimationFrame(() => {
+        trackHostCheckFrame = undefined;
+        const currentPlayerBar = getYTMPlayerRoot();
+        if (currentPlayerBar && currentPlayerBar !== loopUpdatePlayerBar) {
+            watchTrackChanges(currentPlayerBar);
+            scheduleTrackSync(currentPlayerBar);
+        }
+    });
+}
+
 function watchTrackChanges(playerBar) {
+    loopUpdatePlayerBar = playerBar;
     observeMediaTrackChanges(playerBar);
     trackSyncObserver?.disconnect();
     trackSyncObserver = new MutationObserver(() => {
@@ -326,14 +373,11 @@ function watchTrackChanges(playerBar) {
     });
 
     trackSyncHostObserver?.disconnect();
-    trackSyncHostObserver = new MutationObserver(() => {
-        const currentPlayerBar = getYTMPlayerRoot();
-        if (currentPlayerBar && currentPlayerBar !== playerBar) {
-            watchTrackChanges(currentPlayerBar);
-            scheduleTrackSync(currentPlayerBar);
-        }
-    });
+    trackSyncHostObserver = new MutationObserver(scheduleTrackHostCheck);
     trackSyncHostObserver.observe(document.body, { childList: true, subtree: true });
+
+    if (trackLifecycleEventsBound) return;
+    trackLifecycleEventsBound = true;
 
     // Navigation and visibility events cover transitions where YouTube Music
     // changes the URL/player state without changing the DOM immediately.
@@ -347,10 +391,13 @@ function watchTrackChanges(playerBar) {
         "hashchange",
         "pageshow",
     ].forEach((eventName) => {
-        document.addEventListener(eventName, () => scheduleTrackSync(playerBar), { passive: true });
+        document.addEventListener(eventName, () => scheduleTrackSync(getYTMPlayerRoot() || loopUpdatePlayerBar), { passive: true });
     });
     document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") scheduleTrackSync(playerBar);
+        if (document.visibilityState === "visible") {
+            scheduleTrackSync(getYTMPlayerRoot() || loopUpdatePlayerBar);
+            updatePlaybackControls();
+        }
     }, { passive: true });
 }
 
@@ -447,6 +494,7 @@ async function updateForCurrentTrack(playerBar) {
 // Explicit cross-file API: MV3 classic content scripts do not share lexical bindings.
 (function publishLoopModule(global) {
     global.getCurrentMedia = getCurrentMedia;
+    global.schedulePlaybackControlsUpdate = schedulePlaybackControlsUpdate;
     global.showCloseProtectionModal = showCloseProtectionModal;
     global.formatTime = formatTime;
     global.updatePlaybackControls = updatePlaybackControls;

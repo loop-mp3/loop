@@ -32,9 +32,16 @@ function ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItT
 
 ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore();
 
-const observer = new MutationObserver(() => {
-    ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore();
-});
+let guideButtonsHideFrame;
+function scheduleGuideButtonsHide() {
+    if (guideButtonsHideFrame !== undefined) return;
+    guideButtonsHideFrame = requestAnimationFrame(() => {
+        guideButtonsHideFrame = undefined;
+        ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore();
+    });
+}
+
+const observer = new MutationObserver(scheduleGuideButtonsHide);
 
 observer.observe(document.body || document.documentElement, {
     childList: true,
@@ -60,7 +67,7 @@ function forceCustomFavicon() {
     if (links.length > 0) {
         links.forEach(link => {
             if (link.dataset.loopFaviconFallback === "true") {
-                link.href = LOCAL_FAVICON_URL;
+                if (link.href !== LOCAL_FAVICON_URL) link.href = LOCAL_FAVICON_URL;
                 return;
             }
             link.onerror = () => {
@@ -80,6 +87,30 @@ function forceCustomFavicon() {
         };
         head.appendChild(newLink);
     }
+}
+
+let faviconUpdateFrame;
+function scheduleCustomFaviconUpdate() {
+    if (faviconUpdateFrame !== undefined) return;
+    faviconUpdateFrame = requestAnimationFrame(() => {
+        faviconUpdateFrame = undefined;
+        forceCustomFavicon();
+    });
+}
+
+function observeFaviconChanges() {
+    const head = document.head;
+    if (!head) {
+        requestAnimationFrame(observeFaviconChanges);
+        return;
+    }
+
+    new MutationObserver(scheduleCustomFaviconUpdate).observe(head, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["href", "rel"],
+    });
 }
 
 window.addEventListener("message", (event) => {
@@ -161,8 +192,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 forceCustomFavicon();
-
-setInterval(forceCustomFavicon, 1000);
+observeFaviconChanges();
 
 loadFontAwesome();
 loadKawarpRenderer().catch((error) => {
