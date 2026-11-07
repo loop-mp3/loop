@@ -1,13 +1,13 @@
 function syncWindowTitle() {
     const loop = document.getElementById("loop");
     if (!loop || loop.classList.contains("loop-empty")) {
-        document.title = "loop";
+        document.title = "loopᵇᵉᵗᵃ";
         return;
     }
 
     const title = loop.querySelector("#loop-track-title")?.textContent.trim();
     const artist = loop.querySelector("#loop-track-artist")?.textContent.trim();
-    document.title = title && artist ? `Loop | ${title} by ${artist}` : "loop";
+    document.title = title && artist ? `Loopᵇᵉᵗᵃ | ${title} by ${artist}` : "loopᵇᵉᵗᵃ";
 }
 
 function goBackToNormal() {
@@ -15,7 +15,7 @@ function goBackToNormal() {
     resetLoopLyricsState();
     if (!getCurrentTrackId()) emptyScreenDismissed = true;
     restoreYTMSearch();
-    document.title = "loop";
+    document.title = "loopᵇᵉᵗᵃ";
     console.log("[loop.mp3] Loop removed, back to normal YTM");
 }
 

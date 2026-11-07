@@ -1,6 +1,6 @@
 <div align="center">
 
-# loop
+# loopᵇᵉᵗᵃ
 
 **A minimal, keyboard-first music player built around the music instead of everything surrounding it.**
 
