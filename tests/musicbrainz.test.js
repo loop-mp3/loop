@@ -84,6 +84,8 @@ test("returns YouTube metadata before MusicBrainz fallback resolves", async () =
                 album: "Unknown album",
             }),
         },
+        getCachedTrackWriters: async () => null,
+        cacheTrackWriters: async () => true,
         fetch: async (url) => {
             const requestURL = String(url);
             requests.push(requestURL);
@@ -127,6 +129,7 @@ test("returns YouTube metadata before MusicBrainz fallback resolves", async () =
     assert.equal(info.artist, "Example Artist - Topic");
     assert.deepEqual(Array.from(info.TrackWriters), []);
     assert.equal(typeof info.musicBrainzWriterPromise?.then, "function");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     assert.equal(requests.some((url) => url.includes("musicbrainz.org/ws/2")), true);
 
     resolveMusicBrainz({ recordings: [] });

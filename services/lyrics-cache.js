@@ -45,6 +45,68 @@ function getLyricsCacheStorage() {
     return globalThis.chrome?.storage?.local || globalThis.browser?.storage?.local;
 }
 
+function getTrackWritersCacheKey(trackId) {
+    return `${trackWritersCacheKeyPrefix}${trackId}`;
+}
+
+function normalizeTrackWriters(writers) {
+    return [...new Set((Array.isArray(writers) ? writers : [])
+        .map((writer) => String(writer || "").trim())
+        .filter(Boolean))];
+}
+
+function getCachedTrackWriters(trackId) {
+    const storage = getLyricsCacheStorage();
+    if (!storage || !trackId) return Promise.resolve(null);
+
+    const key = getTrackWritersCacheKey(trackId);
+    return new Promise((resolve) => {
+        storage.get(key, (result) => {
+            const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+            if (error) {
+                console.warn("[loop.mp3] Could not read cached track writers:", error.message);
+                resolve(null);
+                return;
+            }
+            const cached = result?.[key];
+            resolve(cached && typeof cached === "object" ? {
+                ...cached,
+                youtubeWriters: normalizeTrackWriters(cached.youtubeWriters),
+                musicBrainzWriters: normalizeTrackWriters(cached.musicBrainzWriters),
+            } : null);
+        });
+    });
+}
+
+function cacheTrackWriters(trackId, title, artist, source, writers) {
+    const storage = getLyricsCacheStorage();
+    if (!storage || !trackId || !["youtube", "musicbrainz"].includes(source)) return Promise.resolve(false);
+
+    const sourceKey = source === "youtube" ? "youtubeWriters" : "musicBrainzWriters";
+    const key = getTrackWritersCacheKey(trackId);
+    return getCachedTrackWriters(trackId).then((existing) => {
+        const cached = {
+            title: title || existing?.title || "",
+            artist: artist || existing?.artist || "",
+            youtubeWriters: existing?.youtubeWriters || [],
+            musicBrainzWriters: existing?.musicBrainzWriters || [],
+            cachedAt: Date.now(),
+        };
+        cached[sourceKey] = normalizeTrackWriters(writers);
+        return new Promise((resolve) => {
+            storage.set({ [key]: cached }, () => {
+                const error = globalThis.chrome?.runtime?.lastError || globalThis.browser?.runtime?.lastError;
+                if (error) {
+                    console.warn("[loop.mp3] Could not cache track writers:", error.message);
+                    resolve(false);
+                    return;
+                }
+                resolve(true);
+            });
+        });
+    });
+}
+
 function getCachedLyrics(trackId) {
     const storage = getLyricsCacheStorage();
     if (!storage || !trackId) return Promise.resolve(null);
@@ -227,6 +289,17 @@ function getAllLyricsCacheEntries() {
                     trackId: key.slice(manualLyricsCacheKeyPrefix.length),
                     ...value,
                 }));
+            const writerEntries = Object.entries(values)
+                .filter(([key, value]) => key.startsWith(trackWritersCacheKeyPrefix) && value && typeof value === "object")
+                .map(([key, value]) => ({
+                    cacheType: "writers",
+                    cacheKey: key,
+                    trackId: key.slice(trackWritersCacheKeyPrefix.length),
+                    ...value,
+                    provider: "YouTube + MusicBrainz",
+                    youtubeWriters: normalizeTrackWriters(value.youtubeWriters),
+                    musicBrainzWriters: normalizeTrackWriters(value.musicBrainzWriters),
+                }));
             const metadataByTrackId = new Map([...lyricEntries, ...manualEntries].map((entry) => [entry.trackId, entry]));
             const translationEntries = Object.entries(values)
                 .filter(([key, value]) => key.startsWith(translationCacheKeyPrefix) && Array.isArray(value?.lines))
@@ -259,7 +332,7 @@ function getAllLyricsCacheEntries() {
                 }
             });
 
-            resolve([...lyricEntriesWithTranslations, ...unmatchedTranslations]
+            resolve([...lyricEntriesWithTranslations, ...writerEntries, ...unmatchedTranslations]
                 .sort((left, right) => Number(right.cachedAt || 0) - Number(left.cachedAt || 0)));
         });
     });
@@ -299,7 +372,8 @@ function removeLyricsCacheEntry(entry) {
 function isLyricsCacheStorageKey(key) {
     return key.startsWith(lyricsCacheKeyPrefix) ||
         key.startsWith(manualLyricsCacheKeyPrefix) ||
-        key.startsWith(translationCacheKeyPrefix);
+        key.startsWith(translationCacheKeyPrefix) ||
+        key.startsWith(trackWritersCacheKeyPrefix);
 }
 
 function getLyricsCacheExport() {
@@ -355,7 +429,7 @@ function showCachedLyricsModal() {
             <header class="loop-lyrics-cache-header">
                 <div>
                     <div class="loop-lyrics-cache-kicker">Loop storage</div>
-                    <h2 id="loop-lyrics-cache-title">Cached lyrics</h2>
+                    <h2 id="loop-lyrics-cache-title">Cached lyrics &amp; writer credits</h2>
                 </div>
                 <div class="loop-lyrics-cache-header-actions">
                     <button type="button" class="loop-lyrics-cache-export">Export</button>
@@ -366,9 +440,9 @@ function showCachedLyricsModal() {
             </header>
             <div class="loop-lyrics-cache-layout">
                 <div class="loop-lyrics-cache-list-panel">
-                    <input class="loop-lyrics-cache-search" type="search" placeholder="Search cached lyrics…" aria-label="Search cached lyrics">
+                    <input class="loop-lyrics-cache-search" type="search" placeholder="Search cached lyrics and writers…" aria-label="Search cached lyrics and writers">
                     <div class="loop-lyrics-cache-list" role="listbox" aria-label="Cached lyrics tracks">
-                        <div class="loop-lyrics-cache-status">Loading cached lyrics…</div>
+                        <div class="loop-lyrics-cache-status">Loading cached entries…</div>
                     </div>
                 </div>
                 <div class="loop-lyrics-cache-details" aria-live="polite">
@@ -392,6 +466,7 @@ function showCachedLyricsModal() {
         const query = search.value.trim().toLocaleLowerCase();
         const filteredEntries = entries.filter((entry) =>
             !query || [entry.title, entry.artist, entry.trackId, entry.provider, entry.language, entry.cacheType,
+                ...(entry.youtubeWriters || []), ...(entry.musicBrainzWriters || []),
                 ...(entry.translations || []).flatMap((translation) => [translation.language, ...((translation.lines || []).map((line) => line?.translation || ""))])]
                 .some((value) => String(value || "").toLocaleLowerCase().includes(query))
         );
@@ -399,7 +474,7 @@ function showCachedLyricsModal() {
         if (!filteredEntries.length) {
             const empty = document.createElement("div");
             empty.className = "loop-lyrics-cache-status";
-            empty.textContent = query ? "No matching cache entries." : "No cached lyrics yet.";
+            empty.textContent = query ? "No matching cache entries." : "No cached entries yet.";
             list.appendChild(empty);
             if (!query) details.replaceChildren(empty.cloneNode(true));
             return;
@@ -415,7 +490,8 @@ function showCachedLyricsModal() {
             title.textContent = entry.title || "Untitled track";
             const subtitle = document.createElement("span");
             const type = entry.cacheType === "translation" ? `Translation · ${entry.language}` :
-                entry.cacheType === "manual" ? "Manually selected lyrics" : entry.provider;
+                entry.cacheType === "manual" ? "Manually selected lyrics" :
+                entry.cacheType === "writers" ? "Writer credits" : entry.provider;
             const translationCount = entry.translations?.length || 0;
             subtitle.textContent = `${entry.artist || "Unknown artist"} · ${type}${translationCount ? ` · ${translationCount} translation${translationCount === 1 ? "" : "s"}` : ""}`;
             button.append(title, subtitle);
@@ -437,8 +513,10 @@ function showCachedLyricsModal() {
         const metadata = document.createElement("dl");
         [
             ["Track ID", entry.trackId],
-            ["Type", entry.cacheType === "translation" ? `Translation (${entry.language})` : entry.cacheType === "manual" ? "Manually selected lyrics" : "Lyrics"],
-            ["Provider", entry.provider],
+            ["Type", entry.cacheType === "translation" ? `Translation (${entry.language})` :
+                entry.cacheType === "manual" ? "Manually selected lyrics" :
+                entry.cacheType === "writers" ? "Writer credits" : "Lyrics"],
+            ["Provider", entry.cacheType === "writers" ? "YouTube + MusicBrainz" : entry.provider],
             ["Translations", entry.translations?.map((translation) => translation.language).join(", ") || "None"],
             ["Cached", entry.cachedAt ? new Date(entry.cachedAt).toLocaleString() : "Unknown"],
         ].forEach(([label, value]) => {
@@ -452,7 +530,10 @@ function showCachedLyricsModal() {
         const editor = document.createElement("div");
         editor.className = "loop-lyrics-cache-editor";
         const fields = [];
-        if (entry.cacheType !== "translation") {
+        if (entry.cacheType === "writers") {
+            fields.push(["YouTube writer credits", "youtubeWriters", (entry.youtubeWriters || []).join("\n"), "textarea"]);
+            fields.push(["MusicBrainz writer credits", "musicBrainzWriters", (entry.musicBrainzWriters || []).join("\n"), "textarea"]);
+        } else if (entry.cacheType !== "translation") {
             fields.push(["Title", "title", entry.title || "", "input"]);
             fields.push(["Artist", "artist", entry.artist || "", "input"]);
             fields.push(["Synced lyrics (TTML/LRC)", "syncedLyrics", entry.syncedLyrics || "", "textarea"]);
@@ -497,7 +578,15 @@ function showCachedLyricsModal() {
         save.addEventListener("click", async () => {
             const edited = { ...entry };
             const entriesToSave = [];
-            if (entry.cacheType === "translation") {
+            if (entry.cacheType === "writers") {
+                const parseWriters = (value) => [...new Set(String(value || "")
+                    .split(/[,\n]/)
+                    .map((writer) => writer.trim())
+                    .filter(Boolean))];
+                edited.youtubeWriters = parseWriters(controls.youtubeWriters.value);
+                edited.musicBrainzWriters = parseWriters(controls.musicBrainzWriters.value);
+                entriesToSave.push(edited);
+            } else if (entry.cacheType === "translation") {
                 try {
                     const lines = JSON.parse(controls["translationLines:0"].value);
                     if (!Array.isArray(lines)) throw new Error("Translation lines must be a JSON array.");
@@ -646,6 +735,9 @@ function showCachedLyricsModal() {
     global.saveLoopPreferences = saveLoopPreferences;
     global.getLyricsCacheKey = getLyricsCacheKey;
     global.getLyricsCacheStorage = getLyricsCacheStorage;
+    global.getTrackWritersCacheKey = getTrackWritersCacheKey;
+    global.getCachedTrackWriters = getCachedTrackWriters;
+    global.cacheTrackWriters = cacheTrackWriters;
     global.getCachedLyrics = getCachedLyrics;
     global.getManualLyricsCacheKey = getManualLyricsCacheKey;
     global.getManualCachedLyrics = getManualCachedLyrics;

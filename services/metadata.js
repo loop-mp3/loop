@@ -321,10 +321,49 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             // its an array just fetching them to test
             // this is the browseId ytm uses for some reason its just appending the trackId to the prefix MPTC for some fucking reason
         const browseId = `MPTC${trackId}`;
-        const TrackWriters = await getTrackWriterCredits(browseId);
-        const musicBrainzWriterPromise = TrackWriters.length
-            ? null
-            : getMusicBrainzWriterCredits(title, artist);
+        const cachedTrackWriters = typeof getCachedTrackWriters === "function"
+            ? await getCachedTrackWriters(trackId)
+            : null;
+        const hasCachedYouTubeWriters = Array.isArray(cachedTrackWriters?.youtubeWriters);
+        let TrackWriters;
+        let writerCacheWrite = Promise.resolve();
+        if (hasCachedYouTubeWriters) {
+            TrackWriters = cachedTrackWriters.youtubeWriters;
+        } else {
+            TrackWriters = await getTrackWriterCredits(browseId);
+            if (typeof cacheTrackWriters === "function") {
+                writerCacheWrite = cacheTrackWriters(
+                    trackId,
+                    title,
+                    artist,
+                    "youtube",
+                    TrackWriters
+                ).catch((error) => console.warn("[loop.mp3] Could not cache YouTube track writers:", error));
+            }
+        }
+
+        let musicBrainzWriterPromise = null;
+        if (!TrackWriters.length) {
+            const hasCachedMusicBrainzWriters = Array.isArray(cachedTrackWriters?.musicBrainzWriters);
+            if (hasCachedMusicBrainzWriters) {
+                TrackWriters = cachedTrackWriters.musicBrainzWriters;
+            } else {
+                musicBrainzWriterPromise = writerCacheWrite
+                    .then(() => getMusicBrainzWriterCredits(title, artist))
+                    .then((writers) => {
+                        if (typeof cacheTrackWriters !== "function") return writers;
+                        return cacheTrackWriters(
+                            trackId,
+                            title,
+                            artist,
+                            "musicbrainz",
+                            writers
+                        ).catch((error) => {
+                            console.warn("[loop.mp3] Could not cache MusicBrainz track writers:", error);
+                        }).then(() => writers);
+                    });
+            }
+        }
         console.log(`[loop.mp3] Track Writers:`, TrackWriters);
         const artistUrl =
             getMusicAuthorUrl(details.author_url) ||

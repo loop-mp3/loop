@@ -204,7 +204,7 @@ function updateLoop(artworkURL, trackInfo) {
                         Submit lyrics to Unison
                     </button>
                     <button id="loop-lyrics-cache-button" class="loop-menu-action" type="button">
-                        View cached lyrics
+                        View cached lyrics & writer credits
                     </button>
                     <button id="loop-kawarp-config-button" class="loop-menu-action" type="button">
                         Edit Kawarp shader config

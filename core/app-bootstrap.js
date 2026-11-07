@@ -116,6 +116,7 @@ const {
     lyricsCacheKeyPrefix,
     manualLyricsCacheKeyPrefix,
     translationCacheKeyPrefix,
+    trackWritersCacheKeyPrefix,
     defaultUpdateURL,
     lyricsTranslationEndpoint,
     unisonTranslationRetryDelaysMs,
@@ -242,6 +243,7 @@ const translationRequestCache = new Map();
     Object.defineProperty(global, 'lyricsCacheKeyPrefix', { configurable: true, get: () => lyricsCacheKeyPrefix, set: (value) => { lyricsCacheKeyPrefix = value; } });
     Object.defineProperty(global, 'manualLyricsCacheKeyPrefix', { configurable: true, get: () => manualLyricsCacheKeyPrefix, set: (value) => { manualLyricsCacheKeyPrefix = value; } });
     Object.defineProperty(global, 'translationCacheKeyPrefix', { configurable: true, get: () => translationCacheKeyPrefix, set: (value) => { translationCacheKeyPrefix = value; } });
+    Object.defineProperty(global, 'trackWritersCacheKeyPrefix', { configurable: true, get: () => trackWritersCacheKeyPrefix, set: (value) => { trackWritersCacheKeyPrefix = value; } });
     Object.defineProperty(global, 'defaultUpdateURL', { configurable: true, get: () => defaultUpdateURL, set: (value) => { defaultUpdateURL = value; } });
     Object.defineProperty(global, 'lyricsTranslationEndpoint', { configurable: true, get: () => lyricsTranslationEndpoint, set: (value) => { lyricsTranslationEndpoint = value; } });
     Object.defineProperty(global, 'unisonTranslationRetryDelaysMs', { configurable: true, get: () => unisonTranslationRetryDelaysMs, set: (value) => { unisonTranslationRetryDelaysMs = value; } });
