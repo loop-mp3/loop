@@ -193,8 +193,15 @@ export class Kawarp {
     // Album FBOs for crossfade (BLUR_SIZE x BLUR_SIZE)
     currentAlbumFBO;
     nextAlbumFBO;
+    imageSource = "";
+    imageLoadPromise = null;
+    imageLoadResolve = null;
+    pendingImage = null;
+    imageLoadToken = 0;
     // Full-res FBO for warp output
     warpFBO;
+    warpWidth = 0;
+    warpHeight = 0;
     // Animation state
     animationId = null;
     lastFrameTime = 0;
@@ -225,7 +232,9 @@ export class Kawarp {
     uniforms;
     constructor(canvas, options = {}) {
         this.canvas = canvas;
-        const gl = canvas.getContext("webgl", { preserveDrawingBuffer: true });
+        // The canvas is rendered every frame and never read back. Avoid retaining the
+        // previous frame in the default framebuffer so the browser can recycle it.
+        const gl = canvas.getContext("webgl", { preserveDrawingBuffer: false });
         if (!gl)
             throw new Error("WebGL not supported");
         this.gl = gl;
@@ -434,25 +443,62 @@ export class Kawarp {
     }
     // Image loading methods
     loadImage(src) {
-        return new Promise((resolve, reject) => {
+        if (src === this.imageSource) {
+            if (this.imageLoadPromise)
+                return this.imageLoadPromise;
+            if (this.hasImage)
+                return Promise.resolve();
+        }
+
+        this.imageLoadResolve?.();
+        this.imageLoadResolve = null;
+        if (this.pendingImage) {
+            this.pendingImage.onload = null;
+            this.pendingImage.onerror = null;
+            this.pendingImage.src = "";
+            this.pendingImage = null;
+        }
+        const token = ++this.imageLoadToken;
+        this.imageSource = src;
+        this.imageLoadPromise = new Promise((resolve, reject) => {
+            this.imageLoadResolve = resolve;
             const img = new Image();
+            this.pendingImage = img;
             img.crossOrigin = "anonymous";
             img.onload = () => {
+                if (token !== this.imageLoadToken) {
+                    resolve();
+                    return;
+                }
                 this.gl.bindTexture(this.gl.TEXTURE_2D, this.sourceTexture);
                 this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, img);
+                this.pendingImage = null;
+                this.imageLoadPromise = null;
+                this.imageLoadResolve = null;
                 this.processNewImage();
                 resolve();
             };
-            img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+            img.onerror = () => {
+                if (token === this.imageLoadToken) {
+                    this.pendingImage = null;
+                    this.imageLoadPromise = null;
+                    this.imageLoadResolve = null;
+                    this.imageSource = "";
+                }
+                reject(new Error(`Failed to load image: ${src}`));
+            };
             img.src = src;
         });
+        return this.imageLoadPromise;
     }
     loadImageElement(source) {
+        this.imageSource = "";
         this.gl.bindTexture(this.gl.TEXTURE_2D, this.sourceTexture);
         this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, source);
         this.processNewImage();
     }
     loadImageData(data, width, height) {
+        this.imageSource = "";
         this.gl.bindTexture(this.gl.TEXTURE_2D, this.sourceTexture);
         this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, width, height, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, data instanceof Uint8ClampedArray ? new Uint8Array(data.buffer) : data);
         this.processNewImage();
@@ -562,10 +608,14 @@ export class Kawarp {
     resize() {
         const width = this.canvas.width;
         const height = this.canvas.height;
-        // Only warpFBO needs to be canvas size
+        if (width === this.warpWidth && height === this.warpHeight)
+            return;
+        // Only warpFBO needs to be canvas size.
         if (this.warpFBO)
             this.deleteFramebuffer(this.warpFBO);
         this.warpFBO = this.createFramebuffer(width, height, true);
+        this.warpWidth = width;
+        this.warpHeight = height;
     }
     start() {
         if (this.isPlaying)
@@ -574,7 +624,7 @@ export class Kawarp {
         this.lastFrameTime = performance.now();
         this.fpsReportStartTime = this.lastFrameTime;
         this.fpsReportFrameCount = 0;
-        requestAnimationFrame(this.renderLoop);
+        this.animationId = requestAnimationFrame(this.renderLoop);
     }
     stop() {
         this.isPlaying = false;
@@ -598,6 +648,8 @@ export class Kawarp {
         }
     }
     dispose() {
+        if (!this.gl)
+            return;
         this.stop();
         const gl = this.gl;
         gl.deleteProgram(this.blurProgram);
@@ -613,6 +665,35 @@ export class Kawarp {
         this.deleteFramebuffer(this.currentAlbumFBO);
         this.deleteFramebuffer(this.nextAlbumFBO);
         this.deleteFramebuffer(this.warpFBO);
+        this.imageLoadResolve?.();
+        this.imageLoadResolve = null;
+        if (this.pendingImage) {
+            this.pendingImage.onload = null;
+            this.pendingImage.onerror = null;
+            this.pendingImage.src = "";
+            this.pendingImage = null;
+        }
+        this.imageLoadPromise = null;
+        this.imageSource = "";
+        this.sourceTexture = null;
+        this.blurFBO1 = null;
+        this.blurFBO2 = null;
+        this.currentAlbumFBO = null;
+        this.nextAlbumFBO = null;
+        this.warpFBO = null;
+        this.warpWidth = 0;
+        this.warpHeight = 0;
+        this.hasImage = false;
+        this.blurProgram = null;
+        this.blendProgram = null;
+        this.tintProgram = null;
+        this.warpProgram = null;
+        this.outputProgram = null;
+        this.positionBuffer = null;
+        this.texCoordBuffer = null;
+        this.attribs = null;
+        this.uniforms = null;
+        this.gl = null;
     }
     renderLoop = (timestamp) => {
         if (!this.isPlaying)

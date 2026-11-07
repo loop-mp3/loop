@@ -9,10 +9,25 @@ function loadKawarpRenderer() {
     return kawarpRendererPromise;
 }
 
+let kawarpResizeHandler;
+
+function syncKawarpRenderState() {
+    if (!kawarpBackground) return;
+    const shouldRender = kawarpEnabled && document.visibilityState !== "hidden" && !videoBackgroundTrackId;
+    if (shouldRender) {
+        kawarpBackground.start();
+    } else {
+        kawarpBackground.stop();
+    }
+}
+
 function setKawarpCanvasVisibility(enabled) {
     const canvas = document.querySelector("#loop-kawarp-background");
     if (canvas) canvas.style.display = enabled ? "block" : "none";
+    syncKawarpRenderState();
 }
+
+document.addEventListener("visibilitychange", syncKawarpRenderState, { passive: true });
 
 function applyKawarpSettings(settings) {
     kawarpSettings = { ...defaultKawarpSettings, ...settings };
@@ -29,7 +44,7 @@ function applyKawarpSettings(settings) {
     const canvas = document.querySelector("#loop-kawarp-background");
     if (canvas) {
         canvas.style.opacity = String(kawarpSettings.opacity ?? kawarpSettings.kawarpOpacity);
-        canvas.style.display = kawarpEnabled ? "block" : "none";
+        setKawarpCanvasVisibility(kawarpEnabled);
     }
     const backgroundToggle = document.querySelector("#loop-background-toggle");
     if (backgroundToggle) backgroundToggle.checked = kawarpEnabled;
@@ -390,6 +405,10 @@ function dismissLoopNotification() {
 }
 
 function disposeKawarpBackground() {
+    if (kawarpResizeHandler) {
+        window.removeEventListener("resize", kawarpResizeHandler);
+        kawarpResizeHandler = undefined;
+    }
     kawarpBackground?.dispose();
     kawarpBackground = undefined;
 }
@@ -432,7 +451,7 @@ function updateVideoBackground(trackId, isVideo) {
         videoBackgroundLastSyncedTime = undefined;
         videoBackgroundLastPaused = undefined;
         wrapper?.remove();
-        if (canvas) canvas.style.display = kawarpEnabled ? "block" : "none";
+        setKawarpCanvasVisibility(kawarpEnabled);
         return;
     }
 
@@ -507,8 +526,8 @@ function updateKawarpArtwork(artworkURL) {
             });
             canvas.style.opacity = String(kawarpSettings.opacity ?? kawarpSettings.kawarpOpacity);
             setKawarpCanvasVisibility(kawarpEnabled);
-            window.addEventListener("resize", () => kawarpBackground?.resize(), { passive: true });
-            kawarpBackground.start();
+            kawarpResizeHandler = () => kawarpBackground?.resize();
+            window.addEventListener("resize", kawarpResizeHandler, { passive: true });
         }
         kawarpBackground.loadImage(artworkURL).catch((error) => {
             console.warn("[loop.mp3] Could not load artwork into Kawarp:", error);
