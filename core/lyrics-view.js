@@ -833,6 +833,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
                 mount: view,
                 layout: "scroll",
                 host: {
+                    isViewVisible: () => document.visibilityState !== "hidden" && panel.isConnected && !panel.hidden,
                     setResumeAffordanceVisible(visible) {
                         setLyricsResumeAffordanceVisible(shadow, visible);
                     },

@@ -26,7 +26,10 @@ export function createLudoLyricsRenderer(lines, view) {
     view.classList.add("loop-ludo-progression");
 
     const markAnimated = (index) => {
-        if (index >= 0 && index < count) animatedIndices.add(index);
+        if (index < 0 || index >= count) return;
+        if (animatedIndices.has(index)) return;
+        animatedIndices.add(index);
+        elements[index]?.style.setProperty("will-change", "transform, opacity");
     };
 
     const markActiveNeighborhood = (index) => {
@@ -48,12 +51,12 @@ export function createLudoLyricsRenderer(lines, view) {
     };
 
     // Margins are applied only when the active line changes. Animating margins forces layout on
-    // every frame, while scale and opacity remain compositor-friendly.
+    // every frame, while scale and opacity remain compositor-friendly. Compositor promotion is
+    // limited to lines that are currently moving instead of every lyric line.
     for (const line of elements) {
         if (!line) continue;
         line.style.marginTop = marginInactiveTop;
         line.style.marginBottom = marginInactiveBottom;
-        line.style.willChange = "transform, opacity";
     }
 
     const paint = (index) => {
@@ -118,8 +121,12 @@ export function createLudoLyricsRenderer(lines, view) {
                 Math.abs(scaleVelocity[index]) <= 0.01 &&
                 Math.abs(targetOpacity - opacity[index]) <= 0.001 &&
                 Math.abs(opacityVelocity[index]) <= 0.01;
-            if (settled) animatedIndices.delete(index);
-            else moving = true;
+            if (settled) {
+                animatedIndices.delete(index);
+                line.style.removeProperty("will-change");
+            } else {
+                moving = true;
+            }
             paint(index);
         }
 
