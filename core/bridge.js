@@ -71,10 +71,10 @@
             lastDiscordSignature = signature;
 
             const activity = {
-                details: "Listening to Loop",
-                state: title,
+                details: title,
+                state: artist,
                 largeImageKey: artwork,
-                largeImageText: artist,
+                largeImageText: `${title} • ${artist}`,
             };
             if (!media.paused && Number.isFinite(duration) && duration > 0) {
                 const startTimestamp = now - Math.floor(position * 1000);
