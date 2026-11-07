@@ -562,6 +562,21 @@ function updateLyricsFooter(shadow, lyrics, songwriters = [], hasSungLyrics = tr
     syncLyricsFooterVisibility(shadow);
 }
 
+function updateCurrentLyricsWriterCredits(songwriters = currentTrackWriters) {
+    const host = document.querySelector("#loop-lyrics-panel #loop-lyrics-host");
+    const shadow = host?.shadowRoot;
+    if (!shadow || !currentParsedLyrics.length) return;
+    const hasSungLyrics = currentParsedLyrics.some((line) => !line.isInstrumental && line.words?.trim());
+    const providerId = shadow.querySelector(".loop-lyrics-footer-provider")?.value ||
+        currentTrackLyricsProvider?.providerId;
+    updateLyricsFooter(
+        shadow,
+        { meta: { instrumental: !hasSungLyrics, provider: providerId } },
+        songwriters,
+        hasSungLyrics
+    );
+}
+
 async function translateLyricsLines(parsedLyrics, trackId) {
     const targetLanguage = normalizeLyricsTranslationLanguage(loopPreferences.lyricsTranslationLanguage);
     const lines = parsedLyrics.map((line) => String(line.words || ""));
@@ -899,6 +914,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
     global.ensureManualLyricsSelectionLink = ensureManualLyricsSelectionLink;
     global.bindLyricsFooterScroll = bindLyricsFooterScroll;
     global.updateLyricsFooter = updateLyricsFooter;
+    global.updateCurrentLyricsWriterCredits = updateCurrentLyricsWriterCredits;
     global.translateLyricsLines = translateLyricsLines;
     global.waitForUnisonTranslationRetry = waitForUnisonTranslationRetry;
     global.translateLyricsLinesWithRetry = translateLyricsLinesWithRetry;

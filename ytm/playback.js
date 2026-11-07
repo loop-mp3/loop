@@ -414,6 +414,25 @@ async function updateForCurrentTrack(playerBar) {
     if (requestId !== metadataRequest || trackSignature !== currentSignature) return;
     updateLoop(artworkURL, trackInfo);
     syncRecordMotion();
+
+    if (trackInfo.musicBrainzWriterPromise) {
+        trackInfo.musicBrainzWriterPromise.then((writers) => {
+            const activePlayerBarAfterWriters = getYTMPlayerRoot() || playerBar;
+            const activeTrackIdAfterWriters = getCurrentTrackId(activePlayerBarAfterWriters) || lastTrackId;
+            if (
+                !writers.length ||
+                requestId !== metadataRequest ||
+                trackSignature !== activeTrackIdAfterWriters
+            ) return;
+            currentTrackWriters = writers;
+            trackInfo.TrackWriters = writers;
+            updateCurrentLyricsWriterCredits(writers);
+            console.log("[loop.mp3] Track Writers (MusicBrainz fallback):", writers);
+        }).catch((error) => {
+            console.warn("[loop.mp3] Could not apply MusicBrainz writer credits:", error);
+        });
+    }
+
     if (loopPreferences.showLyrics) {
         // Metadata should not wait for a potentially slow lyrics provider. The
         // lyrics request has its own request id and will update the panel when

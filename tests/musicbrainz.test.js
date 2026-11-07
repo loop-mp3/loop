@@ -68,6 +68,71 @@ test("uses MusicBrainz composer and lyricist relationships for writer credits", 
     assert.equal(requests.length, 3);
 });
 
+test("returns YouTube metadata before MusicBrainz fallback resolves", async () => {
+    const requests = [];
+    let resolveMusicBrainz;
+    const musicBrainzPayload = new Promise((resolve) => {
+        resolveMusicBrainz = resolve;
+    });
+    const context = {
+        AbortController,
+        URLSearchParams,
+        LoopYtmDom: {
+            getTrackInfo: () => ({
+                title: "Unknown track",
+                artist: "Example Artist",
+                album: "Unknown album",
+            }),
+        },
+        fetch: async (url) => {
+            const requestURL = String(url);
+            requests.push(requestURL);
+            if (requestURL.includes("youtube.com/oembed")) {
+                return {
+                    ok: true,
+                    json: async () => ({
+                        title: "Example Song",
+                        author_name: "Example Artist",
+                        author_url: "https://www.youtube.com/@example",
+                    }),
+                };
+            }
+            if (requestURL.includes("youtubei/v1/player")) {
+                return {
+                    ok: true,
+                    json: async () => ({
+                        videoDetails: {
+                            title: "Example Song",
+                            author: "Example Artist - Topic",
+                            musicVideoType: "MUSIC_VIDEO_TYPE_ATV",
+                        },
+                    }),
+                };
+            }
+            if (requestURL.includes("youtubei/v1/browse")) {
+                return { ok: true, json: async () => ({}) };
+            }
+            return { ok: true, json: async () => musicBrainzPayload };
+        },
+        globalThis: {},
+        setTimeout,
+        clearTimeout,
+        console,
+    };
+    vm.runInNewContext(source, context);
+
+    const info = await context.globalThis.getTrackInfoFromTrackId("track-id", null);
+
+    assert.equal(info.title, "Example Song");
+    assert.equal(info.artist, "Example Artist - Topic");
+    assert.deepEqual(Array.from(info.TrackWriters), []);
+    assert.equal(typeof info.musicBrainzWriterPromise?.then, "function");
+    assert.equal(requests.some((url) => url.includes("musicbrainz.org/ws/2")), true);
+
+    resolveMusicBrainz({ recordings: [] });
+    assert.deepEqual(Array.from(await info.musicBrainzWriterPromise), []);
+});
+
 test("does not query MusicBrainz without a complete track identity", async () => {
     const { module, requests } = createMetadataModule([]);
 

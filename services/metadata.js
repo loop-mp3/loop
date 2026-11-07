@@ -321,13 +321,10 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             // its an array just fetching them to test
             // this is the browseId ytm uses for some reason its just appending the trackId to the prefix MPTC for some fucking reason
         const browseId = `MPTC${trackId}`;
-        let TrackWriters = await getTrackWriterCredits(browseId);
-        if (!TrackWriters.length) {
-            TrackWriters = await getMusicBrainzWriterCredits(title, artist);
-            if (TrackWriters.length) {
-                console.log("[loop.mp3] Track Writers (MusicBrainz fallback):", TrackWriters);
-            }
-        }
+        const TrackWriters = await getTrackWriterCredits(browseId);
+        const musicBrainzWriterPromise = TrackWriters.length
+            ? null
+            : getMusicBrainzWriterCredits(title, artist);
         console.log(`[loop.mp3] Track Writers:`, TrackWriters);
         const artistUrl =
             getMusicAuthorUrl(details.author_url) ||
@@ -351,6 +348,7 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             album,
             albumUrl,
             TrackWriters,
+            musicBrainzWriterPromise,
             // YouTube Music identifies art/audio tracks as ATV and video
             // content as OMV, UGC, or OFFICIAL_SOURCE_MUSIC. Thumbnail
             // dimensions are not reliable because both kinds use rectangular
