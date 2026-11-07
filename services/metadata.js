@@ -101,6 +101,137 @@ function getTrackWritersFromBrowse(data) {
     return [...new Set(writers)];
 }
 
+const MUSICBRAINZ_API_URL = "https://musicbrainz.org/ws/2";
+const MUSICBRAINZ_REQUEST_INTERVAL_MS = 1_100;
+const MUSICBRAINZ_REQUEST_TIMEOUT_MS = 10_000;
+const musicBrainzWriterCache = new Map();
+const musicBrainzWriterRequests = new Map();
+let musicBrainzRequestQueue = Promise.resolve();
+let musicBrainzLastRequestAt = 0;
+
+function normalizeMusicBrainzText(value) {
+    return String(value || "")
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/&/g, "and")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .replace(/\s+/g, " ");
+}
+
+function escapeMusicBrainzQueryValue(value) {
+    return String(value || "").replace(/([\\"])/g, "\\$1");
+}
+
+function getMusicBrainzArtistCreditText(recording) {
+    return (Array.isArray(recording?.["artist-credit"]) ? recording["artist-credit"] : [])
+        .map((credit) => credit?.name || credit?.artist?.name || "")
+        .filter(Boolean)
+        .join(" ");
+}
+
+function isMusicBrainzRecordingMatch(recording, title, artist) {
+    const expectedTitle = normalizeMusicBrainzText(title);
+    const expectedArtist = normalizeMusicBrainzText(artist);
+    const recordingTitle = normalizeMusicBrainzText(recording?.title);
+    const recordingArtist = normalizeMusicBrainzText(getMusicBrainzArtistCreditText(recording));
+    if (!expectedTitle || !expectedArtist || !recordingTitle || !recordingArtist) return false;
+
+    const titleMatches = recordingTitle === expectedTitle;
+    const artistMatches = recordingArtist === expectedArtist ||
+        recordingArtist.includes(expectedArtist) ||
+        expectedArtist.includes(recordingArtist);
+    return titleMatches && artistMatches;
+}
+
+function requestMusicBrainzJSON(path) {
+    const request = musicBrainzRequestQueue.then(async () => {
+        const wait = Math.max(
+            0,
+            MUSICBRAINZ_REQUEST_INTERVAL_MS - (Date.now() - musicBrainzLastRequestAt)
+        );
+        if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
+        musicBrainzLastRequestAt = Date.now();
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), MUSICBRAINZ_REQUEST_TIMEOUT_MS);
+        try {
+            const response = await fetch(`${MUSICBRAINZ_API_URL}${path}`, {
+                headers: { Accept: "application/json" },
+                signal: controller.signal,
+            });
+            if (!response.ok) throw new Error(`MusicBrainz returned ${response.status}`);
+            return response.json();
+        } finally {
+            clearTimeout(timeout);
+        }
+    });
+    musicBrainzRequestQueue = request.catch(() => undefined);
+    return request;
+}
+
+function getMusicBrainzWriterNames(recording) {
+    const writerTypes = new Set(["composer", "lyricist", "writer"]);
+    const writers = (Array.isArray(recording?.relations) ? recording.relations : [])
+        .filter((relation) => writerTypes.has(String(relation?.type || "").toLowerCase()))
+        .map((relation) => relation?.artist?.name || "")
+        .map((name) => String(name).trim())
+        .filter(Boolean);
+    return [...new Set(writers)];
+}
+
+function getMusicBrainzWorkIds(recording) {
+    return [...new Set((Array.isArray(recording?.relations) ? recording.relations : [])
+        .map((relation) => relation?.work?.id || "")
+        .filter(Boolean))];
+}
+
+async function resolveMusicBrainzWriterCredits(title, artist) {
+    const query = `recording:"${escapeMusicBrainzQueryValue(title)}" AND artist:"${escapeMusicBrainzQueryValue(artist)}"`;
+    const searchParams = new URLSearchParams({ query, fmt: "json", limit: "5" });
+    const search = await requestMusicBrainzJSON(`/recording?${searchParams}`);
+    const recordings = Array.isArray(search?.recordings) ? search.recordings : [];
+    const match = recordings.find((recording) => isMusicBrainzRecordingMatch(recording, title, artist));
+    if (!match?.id) return [];
+
+    const lookupParams = new URLSearchParams({ inc: "artist-rels+work-rels", fmt: "json" });
+    const recording = await requestMusicBrainzJSON(
+        `/recording/${encodeURIComponent(match.id)}?${lookupParams}`
+    );
+    const writers = getMusicBrainzWriterNames(recording);
+    const workIds = getMusicBrainzWorkIds(recording).slice(0, 3);
+    for (const workId of workIds) {
+        const workParams = new URLSearchParams({ inc: "artist-rels", fmt: "json" });
+        const work = await requestMusicBrainzJSON(
+            `/work/${encodeURIComponent(workId)}?${workParams}`
+        );
+        writers.push(...getMusicBrainzWriterNames(work));
+    }
+    return [...new Set(writers)];
+}
+async function getMusicBrainzWriterCredits(title, artist) {
+    const normalizedTitle = normalizeMusicBrainzText(title);
+    const normalizedArtist = normalizeMusicBrainzText(artist);
+    if (!normalizedTitle || !normalizedArtist) return [];
+    const cacheKey = `${normalizedTitle}|${normalizedArtist}`;
+    if (musicBrainzWriterCache.has(cacheKey)) return musicBrainzWriterCache.get(cacheKey);
+    if (musicBrainzWriterRequests.has(cacheKey)) return musicBrainzWriterRequests.get(cacheKey);
+
+    const request = resolveMusicBrainzWriterCredits(title, artist)
+        .then((writers) => {
+            musicBrainzWriterCache.set(cacheKey, writers);
+            return writers;
+        })
+        .catch((error) => {
+            console.warn("[loop.mp3] MusicBrainz writer lookup failed:", error);
+            return [];
+        })
+        .finally(() => musicBrainzWriterRequests.delete(cacheKey));
+    musicBrainzWriterRequests.set(cacheKey, request);
+    return request;
+}
+
 
 // Use the player endpoint to retrieve more accurate track metadata.
 const prettyPrintMetaCache = new Map();
@@ -190,7 +321,13 @@ async function getTrackInfoFromTrackId(trackId, playerBar) {
             // its an array just fetching them to test
             // this is the browseId ytm uses for some reason its just appending the trackId to the prefix MPTC for some fucking reason
         const browseId = `MPTC${trackId}`;
-        const TrackWriters = await getTrackWriterCredits(browseId);
+        let TrackWriters = await getTrackWriterCredits(browseId);
+        if (!TrackWriters.length) {
+            TrackWriters = await getMusicBrainzWriterCredits(title, artist);
+            if (TrackWriters.length) {
+                console.log("[loop.mp3] Track Writers (MusicBrainz fallback):", TrackWriters);
+            }
+        }
         console.log(`[loop.mp3] Track Writers:`, TrackWriters);
         const artistUrl =
             getMusicAuthorUrl(details.author_url) ||
@@ -378,6 +515,8 @@ function rerenderLyricsForSelectedEngine() {
     global.getMusicAuthorUrl = getMusicAuthorUrl;
     global.getTrackWriterCredits = getTrackWriterCredits;
     global.getTrackWritersFromBrowse = getTrackWritersFromBrowse;
+    global.getMusicBrainzWriterCredits = getMusicBrainzWriterCredits;
+    global.getMusicBrainzWriterNames = getMusicBrainzWriterNames;
     global.getPlayerMetadataPrettyPrint = getPlayerMetadataPrettyPrint;
     global.getTrackInfoFromTrackId = getTrackInfoFromTrackId;
     global.getRecommendationText = getRecommendationText;
