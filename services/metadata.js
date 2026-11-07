@@ -254,6 +254,15 @@ function getEmptyStateRecommendationShelves() {
         .filter(Boolean);
 }
 
+function isRecommendationWatchUrl(url) {
+    try {
+        const parsedURL = new URL(url, location.href);
+        return parsedURL.pathname === "/watch" || parsedURL.pathname === "/watch/";
+    } catch {
+        return false;
+    }
+}
+
 function getRecommendationVideoId(url) {
     try {
         const parsedURL = new URL(url, location.href);
@@ -279,9 +288,8 @@ function getRecommendationCardData(shelf) {
     ];
     const cards = [...shelf.querySelectorAll(cardSelectors.join(","))];
     return cards.map((sourceCard) => {
-        const link = sourceCard.querySelector(
-            'a[href*="watch"], a[href*="browse"], a[href*="playlist"]'
-        );
+        const link = [...sourceCard.querySelectorAll("a[href]")]
+            .find((candidate) => isRecommendationWatchUrl(candidate.href));
         const image = sourceCard.querySelector("img");
         const title = [...sourceCard.querySelectorAll(
             "yt-formatted-string, .title, [id*=title]"
@@ -294,9 +302,7 @@ function getRecommendationCardData(shelf) {
         if (!link || !title || !image?.src) return null;
         return {
             sourceCard,
-            action: sourceCard.querySelector(
-                'button[aria-label*="play" i], a[href*="watch"], a[href*="browse"], a[href*="playlist"]'
-            ) || sourceCard,
+            action: sourceCard.querySelector('button[aria-label*="play" i]') || link,
             href: link.href,
             image: getRecommendationArtwork(link.href, image.currentSrc || image.src),
             fallbackImage: image.currentSrc || image.src,
@@ -319,7 +325,7 @@ function renderEmptyStateRecommendations(loop) {
     container.replaceChildren();
 
     shelves.forEach(({ shelf, heading }) => {
-        const cards = getRecommendationCardData(shelf).slice(0, 8);
+        const cards = getRecommendationCardData(shelf);
         if (!cards.length) return;
         const section = document.createElement("section");
         section.className = "loop-empty-recommendation-section";
@@ -376,6 +382,7 @@ function rerenderLyricsForSelectedEngine() {
     global.getTrackInfoFromTrackId = getTrackInfoFromTrackId;
     global.getRecommendationText = getRecommendationText;
     global.getEmptyStateRecommendationShelves = getEmptyStateRecommendationShelves;
+    global.isRecommendationWatchUrl = isRecommendationWatchUrl;
     global.getRecommendationVideoId = getRecommendationVideoId;
     global.getRecommendationArtwork = getRecommendationArtwork;
     global.getRecommendationCardData = getRecommendationCardData;
