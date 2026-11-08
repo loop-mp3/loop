@@ -218,10 +218,7 @@ function updateLoop(artworkURL, trackInfo) {
                     </label>
                 </div>
 
-                <div id="loop-inline-buttons" aria-label="Playback controls">
-                    <button id="loop-previous-button" type="button" aria-label="Previous track" hidden>&#9198;</button>
-                    <button id="loop-play-button" type="button" aria-label="Play">&#9654;</button>
-                    <button id="loop-next-button" type="button" aria-label="Next track" hidden>&#9197;</button>
+                <div id="loop-inline-buttons" aria-label="Player utilities">
                     <div id="loop-volume-control">
                         <button id="loop-mute-button" type="button" aria-label="Mute">&#128266;</button>
                         <div id="loop-volume-popover">
@@ -256,6 +253,11 @@ function updateLoop(artworkURL, trackInfo) {
                         <span id="loop-current-time">0:00</span>
                         <input id="loop-seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="Seek through track">
                         <span id="loop-duration">0:00</span>
+                    </div>
+                    <div id="loop-playback-controls" aria-label="Track navigation">
+                        <button id="loop-previous-button" type="button" aria-label="Previous track" title="Previous track">&#9198;</button>
+                        <button id="loop-play-button" type="button" aria-label="Play" title="Play">&#9654;</button>
+                        <button id="loop-next-button" type="button" aria-label="Next track" title="Next track">&#9197;</button>
                     </div>
                 </div>
                 <section id="loop-lyrics-panel" aria-label="Synchronized lyrics" hidden>

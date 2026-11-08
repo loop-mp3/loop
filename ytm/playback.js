@@ -92,6 +92,11 @@ function formatTime(seconds) {
     return LoopUtils.formatTime(seconds);
 }
 
+function formatRemainingTime(duration, currentTime) {
+    if (!Number.isFinite(duration) || duration < 0 || !Number.isFinite(currentTime)) return "0:00";
+    return `-${formatTime(Math.max(0, duration - currentTime))}`;
+}
+
 function updatePlaybackControls(media = getCurrentMedia()) {
     const playButton = document.querySelector("#loop-play-button");
     const muteButton = document.querySelector("#loop-mute-button");
@@ -103,6 +108,7 @@ function updatePlaybackControls(media = getCurrentMedia()) {
     if (playButton && muteButton && seek && currentTime && duration && !media) {
         playButton.textContent = "▶";
         playButton.setAttribute("aria-label", "Play");
+        playButton.title = "Play";
         muteButton.textContent = "♪";
         muteButton.setAttribute("aria-label", "Mute");
         seek.value = "0";
@@ -113,12 +119,13 @@ function updatePlaybackControls(media = getCurrentMedia()) {
     } else if (playButton && muteButton && seek && currentTime && duration && media) {
         playButton.textContent = media.paused ? "▶" : "⏸";
         playButton.setAttribute("aria-label", media.paused ? "Play" : "Pause");
+        playButton.title = media.paused ? "Play" : "Pause";
         muteButton.textContent = media.muted ? "♩" : "♪";
         muteButton.setAttribute("aria-label", media.muted ? "Unmute" : "Mute");
         seek.max = Number.isFinite(media.duration) ? String(media.duration) : "0";
         seek.value = Number.isFinite(media.currentTime) ? String(media.currentTime) : "0";
         currentTime.textContent = formatTime(media.currentTime);
-        duration.textContent = formatTime(media.duration);
+        duration.textContent = formatRemainingTime(media.duration, media.currentTime);
         if (volumeSlider) volumeSlider.value = String(media.volume);
     }
     if (document.visibilityState !== "hidden") {

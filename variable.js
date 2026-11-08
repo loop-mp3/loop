@@ -38,7 +38,7 @@
         animatedBackground: true,
         hideVinyl: true,
         hideArtwork: false,
-        showNavigationButtons: false,
+        showNavigationButtons: true,
         autoOpenMiniPlayer: true,
         useLegacyFallbackArtwork: false,
         showAlbum: false,
