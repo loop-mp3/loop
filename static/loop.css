@@ -3676,6 +3676,15 @@
         height: var(--loop-portrait-art-size);
         top: var(--loop-portrait-art-center);
         left: 50%;
+        transition: top 280ms cubic-bezier(.22, 1, .36, 1),
+            left 280ms cubic-bezier(.22, 1, .36, 1),
+            width 280ms cubic-bezier(.22, 1, .36, 1),
+            height 280ms cubic-bezier(.22, 1, .36, 1),
+            border-radius 280ms ease,
+            opacity 180ms ease,
+            transform 280ms cubic-bezier(.22, 1, .36, 1);
+        will-change: top, left, width, height, transform, opacity;
+        backface-visibility: hidden;
     }
 
     #loop-artwork-video-toggle {
@@ -3695,10 +3704,21 @@
         width: auto;
         z-index: 3;
         transform: none;
+        transition: top 280ms cubic-bezier(.22, 1, .36, 1),
+            right 280ms cubic-bezier(.22, 1, .36, 1),
+            left 280ms cubic-bezier(.22, 1, .36, 1),
+            width 280ms cubic-bezier(.22, 1, .36, 1),
+            opacity 180ms ease,
+            transform 280ms cubic-bezier(.22, 1, .36, 1);
+        will-change: top, left, right, width, transform, opacity;
+        contain: layout paint;
+        backface-visibility: hidden;
     }
 
     #loop-track-title {
         font-size: clamp(20px, 5vw, 28px);
+        transition: font-size 280ms cubic-bezier(.22, 1, .36, 1);
+        will-change: font-size;
     }
 
     #loop-seek-row {
@@ -3708,6 +3728,15 @@
         left: 6%;
         width: auto;
         transform: none;
+        transition: top 280ms cubic-bezier(.22, 1, .36, 1),
+            right 280ms cubic-bezier(.22, 1, .36, 1),
+            left 280ms cubic-bezier(.22, 1, .36, 1),
+            width 280ms cubic-bezier(.22, 1, .36, 1),
+            opacity 180ms ease,
+            transform 280ms cubic-bezier(.22, 1, .36, 1);
+        will-change: top, left, right, width, transform, opacity;
+        contain: layout paint;
+        backface-visibility: hidden;
     }
 
     #loop-playback-controls {
@@ -3716,6 +3745,10 @@
         left: 6%;
         width: auto;
         transform: none;
+        transition: opacity 180ms ease, visibility 180ms ease, transform 280ms cubic-bezier(.22, 1, .36, 1);
+        will-change: transform, opacity;
+        contain: layout paint;
+        backface-visibility: hidden;
     }
 
     #loop-lyrics-panel {
@@ -3840,7 +3873,15 @@
     }
 
     #loop-lyrics-panel {
-        transition: opacity 220ms ease, visibility 220ms ease;
+        transition: top 280ms cubic-bezier(.22, 1, .36, 1),
+            right 280ms cubic-bezier(.22, 1, .36, 1),
+            bottom 280ms cubic-bezier(.22, 1, .36, 1),
+            left 280ms cubic-bezier(.22, 1, .36, 1),
+            opacity 220ms ease,
+            visibility 220ms ease;
+        will-change: top, right, bottom, left, opacity;
+        contain: layout paint;
+        backface-visibility: hidden;
     }
 
     #loop.loop-lyrics-expanded #loop-inline-buttons {
@@ -3876,7 +3917,10 @@
     }
 
     #loop.loop-lyrics-expanded #loop-playback-controls {
-        display: none;
+        visibility: hidden;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-10px);
     }
 
     #loop.loop-lyrics-expanded #loop-track-info {
@@ -3938,6 +3982,11 @@
 
 
     @media (prefers-reduced-motion: reduce) {
+        #loop-artwork,
+        #loop-track-info,
+        #loop-track-title,
+        #loop-seek-row,
+        #loop-playback-controls,
         #loop-lyrics-panel,
         #loop-shortcuts-panel {
             transition: none;
