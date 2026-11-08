@@ -74,10 +74,7 @@ function updateLoop(artworkURL, trackInfo) {
                     <div><kbd>F5</kbd> Reload Resources</div>
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
                     <div><kbd>F</kbd> Fullscreen <span>(press esc to close)</span></div>
-                    <label class="loop-navigation-toggle">
-                        <input id="loop-navigation-toggle" type="checkbox">
-                        Show previous/next buttons
-                    </label>
+
                     <label class="loop-navigation-toggle">
                         <input id="loop-background-toggle" type="checkbox" checked>
                         Enable Kwarp <span>(re-enable)</span>
@@ -342,11 +339,7 @@ function updateLoop(artworkURL, trackInfo) {
             loopPreferences.autoOpenMiniPlayer = event.target.checked;
             saveLoopPreferences();
         });
-        loop.querySelector("#loop-navigation-toggle").addEventListener("change", (event) => {
-            loopPreferences.showNavigationButtons = event.target.checked;
-            saveLoopPreferences();
-            setTrackNavigationButtonsVisible(event.target.checked);
-        });
+
         loop.querySelector("#loop-background-toggle").addEventListener("change", (event) => {
             setKawarpEnabled(event.target.checked);
         });

@@ -31,7 +31,6 @@ async function resetLoopData() {
         animatedBackground: true,
         hideVinyl: true,
         hideArtwork: false,
-        showNavigationButtons: true,
         autoOpenMiniPlayer: true,
         useLegacyFallbackArtwork: false,
         showAlbum: false,
@@ -78,8 +77,6 @@ function applyLoopPreferences() {
     applyVideoPresentationPreferences();
     const vinylToggle = loop.querySelector("#loop-vinyl-toggle");
     if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
-    const navigationToggle = loop.querySelector("#loop-navigation-toggle");
-    if (navigationToggle) navigationToggle.checked = Boolean(loopPreferences.showNavigationButtons);
     const miniPlayerToggle = loop.querySelector("#loop-mini-player-toggle");
     if (miniPlayerToggle) miniPlayerToggle.checked = loopPreferences.autoOpenMiniPlayer !== false;
     const videoAvoidanceToggle = loop.querySelector("#loop-video-avoidance-toggle");
@@ -118,7 +115,6 @@ function applyLoopPreferences() {
     if (volumeSlider) volumeSlider.value = String(preferredVolume);
     const lyricsPanel = loop.querySelector("#loop-lyrics-panel");
     if (lyricsPanel) lyricsPanel.hidden = false;
-    setTrackNavigationButtonsVisible(Boolean(loopPreferences.showNavigationButtons));
     applyArtworkPreference();
     miniPlayerBridge?.sync(getCurrentMedia());
     publishElectronMiniPlayerState({ force: true });

@@ -235,10 +235,6 @@ function playNextTrack() {
     sendYTMShortcut("N", true);
 }
 
-function setTrackNavigationButtonsVisible(visible) {
-    document.querySelector("#loop-previous-button")?.toggleAttribute("hidden", !visible);
-    document.querySelector("#loop-next-button")?.toggleAttribute("hidden", !visible);
-}
 
 function syncRecordMotion() {
     const artwork = document.querySelector("#loop-artwork");
@@ -514,7 +510,7 @@ async function updateForCurrentTrack(playerBar) {
     global.sendLoopShortcut = sendLoopShortcut;
     global.playPreviousTrack = playPreviousTrack;
     global.playNextTrack = playNextTrack;
-    global.setTrackNavigationButtonsVisible = setTrackNavigationButtonsVisible;
+
     global.syncRecordMotion = syncRecordMotion;
     global.watchPlaybackState = watchPlaybackState;
     global.scheduleTrackSync = scheduleTrackSync;

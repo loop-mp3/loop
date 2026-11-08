@@ -97,7 +97,6 @@ function showOnboarding() {
             <div class="loop-onboarding-step" data-step="2" hidden>
                 <p class="loop-onboarding-description">Choose your mini-player preferences. You can change these later from the Loop menu.</p>
                 <label class="loop-onboarding-check"><input class="loop-onboarding-mini-player" type="checkbox"> Open the mini-player when the app is minimized</label>
-                <label class="loop-onboarding-check"><input class="loop-onboarding-navigation" type="checkbox"> Show previous and next buttons</label>
             </div>
             <div class="loop-onboarding-step" data-step="3" hidden>
                 <p class="loop-onboarding-description">Lyrics are always displayed when available. You can choose the rendering engine and provider later from the Loop menu.</p>
@@ -122,7 +121,6 @@ function showOnboarding() {
     const finish = ({ save = true } = {}) => {
         if (save) {
             loopPreferences.autoOpenMiniPlayer = modal.querySelector(".loop-onboarding-mini-player").checked;
-            loopPreferences.showNavigationButtons = modal.querySelector(".loop-onboarding-navigation").checked;
             loopPreferences.showLyrics = true;
             loopPreferences.showWriterCredits = modal.querySelector(".loop-onboarding-writer-credits").checked;
             saveLoopPreferences();
@@ -166,7 +164,6 @@ function showOnboarding() {
     });
     modal.querySelector(".loop-onboarding-config").addEventListener("click", showKawarpConfigEditor);
     modal.querySelector(".loop-onboarding-mini-player").checked = loopPreferences.autoOpenMiniPlayer !== false;
-    modal.querySelector(".loop-onboarding-navigation").checked = Boolean(loopPreferences.showNavigationButtons);
     modal.querySelector(".loop-onboarding-writer-credits").checked = loopPreferences.showWriterCredits !== false;
     modal.addEventListener("keydown", (event) => { if (event.key === "Escape") finish({ save: false }); });
     renderStep();
