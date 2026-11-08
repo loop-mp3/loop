@@ -3843,6 +3843,14 @@
         transition: opacity 220ms ease, visibility 220ms ease;
     }
 
+    #loop.loop-lyrics-expanded #loop-inline-buttons {
+        z-index: 6;
+    }
+
+    #loop.loop-lyrics-expanded #loop-volume-popover {
+        z-index: 7;
+    }
+
     #loop.loop-lyrics-expanded #loop-artwork-video-toggle {
         visibility: hidden;
         opacity: 0;
