@@ -1,6 +1,24 @@
 
 All notable changes to Loop are documented here.
 
+## [0.8.1] - 2026-11-07
+
+### Highlights
+
+* Added the Colorful Vocals Kawarp preset to the bundled preset collection, making the new visual configuration available directly from Loop's preset manager.
+
+### Internal and maintenance changes
+
+* Reduced playback and DOM-update overhead by coalescing bursts of YouTube Music mutations into one `requestAnimationFrame` update for guide-button hiding, favicon replacement, and music-logo changes. This avoids repeatedly scanning and modifying the page while YouTube Music is still rendering the same UI changes.
+* Replaced the one-second favicon polling loop with a targeted `<head>` mutation observer. Favicon changes are now handled when they occur and are still coalesced into a single frame, eliminating periodic work when the page is idle.
+* Reduced playback-state work by using a single-pass media-element lookup, batching media-event updates, and reusing the selected media element when synchronizing the mini-player and Discord activity. Track-host checks and navigation lifecycle events are also deduplicated instead of installing repeated listeners for each player replacement.
+* Avoided unnecessary background lyric work when the document is hidden. Braccato and Ludo updates, lyric-footer synchronization, and related playback rendering now run only while the lyrics view can be presented, while playback and track synchronization resume when the page becomes visible.
+* Reduced lyric renderer compositor usage by applying `will-change: transform, opacity` only to lyric lines that are actively moving. The hint is removed as soon as a line settles, preventing every lyric line from being promoted to its own compositor layer and lowering memory and compositing overhead.
+* Reduced Kawarp rendering work by stopping its animation loop when the document is hidden, when Kawarp is disabled, or when a video background has taken over. Rendering resumes when the background becomes eligible again, so hidden tabs and replaced backgrounds no longer consume continuous animation-frame resources.
+* Reduced Kawarp allocations by disabling `preserveDrawingBuffer` for the continuously rendered WebGL canvas, reusing framebuffers when the canvas dimensions have not changed, and removing resize listeners when the renderer is disposed.
+* Made Kawarp artwork loading resilient to rapid track changes by reusing an existing load for the same image, cancelling stale pending image requests, and ignoring out-of-date load completions before they can replace the current texture.
+* Strengthened Kawarp disposal by cancelling pending animation and image work, releasing WebGL programs, buffers, textures, and framebuffers, and clearing renderer references so a destroyed background can be garbage-collected cleanly.
+
 ## [0.8.0] - 2026-11-07
 
 ### Highlights
@@ -9,7 +27,6 @@ All notable changes to Loop are documented here.
 * Added MusicBrainz fallback resolution for track writer credits when YouTube Music does not provide them, with credits applied as metadata becomes available.
 * Added writer-credit entries to the cached lyrics manager, including search, editing, and storage support.
 * Updated Discord Rich Presence to show the track title and artist in the activity and album-art details.
-* Added the Colorful Vocals Kawarp preset to the bundled preset collection.
 
 ### Fixes
 
@@ -24,9 +41,6 @@ All notable changes to Loop are documented here.
 * Loaded primary track metadata without waiting for slower MusicBrainz fallback requests, then updated the lyrics writer credits when the fallback completed.
 * Updated the document title and project branding to use the `loopᵇᵉᵗᵃ` name.
 * Added MusicBrainz and writer-credit cache test coverage.
-* Reduced runtime playback overhead by batching DOM, media, logo, favicon, and guide-button updates, and by avoiding unnecessary hidden-page lyric rendering.
-* Reduced lyric renderer compositor usage by promoting only actively moving lines and skipping redundant animations.
-* Reduced Kawarp resource usage by pausing hidden or replaced backgrounds, reusing image loads, avoiding redundant framebuffer resizes, and releasing WebGL resources during disposal.
 
 ## [0.7.9] - 2026-10-26
 
