@@ -4,9 +4,12 @@
   "version": "0.8.1",
   "description": "A minimal, keyboard-first music player built on top of YouTube Music. (DO NOT USE IN A BROWSER IT MAY BREAK)",
   "author": "Saaransh_Xd",
+
   "content_scripts": [
     {
-      "matches": ["https://music.youtube.com/*"],
+      "matches": [
+        "https://music.youtube.com/*"
+      ],
       "js": [
         "variable.js",
         "utils/runtime.js",
@@ -37,24 +40,50 @@
         "core/init.js",
         "index.js"
       ],
-      "css": ["static/loop.css"],
+      "css": [
+        "static/loop.css"
+      ],
       "run_at": "document_start"
     }
   ],
+
   "host_permissions": [
     "<all_urls>"
   ],
+
   "permissions": [
     "storage",
     "scripting"
   ],
+
   "web_accessible_resources": [
     {
-      "resources": ["config/shader.json", "config/presets/*", "modules/kawarp.js", "modules/braccato/*", "modules/braccato/styles/*", "ludo/index.js", "static/fallback-artwork.png", "static/fallback-legacy.png", "static/material3-loader.svg"],
-      "matches": ["https://music.youtube.com/*"]
+      "resources": [
+        "config/shader.json",
+        "config/presets/*",
+        "modules/kawarp.js",
+        "modules/braccato/*",
+        "modules/braccato/styles/*",
+        "ludo/index.js",
+        "static/fallback-artwork.png",
+        "static/fallback-legacy.png",
+        "static/material3-loader.svg"
+      ],
+      "matches": [
+        "https://music.youtube.com/*"
+      ]
     }
   ],
+
   "background": {
-    "service_worker": "background.js"
+    "scripts": [
+      "background.js"
+    ]
+  },
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "loop@saaranshdx.dev"
+    }
   }
 }
