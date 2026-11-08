@@ -3923,6 +3923,19 @@
         pointer-events: auto;
     }
 
+    #loop.loop-lyrics-expanded #loop-shortcuts-panel.loop-menu-open {
+        position: fixed;
+        top: auto;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 8;
+        box-sizing: border-box;
+        width: auto;
+        max-height: min(64vh, 560px);
+        transform: translateY(var(--loop-menu-drag-offset, 0px));
+    }
+
 
     @media (prefers-reduced-motion: reduce) {
         #loop-lyrics-panel,
