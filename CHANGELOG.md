@@ -9,6 +9,7 @@ All notable changes to Loop are documented here.
 * Added MusicBrainz fallback resolution for track writer credits when YouTube Music does not provide them, with credits applied as metadata becomes available.
 * Added writer-credit entries to the cached lyrics manager, including search, editing, and storage support.
 * Updated Discord Rich Presence to show the track title and artist in the activity and album-art details.
+* Added the Colorful Vocals Kawarp preset to the bundled preset collection.
 
 ### Fixes
 
@@ -23,6 +24,9 @@ All notable changes to Loop are documented here.
 * Loaded primary track metadata without waiting for slower MusicBrainz fallback requests, then updated the lyrics writer credits when the fallback completed.
 * Updated the document title and project branding to use the `loopᵇᵉᵗᵃ` name.
 * Added MusicBrainz and writer-credit cache test coverage.
+* Reduced runtime playback overhead by batching DOM, media, logo, favicon, and guide-button updates, and by avoiding unnecessary hidden-page lyric rendering.
+* Reduced lyric renderer compositor usage by promoting only actively moving lines and skipping redundant animations.
+* Reduced Kawarp resource usage by pausing hidden or replaced backgrounds, reusing image loads, avoiding redundant framebuffer resizes, and releasing WebGL resources during disposal.
 
 ## [0.7.9] - 2026-10-26
 
