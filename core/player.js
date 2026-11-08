@@ -1,3 +1,16 @@
+function getDefaultLyricsExpanded() {
+    return !window.matchMedia("(orientation: portrait), (max-aspect-ratio: 4/5)").matches;
+}
+
+function setLyricsExpanded(loop, expanded) {
+    loop.classList.toggle("loop-lyrics-expanded", expanded);
+    const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
+    if (!lyricsToggle) return;
+    lyricsToggle.setAttribute("aria-expanded", String(expanded));
+    lyricsToggle.setAttribute("aria-label", expanded ? "Hide lyrics" : "Show lyrics");
+    lyricsToggle.setAttribute("title", expanded ? "Hide lyrics" : "Show lyrics");
+}
+
 function syncWindowTitle() {
     const loop = document.getElementById("loop");
     if (!loop || loop.classList.contains("loop-empty")) {
@@ -286,11 +299,8 @@ function updateLoop(artworkURL, trackInfo) {
         });
         applyLoopPreferences();
         const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
-        const lyricsExpandedByDefault = !window.matchMedia("(orientation: portrait), (max-aspect-ratio: 4/5)").matches;
-        loop.classList.toggle("loop-lyrics-expanded", lyricsExpandedByDefault);
-        lyricsToggle.setAttribute("aria-expanded", String(lyricsExpandedByDefault));
-        lyricsToggle.setAttribute("aria-label", lyricsExpandedByDefault ? "Hide lyrics" : "Show lyrics");
-        lyricsToggle.setAttribute("title", lyricsExpandedByDefault ? "Hide lyrics" : "Show lyrics");
+        const lyricsExpandedByDefault = getDefaultLyricsExpanded();
+        setLyricsExpanded(loop, lyricsExpandedByDefault);
         loop.querySelector("#loop-back-button").addEventListener("click", goBackToNormal);
         loop.querySelector("#loop-play-button").addEventListener("click", togglePlayback);
         loop.querySelector("#loop-mute-button").addEventListener("click", toggleMute);
@@ -299,10 +309,8 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-next-button").addEventListener("click", playNextTrack);
         loop.querySelector("#loop-seek").addEventListener("input", seekTrack);
         lyricsToggle.addEventListener("click", () => {
-            const expanded = loop.classList.toggle("loop-lyrics-expanded");
-            lyricsToggle.setAttribute("aria-expanded", String(expanded));
-            lyricsToggle.setAttribute("aria-label", expanded ? "Hide lyrics" : "Show lyrics");
-            lyricsToggle.setAttribute("title", expanded ? "Hide lyrics" : "Show lyrics");
+            const expanded = !loop.classList.contains("loop-lyrics-expanded");
+            setLyricsExpanded(loop, expanded);
             if (expanded) loopPlayer.scrollTo({ top: 0, behavior: "smooth" });
         });
         loop.querySelector("#loop-like-button").addEventListener("click", () => triggerYTMAction("like"));
@@ -656,22 +664,9 @@ function updateLoop(artworkURL, trackInfo) {
     const wasEmpty = loop.classList.contains("loop-empty");
     loop.classList.toggle("loop-empty", Boolean(trackInfo.empty));
     if (trackInfo.empty) {
-        loop.classList.remove("loop-lyrics-expanded");
-        const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
-        if (lyricsToggle) {
-            lyricsToggle.setAttribute("aria-expanded", "false");
-            lyricsToggle.setAttribute("aria-label", "Show lyrics");
-            lyricsToggle.setAttribute("title", "Show lyrics");
-        }
+        setLyricsExpanded(loop, false);
     } else if (wasEmpty) {
-        const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
-        const lyricsExpanded = !window.matchMedia("(orientation: portrait), (max-aspect-ratio: 4/5)").matches;
-        loop.classList.toggle("loop-lyrics-expanded", lyricsExpanded);
-        if (lyricsToggle) {
-            lyricsToggle.setAttribute("aria-expanded", String(lyricsExpanded));
-            lyricsToggle.setAttribute("aria-label", lyricsExpanded ? "Hide lyrics" : "Show lyrics");
-            lyricsToggle.setAttribute("title", lyricsExpanded ? "Hide lyrics" : "Show lyrics");
-        }
+        setLyricsExpanded(loop, getDefaultLyricsExpanded());
     }
     const presentationMode = getTrackPresentationMode(lastTrackId);
     forcedVideoMode = presentationMode === "video";
