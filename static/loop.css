@@ -3850,6 +3850,10 @@
         pointer-events: none;
     }
 
+    #loop.loop-lyrics-expanded #loop-playback-controls {
+        display: none;
+    }
+
     #loop.loop-lyrics-expanded #loop-track-info {
         top: max(68px, calc(env(safe-area-inset-top) + 52px));
         right: 12%;
