@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "@braccato/core": "^1.16.3",
-    "@kawarp/core": "1.2.0"
+    "@kawarp/core": "1.2.0",
+    "web-ext": "^10.8.0"
   }
 }
