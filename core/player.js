@@ -230,6 +230,9 @@ function updateLoop(artworkURL, trackInfo) {
                                 aria-label="Volume">
                         </div>
                     </div>
+                    <button id="loop-lyrics-toggle" type="button" aria-label="Show lyrics" aria-controls="loop-lyrics-panel" aria-expanded="false" title="Show lyrics">
+                        <i class="fa-solid fa-closed-captioning" aria-hidden="true"></i>
+                    </button>
                     <button id="loop-queue-button" type="button" aria-label="Show queue">&#9776;</button>
                     <button id="loop-search-button" type="button" aria-label="Search">
                         <svg class="loop-icon" viewBox="0 0 512 512" aria-hidden="true">
@@ -255,9 +258,6 @@ function updateLoop(artworkURL, trackInfo) {
                         <span id="loop-duration">0:00</span>
                     </div>
                 </div>
-                <button id="loop-lyrics-toggle" type="button" aria-controls="loop-lyrics-panel" aria-expanded="false">
-                    Show lyrics
-                </button>
                 <section id="loop-lyrics-panel" aria-label="Synchronized lyrics" hidden>
                     <div id="loop-empty-recommendations" hidden aria-label="YouTube Music recommendations"></div>
                     <div id="loop-lyrics-host"></div>
@@ -286,6 +286,12 @@ function updateLoop(artworkURL, trackInfo) {
             loopPlayer.addEventListener(eventName, showVideoUi, { passive: true });
         });
         applyLoopPreferences();
+        const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
+        const lyricsExpandedByDefault = !window.matchMedia("(orientation: portrait), (max-aspect-ratio: 4/5)").matches;
+        loop.classList.toggle("loop-lyrics-expanded", lyricsExpandedByDefault);
+        lyricsToggle.setAttribute("aria-expanded", String(lyricsExpandedByDefault));
+        lyricsToggle.setAttribute("aria-label", lyricsExpandedByDefault ? "Hide lyrics" : "Show lyrics");
+        lyricsToggle.setAttribute("title", lyricsExpandedByDefault ? "Hide lyrics" : "Show lyrics");
         loop.querySelector("#loop-back-button").addEventListener("click", goBackToNormal);
         loop.querySelector("#loop-play-button").addEventListener("click", togglePlayback);
         loop.querySelector("#loop-mute-button").addEventListener("click", toggleMute);
@@ -293,11 +299,11 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelector("#loop-previous-button").addEventListener("click", playPreviousTrack);
         loop.querySelector("#loop-next-button").addEventListener("click", playNextTrack);
         loop.querySelector("#loop-seek").addEventListener("input", seekTrack);
-        loop.querySelector("#loop-lyrics-toggle").addEventListener("click", () => {
+        lyricsToggle.addEventListener("click", () => {
             const expanded = loop.classList.toggle("loop-lyrics-expanded");
-            const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
             lyricsToggle.setAttribute("aria-expanded", String(expanded));
-            lyricsToggle.textContent = expanded ? "Hide lyrics" : "Show lyrics";
+            lyricsToggle.setAttribute("aria-label", expanded ? "Hide lyrics" : "Show lyrics");
+            lyricsToggle.setAttribute("title", expanded ? "Hide lyrics" : "Show lyrics");
             if (expanded) loopPlayer.scrollTo({ top: 0, behavior: "smooth" });
         });
         loop.querySelector("#loop-like-button").addEventListener("click", () => triggerYTMAction("like"));
@@ -652,13 +658,24 @@ function updateLoop(artworkURL, trackInfo) {
     album.textContent = trackInfo.album;
     album.toggleAttribute("href", Boolean(trackInfo.albumUrl));
     if (trackInfo.albumUrl) album.href = trackInfo.albumUrl;
+    const wasEmpty = loop.classList.contains("loop-empty");
     loop.classList.toggle("loop-empty", Boolean(trackInfo.empty));
     if (trackInfo.empty) {
         loop.classList.remove("loop-lyrics-expanded");
         const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
         if (lyricsToggle) {
             lyricsToggle.setAttribute("aria-expanded", "false");
-            lyricsToggle.textContent = "Show lyrics";
+            lyricsToggle.setAttribute("aria-label", "Show lyrics");
+            lyricsToggle.setAttribute("title", "Show lyrics");
+        }
+    } else if (wasEmpty) {
+        const lyricsToggle = loop.querySelector("#loop-lyrics-toggle");
+        const lyricsExpanded = !window.matchMedia("(orientation: portrait), (max-aspect-ratio: 4/5)").matches;
+        loop.classList.toggle("loop-lyrics-expanded", lyricsExpanded);
+        if (lyricsToggle) {
+            lyricsToggle.setAttribute("aria-expanded", String(lyricsExpanded));
+            lyricsToggle.setAttribute("aria-label", lyricsExpanded ? "Hide lyrics" : "Show lyrics");
+            lyricsToggle.setAttribute("title", lyricsExpanded ? "Hide lyrics" : "Show lyrics");
         }
     }
     const presentationMode = getTrackPresentationMode(lastTrackId);

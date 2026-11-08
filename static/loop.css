@@ -530,6 +530,11 @@
     display: none;
 }
 
+
+#loop.loop-empty #loop-lyrics-toggle {
+    display: none;
+}
+
 #loop-volume-control {
     position: relative;
     display: inline-flex;
@@ -867,6 +872,19 @@
     color: #fff;
     font-family: Satoshi, system-ui, sans-serif;
     isolation: isolate;
+    transition: opacity 220ms ease, visibility 220ms ease;
+}
+
+#loop:not(.loop-empty):not(.loop-lyrics-expanded) #loop-lyrics-panel {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+#loop.loop-lyrics-expanded #loop-lyrics-panel {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
 }
 
 /* A viewport-level veil keeps the whole lyrics side covered, not just the canvas. */
@@ -3570,8 +3588,10 @@
     }
 }
 
-#loop-lyrics-toggle {
-    display: none;
+#loop-lyrics-toggle:hover,
+#loop-lyrics-toggle:focus-visible {
+    border-color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.16);
 }
 
 /* Keep the player readable when the viewport is taller than it is wide. */
@@ -3756,38 +3776,6 @@
         transform: translateX(-50%);
     }
 
-    #loop-lyrics-toggle {
-        position: absolute;
-        top: var(--loop-portrait-lyrics-top);
-        left: 50%;
-        z-index: 4;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 36px;
-        max-width: calc(100vw - 48px);
-        padding: 0 16px;
-        border: 1px solid rgba(255, 255, 255, 0.28);
-        border-radius: 999px;
-        color: rgba(255, 255, 255, 0.92);
-        background: rgba(12, 12, 12, 0.78);
-        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
-        backdrop-filter: blur(12px);
-        cursor: pointer;
-        font: 500 13px/1 Satoshi, system-ui, sans-serif;
-        transform: translateX(-50%);
-        transition: border-color 160ms ease, background 160ms ease, opacity 180ms ease, top 220ms ease;
-    }
-
-    #loop-lyrics-toggle:hover,
-    #loop-lyrics-toggle:focus-visible {
-        border-color: rgba(255, 255, 255, 0.7);
-        background: rgba(255, 255, 255, 0.16);
-    }
-
-    #loop.loop-empty #loop-lyrics-toggle {
-        display: none;
-    }
 
     #loop:not(.loop-empty):not(.loop-lyrics-expanded) #loop-lyrics-panel {
         visibility: hidden;
@@ -3839,16 +3827,8 @@
         pointer-events: auto;
     }
 
-    #loop.loop-lyrics-expanded #loop-lyrics-toggle {
-        top: max(68px, calc(env(safe-area-inset-top) + 52px));
-        right: 16px;
-        left: auto;
-        padding: 0 12px;
-        transform: none;
-    }
 
     @media (prefers-reduced-motion: reduce) {
-        #loop-lyrics-toggle,
         #loop-lyrics-panel,
         #loop-shortcuts-panel {
             transition: none;
