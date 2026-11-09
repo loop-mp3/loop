@@ -3967,7 +3967,7 @@
         pointer-events: auto;
     }
 
-    #loop.loop-lyrics-expanded #loop-shortcuts-panel.loop-menu-open {
+    #loop-shortcuts-panel.loop-menu-open {
         position: fixed;
         top: auto;
         right: 0;
