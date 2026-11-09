@@ -31,7 +31,6 @@ async function resetLoopData() {
         animatedBackground: true,
         hideVinyl: true,
         hideArtwork: false,
-        autoOpenMiniPlayer: true,
         useLegacyFallbackArtwork: false,
         showAlbum: false,
         showLyrics: true,
@@ -78,8 +77,6 @@ function applyLoopPreferences() {
     applyVideoPresentationPreferences();
     const vinylToggle = loop.querySelector("#loop-vinyl-toggle");
     if (vinylToggle) vinylToggle.checked = loopPreferences.hideVinyl;
-    const miniPlayerToggle = loop.querySelector("#loop-mini-player-toggle");
-    if (miniPlayerToggle) miniPlayerToggle.checked = loopPreferences.autoOpenMiniPlayer !== false;
     const videoAvoidanceToggle = loop.querySelector("#loop-video-avoidance-toggle");
     if (videoAvoidanceToggle) videoAvoidanceToggle.checked = loopPreferences.videoAvoidance === true;
     const legacyFallbackToggle = loop.querySelector("#loop-legacy-fallback-toggle");
