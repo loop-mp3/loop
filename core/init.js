@@ -176,19 +176,13 @@ window.addEventListener("message", (event) => {
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") {
-    console.log("[loop.mp3] The application window minimized");
-    if (loopPreferences.autoOpenMiniPlayer !== false) {
-        publishElectronMiniPlayerCommand("loop:electron-open-mini-player");
-        publishElectronMiniPlayerState({ force: true });
+    if (document.visibilityState !== "hidden") {
+        console.log("[loop.mp3] The application window maximised");
+        publishElectronMiniPlayerCommand("loop:electron-close-mini-player");
+        showLoopNotification("Miniplayer Closed");
+        console.log("[loop.mp3] closed miniplayer");
+        documentPictureInPicture.window?.close();
     }
-  } else {
-    console.log("[loop.mp3] The application window maximised");
-    publishElectronMiniPlayerCommand("loop:electron-close-mini-player");
-    showLoopNotification("Miniplayer Closed");
-    console.log("[loop.mp3] closed miniplayer");
-    documentPictureInPicture.window?.close();
-  }
 });
 
 forceCustomFavicon();
