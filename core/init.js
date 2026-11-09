@@ -202,12 +202,15 @@ loadKawarpSettings();
 loadLoopPreferences();
 waitForYTM(init);
 async function toggleFullscreen() {
-    const isFullscreen = document.fullscreenElement !== null;
-    if (isFullscreen) {
+    const loop = document.getElementById("loop");
+    if (!loop) throw new Error("Loop UI is not available");
+
+    const isLoopFullscreen = document.fullscreenElement === loop;
+    if (isLoopFullscreen) {
         await document.exitFullscreen();
         console.log("[loop.mp3] Exited fullscreen mode");
     } else {
-        await document.documentElement.requestFullscreen();
+        await loop.requestFullscreen();
         console.log("[loop.mp3] Entered fullscreen mode");
     }
 }
