@@ -327,14 +327,27 @@ function updateLoop(artworkURL, trackInfo) {
         });
         const trackMoreToggle = loop.querySelector("#loop-track-more-toggle");
         const trackMoreMenu = loop.querySelector("#loop-track-more-menu");
+        let trackMoreCloseTimer = null;
         const closeTrackMoreMenu = () => {
-            trackMoreMenu.hidden = true;
+            if (trackMoreMenu.hidden) return;
+            trackMoreMenu.classList.remove("is-open");
             trackMoreToggle.setAttribute("aria-expanded", "false");
+            if (trackMoreCloseTimer) clearTimeout(trackMoreCloseTimer);
+            trackMoreCloseTimer = setTimeout(() => {
+                trackMoreMenu.hidden = true;
+                trackMoreCloseTimer = null;
+            }, 170);
         };
         trackMoreToggle.addEventListener("click", () => {
-            const open = trackMoreMenu.hidden;
-            trackMoreMenu.hidden = !open;
-            trackMoreToggle.setAttribute("aria-expanded", String(open));
+            if (!trackMoreMenu.hidden) {
+                closeTrackMoreMenu();
+                return;
+            }
+            if (trackMoreCloseTimer) clearTimeout(trackMoreCloseTimer);
+            trackMoreCloseTimer = null;
+            trackMoreMenu.hidden = false;
+            trackMoreToggle.setAttribute("aria-expanded", "true");
+            requestAnimationFrame(() => trackMoreMenu.classList.add("is-open"));
         });
         document.addEventListener("pointerdown", (event) => {
             if (trackMoreMenu.hidden || !(event.target instanceof Node)) return;
