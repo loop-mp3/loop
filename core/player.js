@@ -254,7 +254,33 @@ function updateLoop(artworkURL, trackInfo) {
                 </div>
                 <img id="loop-artwork" alt="Album artwork" onerror="this.onerror=null; this.src='${getFallbackArtwork()}';">
                 <div id="loop-track-info">
-                    <div id="loop-track-title"></div>
+                    <div id="loop-track-heading">
+                        <div id="loop-track-title"></div>
+                        <div id="loop-track-actions">
+                            <button id="loop-like-button" type="button" aria-label="Like current track" title="Like current track">
+                                <i class="fa-solid fa-thumbs-up" aria-hidden="true"></i>
+                            </button>
+                            <div id="loop-track-more">
+                                <button id="loop-track-more-toggle" type="button" aria-label="More track actions" title="More actions" aria-expanded="false" aria-haspopup="true">
+                                    <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+                                </button>
+                                <div id="loop-track-more-menu" role="menu" hidden>
+                                    <button id="loop-dislike-button" type="button" role="menuitem">
+                                        <i class="fa-solid fa-thumbs-down" aria-hidden="true"></i>
+                                        <span>Dislike track</span>
+                                    </button>
+                                    <button id="loop-artwork-toggle" type="button" role="menuitem" aria-pressed="false">
+                                        <i class="fa-solid fa-image" aria-hidden="true"></i>
+                                        <span>Hide artwork</span>
+                                    </button>
+                                    <button id="loop-screen-disable" type="button" role="menuitem">
+                                        <i class="fa-solid fa-power-off" aria-hidden="true"></i>
+                                        <span>Turn off screen</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <a id="loop-track-artist"></a>
                     <a id="loop-track-album"></a>
                 </div>
@@ -276,20 +302,7 @@ function updateLoop(artworkURL, trackInfo) {
                     <div id="loop-empty-recommendations" hidden aria-label="YouTube Music recommendations"></div>
                     <div id="loop-lyrics-host"></div>
                 </section>
-                <div id="loop-action-dock" aria-label="Track actions">
-                    <button id="loop-like-button" type="button" aria-label="Like current track" title="Like current track">
-                        <i class="fa-solid fa-thumbs-up" aria-hidden="true"></i>
-                    </button>
-                    <button id="loop-dislike-button" type="button" aria-label="Dislike current track" title="Dislike current track">
-                        <i class="fa-solid fa-thumbs-down" aria-hidden="true"></i>
-                    </button>
-                    <button id="loop-artwork-toggle" type="button" aria-label="Hide artwork" aria-pressed="false" title="Hide artwork">
-                        <i class="fa-solid fa-image" aria-hidden="true"></i>
-                    </button>
-                    <button id="loop-screen-disable" type="button" aria-label="power off the screen while music playing" title="Turn off screen">
-                    <i class="fa-solid fa-power-off" aria-hidden="true"></i>
-                    </button>
-                </div>
+
             </div>`;
         document.body.appendChild(loop);
         const loopPlayer = loop.querySelector("#loop-player");
@@ -312,12 +325,39 @@ function updateLoop(artworkURL, trackInfo) {
             setLyricsExpanded(loop, expanded);
             if (expanded) loopPlayer.scrollTo({ top: 0, behavior: "smooth" });
         });
+        const trackMoreToggle = loop.querySelector("#loop-track-more-toggle");
+        const trackMoreMenu = loop.querySelector("#loop-track-more-menu");
+        const closeTrackMoreMenu = () => {
+            trackMoreMenu.hidden = true;
+            trackMoreToggle.setAttribute("aria-expanded", "false");
+        };
+        trackMoreToggle.addEventListener("click", () => {
+            const open = trackMoreMenu.hidden;
+            trackMoreMenu.hidden = !open;
+            trackMoreToggle.setAttribute("aria-expanded", String(open));
+        });
+        document.addEventListener("pointerdown", (event) => {
+            if (trackMoreMenu.hidden || !(event.target instanceof Node)) return;
+            if (trackMoreMenu.contains(event.target) || trackMoreToggle.contains(event.target)) return;
+            closeTrackMoreMenu();
+        }, true);
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape" || trackMoreMenu.hidden) return;
+            closeTrackMoreMenu();
+            trackMoreToggle.focus();
+        });
         loop.querySelector("#loop-like-button").addEventListener("click", () => triggerYTMAction("like"));
-        loop.querySelector("#loop-dislike-button").addEventListener("click", () => triggerYTMAction("dislike"));
+        loop.querySelector("#loop-dislike-button").addEventListener("click", () => {
+            triggerYTMAction("dislike");
+            closeTrackMoreMenu();
+        });
         loop.querySelector("#loop-artwork-toggle").addEventListener("click", () => {
             loopPreferences.hideArtwork = !loopPreferences.hideArtwork;
             saveLoopPreferences();
             applyArtworkPreference();
+            const label = loopPreferences.hideArtwork ? "Show artwork" : "Hide artwork";
+            loop.querySelector("#loop-artwork-toggle span").textContent = label;
+            closeTrackMoreMenu();
         });
         loop.querySelectorAll("#loop-artwork-video-toggle [data-loop-view-mode]").forEach((button) => {
             button.addEventListener("click", () => {
@@ -325,6 +365,7 @@ function updateLoop(artworkURL, trackInfo) {
             });
         });
         loop.querySelector("#loop-screen-disable").addEventListener("click", () => {
+            closeTrackMoreMenu();
             DisableScreen().catch((error) => {
                 console.error("[loop.mp3] Could not put screen to sleep:", error);
                 showLoopNotification("Could not put screen to sleep", 3000);
