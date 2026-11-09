@@ -353,6 +353,14 @@
     background: rgba(255, 255, 255, 0.22) !important;
 }
 
+#loop-record-button.loop-record-button-floating {
+    position: fixed !important;
+    right: max(16px, env(safe-area-inset-right)) !important;
+    bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+    z-index: 2147483646;
+    margin: 0;
+}
+
 #loop-artwork {
     width: min(400px, 34vw);
     height: min(400px, 34vw);

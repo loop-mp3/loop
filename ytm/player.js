@@ -24,12 +24,17 @@ function bindLoopRecordEvents() {
     }, true);
 }
 
+function isVisibleYtmControl(element) {
+    if (!element) return false;
+    const bounds = element.getBoundingClientRect();
+    return bounds.width > 0 && bounds.height > 0 &&
+        getComputedStyle(element).display !== "none" &&
+        getComputedStyle(element).visibility !== "hidden";
+}
+
 function ensureLoopRecordButton() {
-    const castButton = [...document.querySelectorAll("ytmusic-cast-button")].find((button) => {
-        const bounds = button.getBoundingClientRect();
-        return button.offsetParent !== null && bounds.width > 0 && bounds.height > 0;
-    });
-    if (!castButton) return;
+    const castButton = [...document.querySelectorAll("ytmusic-cast-button")]
+        .find(isVisibleYtmControl);
 
     let recordButton = document.getElementById("loop-record-button");
     if (!recordButton) {
@@ -37,9 +42,21 @@ function ensureLoopRecordButton() {
         recordButton.id = "loop-record-button";
         recordButton.type = "button";
         recordButton.setAttribute("aria-label", "Open Loop");
+        recordButton.title = "Open Loop";
         recordButton.innerHTML = '<i class="fa-solid fa-record-vinyl" aria-hidden="true"></i>';
     }
-    castButton.insertAdjacentElement("beforebegin", recordButton);
+
+    if (castButton) {
+        recordButton.classList.remove("loop-record-button-floating");
+        castButton.insertAdjacentElement("beforebegin", recordButton);
+        return;
+    }
+
+    // The responsive/mobile player does not always render the cast control.
+    // Keep a visible entry point in the page so Loop can be reopened after the
+    // user returns to normal YouTube Music without relying on the keyboard.
+    recordButton.classList.add("loop-record-button-floating");
+    (document.body || document.documentElement).appendChild(recordButton);
 }
 
 async function openMiniPlayerLegacy() {
