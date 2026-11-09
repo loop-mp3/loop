@@ -201,19 +201,6 @@ loadKawarpRenderer().catch((error) => {
 loadKawarpSettings();
 loadLoopPreferences();
 waitForYTM(init);
-async function toggleFullscreen() {
-    const loop = document.getElementById("loop");
-    if (!loop) throw new Error("Loop UI is not available");
-
-    const isLoopFullscreen = document.fullscreenElement === loop;
-    if (isLoopFullscreen) {
-        await document.exitFullscreen();
-        console.log("[loop.mp3] Exited fullscreen mode");
-    } else {
-        await loop.requestFullscreen();
-        console.log("[loop.mp3] Entered fullscreen mode");
-    }
-}
 async function checkIsSleepSupported() {
     const isSleep = await isSleepSupported();
     const screenOffButton = document.querySelector("#loop-screen-disable");
@@ -253,7 +240,6 @@ function isElectron() {
     global.init = init;
     global.ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore = ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore;
     global.forceCustomFavicon = forceCustomFavicon;
-    global.toggleFullscreen = toggleFullscreen;
     global.checkIsSleepSupported = checkIsSleepSupported;
     global.isElectron = isElectron;
     Object.defineProperty(global, 'observer', { configurable: true, get: () => observer, set: (value) => { observer = value; } });

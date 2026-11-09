@@ -86,7 +86,6 @@ function updateLoop(artworkURL, trackInfo) {
                     <div><kbd>Ctrl + F5</kbd> Reload Loop Session</div>
                     <div><kbd>F5</kbd> Reload Resources</div>
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
-                    <div><kbd>F</kbd> Fullscreen <span>(press esc to close)</span></div>
 
                     <label class="loop-navigation-toggle">
                         <input id="loop-background-toggle" type="checkbox" checked>
@@ -287,9 +286,6 @@ function updateLoop(artworkURL, trackInfo) {
                     <button id="loop-screen-disable" type="button" aria-label="power off the screen while music playing" title="Turn off screen">
                     <i class="fa-solid fa-power-off" aria-hidden="true"></i>
                     </button>
-                    <button id="loop-toggle-fullscreen" type="button" aria-label="Toggle Fullscreen" title="Toggle Fullscreen">
-                    <i class="fa-solid fa-expand" aria-hidden="true"></i>
-                    </button>
                 </div>
             </div>`;
         document.body.appendChild(loop);
@@ -329,12 +325,6 @@ function updateLoop(artworkURL, trackInfo) {
             DisableScreen().catch((error) => {
                 console.error("[loop.mp3] Could not put screen to sleep:", error);
                 showLoopNotification("Could not put screen to sleep", 3000);
-            });
-        });
-        loop.querySelector("#loop-toggle-fullscreen").addEventListener("click", () => {
-            toggleFullscreen().catch((error) => {
-                console.error("[loop.mp3] Could not toggle fullscreen:", error);
-                showLoopNotification("Could not toggle fullscreen", 3000);
             });
         });
         loop.querySelector("#loop-mini-player-button").addEventListener("click", () => {

@@ -471,7 +471,6 @@ function updateVideoBackground(trackId, isVideo) {
     wrapper.innerHTML = `<iframe
         src="https://www.youtube.com/embed/${encodeURIComponent(trackId)}?rel=0&enablejsapi=1&cc_load_policy=0"
         title="Track video"
-        allowfullscreen
         scrolling="no"
         allow="autoplay; accelerometer *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *;"
         referrerpolicy="strict-origin"
