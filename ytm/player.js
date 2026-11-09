@@ -357,54 +357,6 @@ async function openMiniPlayer() {
     });
 }
 
-async function DisableScreen() {
-    const supported = await Promise.race([
-        isSleepSupported(),
-        new Promise((resolve) => window.setTimeout(() => resolve(false), 1000)),
-    ]);
-
-    if (!supported) {
-        showLoopNotification(
-            "Sleep not supported on your platform",
-            3000
-        );
-        return;
-    }
-
-    window.postMessage({
-        source: "loop.mp3",
-        type: "loop:screen-off",
-    }, "*");
-    showLoopNotification(
-        "Screen put to sleep",
-        3000
-    );
-}
-
-function isSleepSupported() {
-    return new Promise((resolve) => {
-        function handler(event) {
-            if (
-                event.source !== window ||
-                event.data?.source !== "loop.mp3" ||
-                event.data?.type !== "loop:is-screen-off-supported-response"
-            ) {
-                return;
-            }
-
-            window.removeEventListener("message", handler);
-            resolve(event.data.supported);
-        }
-
-        window.addEventListener("message", handler);
-
-        window.postMessage({
-            source: "loop.mp3",
-            type: "loop:is-screen-off-supported"
-        }, "*");
-    });
-}
-
 function triggerYTMAction(action) {
     const button = findYTMActionButton(action);
     if (button) {
@@ -488,8 +440,6 @@ async function warnIfNotSignedIn() {
     global.ensureLoopRecordButton = ensureLoopRecordButton;
     global.openMiniPlayerLegacy = openMiniPlayerLegacy;
     global.openMiniPlayer = openMiniPlayer;
-    global.DisableScreen = DisableScreen;
-    global.isSleepSupported = isSleepSupported;
     global.triggerYTMAction = triggerYTMAction;
     global.scheduleTrackFeedbackSync = scheduleTrackFeedbackSync;
     global.syncTrackFeedbackState = syncTrackFeedbackState;
