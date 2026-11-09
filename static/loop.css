@@ -474,7 +474,7 @@
     transform: translateX(-50%);
     width: min(34vw, 546px);
     color: #fff;
-    text-align: center;
+    text-align: left;
 }
 
 #loop-controls {
