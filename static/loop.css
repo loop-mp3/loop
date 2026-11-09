@@ -469,7 +469,7 @@
 
 #loop-track-info {
     position: absolute;
-    top: 77%;
+    top: calc(42% + min(546px, 34vw) / 2 + 16px);
     left: 22%;
     transform: translateX(-50%);
     width: min(34vw, 546px);
@@ -488,7 +488,7 @@
 
 #loop-seek-row {
     position: absolute;
-    top: 85%;
+    top: calc(42% + min(546px, 34vw) / 2 + 92px);
     left: 22%;
     z-index: 3;
     display: flex;
@@ -521,7 +521,7 @@
 
 #loop-playback-controls {
     position: absolute;
-    top: calc(85% + 48px);
+    top: calc(42% + min(546px, 34vw) / 2 + 142px);
     left: 22%;
     z-index: 3;
     display: flex;
