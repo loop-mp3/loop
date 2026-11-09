@@ -273,10 +273,6 @@ function updateLoop(artworkURL, trackInfo) {
                                         <i class="fa-solid fa-image" aria-hidden="true"></i>
                                         <span>Hide artwork</span>
                                     </button>
-                                    <button id="loop-screen-disable" type="button" role="menuitem">
-                                        <i class="fa-solid fa-power-off" aria-hidden="true"></i>
-                                        <span>Turn off screen</span>
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -375,13 +371,6 @@ function updateLoop(artworkURL, trackInfo) {
         loop.querySelectorAll("#loop-artwork-video-toggle [data-loop-view-mode]").forEach((button) => {
             button.addEventListener("click", () => {
                 setTrackPresentationMode(button.dataset.loopViewMode);
-            });
-        });
-        loop.querySelector("#loop-screen-disable").addEventListener("click", () => {
-            closeTrackMoreMenu();
-            DisableScreen().catch((error) => {
-                console.error("[loop.mp3] Could not put screen to sleep:", error);
-                showLoopNotification("Could not put screen to sleep", 3000);
             });
         });
         loop.querySelector("#loop-mini-player-button").addEventListener("click", () => {
