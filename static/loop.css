@@ -1025,7 +1025,9 @@
 
 #loop-track-artist,
 #loop-track-album {
-    display: block;
+    display: inline-block;
+    width: fit-content;
+    max-width: 100%;
     text-decoration: none;
 }
 
