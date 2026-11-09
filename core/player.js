@@ -560,6 +560,16 @@ function updateLoop(artworkURL, trackInfo) {
         // Loop's UI is mounted. Do not register a second handler here.
 
         showOnboarding();
+        loop.addEventListener("pointerdown", (event) => {
+            const panel = loop.querySelector("#loop-shortcuts-panel");
+            const button = loop.querySelector("#loop-shortcuts-button");
+            if (!panel || panel.hidden || !(event.target instanceof Node)) return;
+            if (panel.contains(event.target) || button?.contains(event.target)) return;
+
+            panel.classList.remove("loop-menu-open", "loop-shortcuts-expanded", "loop-menu-dragging");
+            panel.style.removeProperty("--loop-menu-drag-offset");
+            panel.hidden = true;
+        }, true);
         loop.addEventListener("click", (event) => {
             const searchBar = document.querySelector("ytmusic-search-box");
             const resultsPanel = document.getElementById("loop-search-results");
