@@ -376,7 +376,7 @@
     position: absolute;
     top: calc(42% - min(400px, 34vw) / 2 - 42px);
     left: 31%;
-    z-index: 4;
+    z-index: 3;
     display: inline-flex;
     gap: 2px;
     padding: 3px;
