@@ -126,6 +126,7 @@ function updateLoop(artworkURL, trackInfo) {
                         <select id="loop-lyrics-rendering-engine" aria-label="Lyrics rendering engine">
                             <option value="standard">Braccato</option>
                             <option value="ludo">Ludo</option>
+                            <option value="am">AM Lyrics</option>
                         </select>
                     </label>
                     <div id="loop-lyrics-rendering-warning" class="loop-setting-warning" role="note" hidden>

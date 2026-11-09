@@ -129,12 +129,16 @@ function updatePlaybackControls(media = getCurrentMedia()) {
         if (volumeSlider) volumeSlider.value = String(media.volume);
     }
     if (document.visibilityState !== "hidden") {
-        braccatoLyricsRenderer?.tick(media ? media.currentTime : 0, {
-            isPlaying: Boolean(media && !media.paused && !media.ended),
-            playbackRate: media?.playbackRate,
-        });
-        if (loopPreferences.lyricsRenderingEngine === "ludo") {
-            ludoLyricsController?.tick(media ? media.currentTime : 0);
+        if (loopPreferences.lyricsRenderingEngine === "am") {
+            globalThis.syncAmLyricsPlayback?.(media);
+        } else {
+            braccatoLyricsRenderer?.tick(media ? media.currentTime : 0, {
+                isPlaying: Boolean(media && !media.paused && !media.ended),
+                playbackRate: media?.playbackRate,
+            });
+            if (loopPreferences.lyricsRenderingEngine === "ludo") {
+                ludoLyricsController?.tick(media ? media.currentTime : 0);
+            }
         }
     }
     const lyricsShadow = document.querySelector("#loop-lyrics-host")?.shadowRoot;

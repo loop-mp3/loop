@@ -110,6 +110,231 @@ function loadBraccatoLyrics() {
     return braccatoLyricsPromise;
 }
 
+function loadAmLyricsInPageContext() {
+    return new Promise((resolve, reject) => {
+        const source = getExtensionURL("modules/am-lyrics.js");
+        let script = document.querySelector("script[data-loop-am-lyrics]");
+        const shouldAppend = !script;
+        if (!script) {
+            script = document.createElement("script");
+            script.dataset.loopAmLyrics = "true";
+            script.src = source;
+            script.async = false;
+        } else if (script.dataset.loopAmLyricsLoaded === "true") {
+            resolve(true);
+            return;
+        }
+        script.addEventListener("load", () => {
+            script.dataset.loopAmLyricsLoaded = "true";
+            resolve(true);
+        }, { once: true });
+        script.addEventListener("error", () => {
+            reject(new Error("Could not load AM Lyrics in the page context."));
+        }, { once: true });
+        if (shouldAppend) (document.head || document.documentElement).appendChild(script);
+    });
+}
+
+function loadAmLyrics() {
+    if (!amLyricsPromise) {
+        amLyricsPromise = import(getExtensionURL("modules/am-lyrics.js"))
+            .then(() => {
+                const registry = globalThis.customElements || document.defaultView?.customElements;
+                const constructor = registry?.get("am-lyrics");
+                if (!constructor) throw new Error("AM Lyrics custom elements are unavailable in the content-script world.");
+                return constructor;
+            })
+            .catch(() => loadAmLyricsInPageContext());
+    }
+    return amLyricsPromise;
+}
+
+function destroyAmLyrics() {
+    const host = document.querySelector("#loop-lyrics-host");
+    host?.dispatchEvent(new Event("loop-am-lyrics-destroy"));
+    amLyricsElement?.remove();
+    amLyricsElement = null;
+}
+
+function syncAmLyricsPlayback(media = getCurrentMedia()) {
+    if (!amLyricsElement) return;
+    const currentTimeMs = Number.isFinite(media?.currentTime) ? media.currentTime * 1_000 : 0;
+    const durationMs = Number.isFinite(media?.duration) ? media.duration * 1_000 : undefined;
+    const paused = !media || media.paused || media.ended;
+    try {
+        amLyricsElement.currentTime = currentTimeMs;
+        amLyricsElement.paused = paused;
+        amLyricsElement.duration = durationMs;
+    } catch (error) {
+        console.warn("[loop.mp3] Could not update AM Lyrics playback state:", error);
+    }
+    const host = document.querySelector("#loop-lyrics-host");
+    if (!host) return;
+    host.dataset.loopAmCurrentTime = String(currentTimeMs);
+    host.dataset.loopAmPaused = String(paused);
+    host.dataset.loopAmDuration = durationMs === undefined ? "" : String(durationMs);
+    host.dispatchEvent(new Event("loop-am-lyrics-update"));
+}
+
+function ensureLyricsViewShell(shadow, footer) {
+    let view = shadow.querySelector("#loop-lyrics-view");
+    if (view) return view;
+
+    view = document.createElement("div");
+    view.id = "loop-lyrics-view";
+    view.hidden = true;
+    const shell = document.createElement("div");
+    shell.id = "loop-lyrics-shell";
+    shell.append(view, footer);
+    shadow.appendChild(shell);
+    return view;
+}
+
+function escapeAmLyricsXML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&apos;",
+    }[character]));
+}
+
+function formatAmLyricsTimestamp(milliseconds) {
+    const totalMs = Math.max(0, Math.round(Number(milliseconds) || 0));
+    const hours = Math.floor(totalMs / 3_600_000);
+    const minutes = Math.floor((totalMs % 3_600_000) / 60_000);
+    const seconds = Math.floor((totalMs % 60_000) / 1_000);
+    const remainder = totalMs % 1_000;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(remainder).padStart(3, "0")}`;
+}
+
+function getAmLyricsTTML(parsedLyrics, lyricsPayload) {
+    const originalTTML = lyricsPayload?.syncedLyrics;
+    if (/^\s*<tt(?:\s|>)/i.test(String(originalTTML || ""))) return originalTTML;
+
+    const paragraphs = parsedLyrics.map((line, index) => {
+        const startTimeMs = Math.max(0, Number(line.startTimeMs) || 0);
+        const nextStartTimeMs = Number(parsedLyrics[index + 1]?.startTimeMs);
+        const durationMs = Number(line.durationMs);
+        const endTimeMs = startTimeMs + (Number.isFinite(durationMs) && durationMs > 0
+            ? durationMs
+            : Number.isFinite(nextStartTimeMs) && nextStartTimeMs > startTimeMs
+                ? nextStartTimeMs - startTimeMs
+                : 4_000);
+        const parts = Array.isArray(line.parts) ? line.parts.filter((part) => String(part.words ?? "")) : [];
+        const content = parts.length
+            ? parts.map((part) => {
+                const partStartTimeMs = Math.max(0, Number(part.startTimeMs) || startTimeMs);
+                const partDurationMs = Number(part.durationMs);
+                const partEndTimeMs = partStartTimeMs + (Number.isFinite(partDurationMs) && partDurationMs > 0
+                    ? partDurationMs
+                    : Math.max(1, endTimeMs - partStartTimeMs));
+                return `<span begin="${formatAmLyricsTimestamp(partStartTimeMs)}" end="${formatAmLyricsTimestamp(partEndTimeMs)}">${escapeAmLyricsXML(part.words)}</span>`;
+            }).join("")
+            : escapeAmLyricsXML(line.words);
+        return `<p begin="${formatAmLyricsTimestamp(startTimeMs)}" end="${formatAmLyricsTimestamp(endTimeMs)}" xml:space="preserve">${content}</p>`;
+    }).join("");
+
+    return `<tt xmlns="http://www.w3.org/ns/ttml" xml:space="preserve"><body><div>${paragraphs}</div></body></tt>`;
+}
+
+function renderAmLyrics(
+    parsedLyrics,
+    lyricsPayload,
+    songwriters = currentTrackWriters,
+    requestId = lyricsRequestId,
+    trackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId
+) {
+    if (!parsedLyrics?.length || !lyricsPayload) return Promise.resolve();
+    const panel = document.querySelector("#loop-lyrics-panel");
+    const host = panel?.querySelector("#loop-lyrics-host");
+    const shadow = host?.shadowRoot;
+    const loading = shadow?.querySelector("#loop-lyrics-loading");
+    const footer = shadow ? ensureLyricsFooter(shadow) : null;
+    if (!panel || !host || !shadow || !loading || !footer) return Promise.resolve();
+
+    const isCurrentRequest = () => requestId === lyricsRequestId &&
+        loopPreferences.showLyrics &&
+        loopPreferences.lyricsRenderingEngine === "am" &&
+        trackId === (getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId);
+
+    return loadAmLyrics().then(() => {
+        if (!isCurrentRequest()) return;
+
+        ludoLyricsController?.destroy();
+        ludoLyricsController = null;
+        braccatoLyricsRenderer?.destroy();
+        braccatoLyricsRenderer = null;
+        braccatoLyricsMount = null;
+        destroyAmLyrics();
+
+        const view = ensureLyricsViewShell(shadow, footer);
+        view.replaceChildren();
+        view.hidden = true;
+        const loop = document.querySelector("#loop");
+        const title = loop?.querySelector("#loop-track-title")?.textContent.trim() || "";
+        const artist = loop?.querySelector("#loop-track-artist")?.textContent.trim() || "";
+        const album = loop?.querySelector("#loop-track-album")?.textContent.trim() || "";
+        const media = getCurrentMedia();
+        const metadataDurationMs = Number(lyricsPayload?.meta?.duration) * 1_000;
+        const durationMs = Number.isFinite(media?.duration) && media.duration > 0
+            ? media.duration * 1_000
+            : Number.isFinite(metadataDurationMs) && metadataDurationMs > 0 ? metadataDurationMs : undefined;
+        const hostDataset = host.dataset;
+        hostDataset.loopAmTtml = getAmLyricsTTML(parsedLyrics, lyricsPayload);
+        hostDataset.loopAmTitle = title;
+        hostDataset.loopAmArtist = artist;
+        hostDataset.loopAmAlbum = album;
+        hostDataset.loopAmSongwriters = (songwriters || []).filter(Boolean).join(", ");
+        hostDataset.loopAmDuration = durationMs === undefined ? "" : String(durationMs);
+        hostDataset.loopAmCurrentTime = Number.isFinite(media?.currentTime) ? String(media.currentTime * 1_000) : "0";
+        hostDataset.loopAmPaused = String(!media || media.paused || media.ended);
+        if (!host.dataset.loopAmLineClickBound) {
+            host.dataset.loopAmLineClickBound = "true";
+            host.addEventListener("line-click", (event) => {
+                const seekMedia = getCurrentMedia();
+                const timestampMs = Number(event.detail?.timestamp);
+                if (!seekMedia || !Number.isFinite(timestampMs)) return;
+                seekMedia.currentTime = Math.max(0, Math.min(timestampMs / 1_000, seekMedia.duration));
+                updatePlaybackControls(seekMedia);
+            });
+        }
+        host.dispatchEvent(new Event("loop-am-lyrics-create"));
+        const element = host.querySelector("am-lyrics");
+        if (!element || !element.shadowRoot) {
+            element?.remove();
+            throw new Error("AM Lyrics custom element did not upgrade in the page context.");
+        }
+        amLyricsElement = element;
+        currentParsedLyrics = parsedLyrics;
+        currentLyricsPayload = lyricsPayload;
+        lyricsLoadedTrackId = trackId;
+        currentLyricsRenderOptions = {};
+        panel.hidden = false;
+        loading.hidden = true;
+        view.hidden = false;
+        footer.hidden = true;
+        shadow.querySelector("#loop-track-writers")?.setAttribute("hidden", "");
+        setLyricsResumeAffordanceVisible(shadow, false);
+        updatePlaybackControls(media);
+    }).catch((error) => {
+        if (!isCurrentRequest()) return;
+        console.warn("[loop.mp3] Could not load AM Lyrics renderer:", error);
+        loading.querySelector(".loop-lyrics-loading-label").textContent = "Lyrics could not load";
+    });
+}
+
+function rerenderAmLyrics(
+    parsedLyrics = currentParsedLyrics,
+    lyricsPayload = currentLyricsPayload,
+    songwriters = currentTrackWriters
+) {
+    const trackId = getCurrentTrackId(getYTMPlayerRoot()) || lastTrackId;
+    if (!parsedLyrics?.length || !lyricsPayload || lyricsLoadedTrackId !== trackId) return Promise.resolve();
+    return renderAmLyrics(parsedLyrics, lyricsPayload, songwriters, lyricsRequestId, trackId);
+}
+
 function getGeniusLyricsURL(title, artist) {
     const slugify = (value) => String(value || "")
         .normalize("NFKD")
@@ -677,6 +902,7 @@ function applyTranslatedLyrics(shadow, parsedLyrics, result, injectTranslation) 
 function resetLoopLyricsState() {
     invalidateLyricsRequest();
     currentParsedLyrics = [];
+    currentLyricsPayload = null;
     currentLyricsRenderOptions = {};
     lyricsLoadedTrackId = null;
     ludoLyricsController?.destroy();
@@ -684,6 +910,7 @@ function resetLoopLyricsState() {
     braccatoLyricsRenderer?.destroy();
     braccatoLyricsRenderer = null;
     braccatoLyricsMount = null;
+    destroyAmLyrics();
 }
 
 function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWriters) {
@@ -695,6 +922,7 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         panel.hidden = true;
         ludoLyricsController?.destroy();
         ludoLyricsController = null;
+        destroyAmLyrics();
         braccatoLyricsRenderer?.clear();
         return;
     }
@@ -731,7 +959,9 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
         footer.hidden = true;
         setLyricsResumeAffordanceVisible(shadow, false);
         currentParsedLyrics = [];
+        currentLyricsPayload = null;
         currentLyricsRenderOptions = {};
+        destroyAmLyrics();
         braccatoLyricsRenderer?.clear();
         return;
     }
@@ -780,7 +1010,9 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
             return;
         }
         currentParsedLyrics = [];
+        currentLyricsPayload = null;
         currentLyricsRenderOptions = {};
+        destroyAmLyrics();
         braccatoLyricsRenderer?.clear();
         loading.querySelector(".loop-lyrics-loading-label").textContent = "Hmm.. we arent quite there still searching for them";
         ensureManualLyricsSelectionLink(loading, trackId);
@@ -800,6 +1032,12 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
 
     clearLyricsRetryTimer();
     loading.querySelector(".loop-lyrics-loading-label").textContent = "Resolving lyrics";
+    currentLyricsPayload = lyrics;
+    if (loopPreferences.lyricsRenderingEngine === "am") {
+        renderAmLyrics(parsedLyrics, lyrics, songwriters, requestId, trackId);
+        return;
+    }
+    destroyAmLyrics();
     loadBraccatoLyrics().then(({ createLyricsRenderer, createLudoLyricsController: ludoFactory, injectTranslation, styles }) => {
         createLudoLyricsController = ludoFactory;
         if (
@@ -906,6 +1144,11 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
 (function publishLoopModule(global) {
     global.removeTrailingWriterCreditLines = removeTrailingWriterCreditLines;
     global.loadBraccatoLyrics = loadBraccatoLyrics;
+    global.loadAmLyrics = loadAmLyrics;
+    global.destroyAmLyrics = destroyAmLyrics;
+    global.syncAmLyricsPlayback = syncAmLyricsPlayback;
+    global.renderAmLyrics = renderAmLyrics;
+    global.rerenderAmLyrics = rerenderAmLyrics;
     global.getGeniusLyricsURL = getGeniusLyricsURL;
     global.ensureLyricsFooter = ensureLyricsFooter;
     global.ensureLyricsResumeButton = ensureLyricsResumeButton;

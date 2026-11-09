@@ -278,6 +278,7 @@ function applyLyricsAnimationPreferences() {
 }
 
 function normalizeLyricsRenderingEngine(value) {
+    if (value === "am") return "am";
     return value === "ludo" || value === "diff" ? "ludo" : "standard";
 }
 
@@ -288,6 +289,11 @@ function getLyricsForRenderingEngine(lines) {
 }
 
 function applyLyricsRenderingEngine() {
+    if (loopPreferences.lyricsRenderingEngine === "am") {
+        ludoLyricsController?.destroy();
+        ludoLyricsController = null;
+        return;
+    }
     if (!createLudoLyricsController) return;
     ludoLyricsController ??= createLudoLyricsController();
     ludoLyricsController.apply({

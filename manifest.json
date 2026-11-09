@@ -65,6 +65,7 @@
         "modules/braccato/*",
         "modules/braccato/styles/*",
         "ludo/index.js",
+        "modules/am-lyrics.js",
         "static/fallback-artwork.png",
         "static/fallback-legacy.png",
         "static/material3-loader.svg"

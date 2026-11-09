@@ -36,6 +36,7 @@ async function resetLoopData() {
         showAlbum: false,
         showLyrics: true,
         trackPresentationModes: {},
+        lyricsRenderingEngine: "standard",
         showWriterCredits: true,
         useLyricsCache: true,
         useGrooveOverrides: true,

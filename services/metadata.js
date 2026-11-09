@@ -538,12 +538,22 @@ function renderEmptyStateRecommendations(loop) {
 }
 
 function rerenderLyricsForSelectedEngine() {
-    if (!braccatoLyricsRenderer || !currentParsedLyrics.length) return;
-    braccatoLyricsRenderer.setLyrics(
-        getLyricsForRenderingEngine(currentParsedLyrics),
-        currentLyricsRenderOptions
-    );
-    applyLyricsRenderingEngine();
+    if (loopPreferences.lyricsRenderingEngine === "am") {
+        if (!currentParsedLyrics.length || !currentLyricsPayload) return;
+        rerenderAmLyrics(currentParsedLyrics, currentLyricsPayload, currentTrackWriters);
+        return;
+    }
+
+    destroyAmLyrics?.();
+    if (braccatoLyricsRenderer && currentParsedLyrics.length) {
+        braccatoLyricsRenderer.setLyrics(
+            getLyricsForRenderingEngine(currentParsedLyrics),
+            currentLyricsRenderOptions
+        );
+        applyLyricsRenderingEngine();
+        return;
+    }
+    if (currentLyricsPayload && currentParsedLyrics.length) updateLoopLyrics(currentLyricsPayload);
 }
 
 // Explicit cross-file API: MV3 classic content scripts do not share lexical bindings.

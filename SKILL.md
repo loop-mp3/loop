@@ -14,7 +14,7 @@ Important architectural facts:
 - The content scripts are classic scripts, not ES modules. Lexical bindings are not a cross-file API.
 - Files explicitly publish cross-file functions and state on `globalThis` through names such as `LoopVariables`, `LoopUtils`, `LoopYtmDom`, `LoopCore`, and `LoopLyricsProviderAdapters`.
 - `core/init.js` starts the application. `index.js` is deliberately only a small marker file loaded last.
-- Braccato, Ludo, and Kawarp are loaded with dynamic `import()` and therefore must remain web-accessible resources.
+- Braccato, Ludo, AM Lyrics, and Kawarp are loaded with dynamic `import()` and therefore must remain web-accessible resources.
 - YouTube Music DOM selectors are fragile integration points. Keep selector-specific work in `ytm/` where possible.
 
 ## Repository tree
@@ -37,7 +37,7 @@ loop/
 │   ├── dialogs.js              Reset and lyrics-submission modals
 │   ├── init.js                Startup, update notice, favicon, navigation cleanup
 │   ├── kawarp.js              Kawarp loading, presets, video background, notices
-│   ├── lyrics-view.js         Braccato view, lyrics footer, translation, rendering
+│   ├── lyrics-view.js         Lyrics host, footer, translation, and rendering engines
 │   ├── onboarding.js          Versioned onboarding and update checks
 │   ├── player.js              Loop DOM, menu, preferences UI, main update routine
 │   ├── preferences.js         Preferences application and presentation modes
@@ -67,6 +67,7 @@ loop/
 │
 ├── modules/
 │   ├── kawarp.js               WebGL Kawarp renderer, imported dynamically
+│   ├── am-lyrics.js            Vendored AM Lyrics web-component renderer
 │   └── braccato/               Vendored ESM lyrics renderer and styles
 │       ├── index.js             Public Braccato exports
 │       ├── element.js           Braccato element integration helpers
@@ -211,7 +212,7 @@ flowchart TD
     MetadataAPIs["YouTube, oEmbed, MusicBrainz"] --> LyricsServices
     Storage["Extension storage and page localStorage"] <--> LyricsServices
     Storage <--> Preferences
-    Assets["Web-accessible ESM and assets\nBraccato, Ludo, Kawarp, CSS, presets"] --> LyricsView
+    Assets["Web-accessible ESM and assets\nBraccato, Ludo, AM Lyrics, Kawarp, CSS, presets"] --> LyricsView
     Assets --> Kawarp
     Bridge --> Shell["External Electron shell"]
     Bridge --> Discord["External Discord consumer"]
@@ -263,7 +264,7 @@ flowchart TD
     Render --> LyricsFetch["services/lyrics-fetch.js\nfetchLoopLyricsForCurrentTrack"]
     LyricsFetch --> LyricsResolve["services/lyrics.js\ngetLyricsFromTrackInfo"]
     LyricsResolve --> LyricsView["core/lyrics-view.js\nupdateLoopLyrics"]
-    LyricsView --> Renderer["Braccato or Ludo renderer"]
+    LyricsView --> Renderer["Braccato, Ludo, or AM Lyrics renderer"]
     Observe --> Controls
     Controls --> Bridge["core/bridge.js\nMini-player and Discord state"]
     Metadata --> Writers["YouTube and MusicBrainz writers"]
@@ -330,15 +331,18 @@ flowchart TD
     Host --> BraccatoRenderer
     View --> LudoImport["Dynamic import: ludo/index.js"]
     LudoImport --> LudoController["Ludo controller"]
+    View --> AmImport["Dynamic import: modules/am-lyrics.js"]
+    AmImport --> AmRenderer["AM Lyrics custom element"]
     LudoController --> ExistingLines["Existing Braccato line elements"]
     BraccatoEngine --> ExistingLines
     Media["Current media time"] --> BraccatoEngine
     Media --> LudoController
+    Media --> AmRenderer
     Seek["Click/tap lyric line"] --> View
     View --> Media
 ```
 
-Braccato owns the line DOM and synchronization records. Ludo is an optional progression/animation layer over those records; it is not a second parser or an independent lyric DOM. Replacing the Braccato view requires destroying the old renderer before mounting a new one.
+Braccato owns the standard line DOM and synchronization records. Ludo is an optional progression/animation layer over those records; it is not a second parser or an independent lyric DOM. AM Lyrics is an alternate Web Component renderer that receives Loop's already-resolved lyrics as local TTML, so selecting it does not trigger a second provider request. Replacing a renderer requires destroying the old renderer before mounting a new one.
 
 ### 6. Persistence and integration map
 
@@ -505,9 +509,9 @@ Parsed line records are shaped like:
 }
 ```
 
-`core/lyrics-view.js` dynamically imports `modules/braccato/renderer.js`, `modules/braccato/inject.js`, and `ludo/index.js`, then fetches the Braccato CSS files. It owns the lyrics host, loading/no-lyrics states, footer/provider selection, writer credits, Genius link, manual candidate selection, translation, and seek callbacks.
+`core/lyrics-view.js` dynamically imports `modules/braccato/renderer.js`, `modules/braccato/inject.js`, and `ludo/index.js`, then fetches the Braccato CSS files. It also dynamically imports the vendored `modules/am-lyrics.js` custom element when the AM Lyrics engine is selected. It owns the lyrics host, loading/no-lyrics states, footer/provider selection, writer credits, Genius link, manual candidate selection, translation, and seek callbacks.
 
-The standard renderer is Braccato. The optional `ludo` preference does not replace Braccato’s DOM or parser: Ludo animates the existing Braccato line elements and synchronization records. The Ludo README’s warning about this dependency is still accurate.
+The standard renderer is Braccato. The optional `ludo` preference does not replace Braccato’s DOM or parser: Ludo animates the existing Braccato line elements and synchronization records. `am` selects AM Lyrics, which receives the current parsed lyrics converted to TTML (or the provider's original TTML) and owns its own shadow-DOM view. The Ludo README’s warning about its Braccato dependency is still accurate.
 
 Translation uses the Unison translation endpoint, an in-memory pending-request map, extension storage cache keys, supported language normalization, and retry delays. Do not assume translation changes the source lyrics; it is applied to the rendered line data.
 
@@ -584,7 +588,7 @@ The content-script update check in `core/onboarding.js` is a separate path used 
 - `<all_urls>` host permission;
 - `storage` and `scripting` permissions;
 - `static/loop.css` as content CSS;
-- bundled config, Kawarp, Braccato, Ludo, and fallback artwork as web-accessible resources;
+- bundled config, Kawarp, Braccato, Ludo, AM Lyrics, and fallback artwork as web-accessible resources;
 - `background.js` as the background entrypoint;
 - a Firefox Gecko ID.
 
@@ -622,7 +626,7 @@ For a browser validation pass:
 3. Reload the extension and refresh a `music.youtube.com` tab.
 4. Check the content-script console and background console for errors.
 5. Exercise a track change, play/pause/seek/next/previous, normal YTM ↔ Loop navigation, search, queue, and mini-player.
-6. Exercise lyrics provider fallback, manual provider selection, cache reload/removal/export/import, translation, writer credits, and both rendering engines.
+6. Exercise lyrics provider fallback, manual provider selection, cache reload/removal/export/import, translation, writer credits, and all three rendering engines (Braccato, Ludo, and AM Lyrics).
 7. Exercise Kawarp enable/disable, preset load/import/reset, hidden-tab behavior, and a music-video track.
 8. Verify onboarding/update UI and reset behavior on a clean profile or after deliberately clearing Loop data.
 
@@ -643,7 +647,7 @@ For a browser validation pass:
 - YouTube Music is a moving target; selectors and player lifecycle assumptions need manual browser verification even when Node tests pass.
 - External lyrics, metadata, translation, update, Electron, Discord, and MusicBrainz services can fail or change independently of this repository.
 - The extension uses a broad `<all_urls>` host permission because several flows reach external services; review this before expanding network behavior.
-- `modules/braccato/` and `ludo/` are browser-loaded ESM resources. They are not part of the classic content-script load order.
+- `modules/braccato/`, `modules/am-lyrics.js`, and `ludo/` are browser-loaded resources. They are not part of the classic content-script load order.
 - `services/lyrics.js` contains legacy resolution code below the current provider pipeline. Keep it only for reference unless a task explicitly targets it.
 - `README.md` is intentionally minimal. This file is the implementation map; user-facing release information belongs in `README.md` or `CHANGELOG.md`.
 - There is no build command. A successful lint/test run does not replace loading the extension and exercising YouTube Music manually.
