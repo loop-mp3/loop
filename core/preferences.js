@@ -205,6 +205,8 @@ function applyArtworkPreference() {
         artworkToggle.setAttribute("aria-pressed", String(loopPreferences.hideArtwork));
         artworkToggle.setAttribute("aria-label", loopPreferences.hideArtwork ? "Show artwork" : "Hide artwork");
         artworkToggle.title = loopPreferences.hideArtwork ? "Show artwork" : "Hide artwork";
+        const artworkToggleLabel = artworkToggle.querySelector("span");
+        if (artworkToggleLabel) artworkToggleLabel.textContent = loopPreferences.hideArtwork ? "Show artwork" : "Hide artwork";
         artworkToggle.classList.toggle("loop-action-active", loopPreferences.hideArtwork);
     }
 }
