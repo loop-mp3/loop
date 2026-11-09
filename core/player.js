@@ -260,9 +260,11 @@ function updateLoop(artworkURL, trackInfo) {
                 </div>
                 <div id="loop-controls" aria-label="Playback controls">
                     <div id="loop-seek-row">
-                        <span id="loop-current-time">0:00</span>
                         <input id="loop-seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="Seek through track">
-                        <span id="loop-duration">0:00</span>
+                        <div id="loop-seek-times" aria-hidden="true">
+                            <span id="loop-current-time">0:00</span>
+                            <span id="loop-duration">0:00</span>
+                        </div>
                     </div>
                     <div id="loop-playback-controls" aria-label="Track navigation">
                         <button id="loop-previous-button" type="button" aria-label="Previous track" title="Previous track">&#9198;</button>
