@@ -94,16 +94,12 @@ function showOnboarding() {
                 <p class="loop-onboarding-status" role="status" aria-live="polite">Kawarp is currently enabled.</p>
                 <button type="button" class="loop-onboarding-secondary loop-onboarding-config">Choose a Kawarp preset or import your own config</button>
             </div>
-            <div class="loop-onboarding-step" data-step="2" hidden>
-                <p class="loop-onboarding-description">Choose your mini-player preferences. You can change these later from the Loop menu.</p>
-                <label class="loop-onboarding-check"><input class="loop-onboarding-mini-player" type="checkbox"> Open the mini-player when the app is minimized</label>
-            </div>
             <div class="loop-onboarding-step" data-step="3" hidden>
                 <p class="loop-onboarding-description">Lyrics are always displayed when available. You can choose the rendering engine and provider later from the Loop menu.</p>
                 <label class="loop-onboarding-check"><input class="loop-onboarding-writer-credits" type="checkbox"> Show writer credits</label>
             </div>
             <div class="loop-onboarding-footer">
-                <span class="loop-onboarding-progress" aria-live="polite">1 / 4</span>
+                <span class="loop-onboarding-progress" aria-live="polite">1 / 3</span>
                 <div class="loop-onboarding-actions">
                     <button type="button" class="loop-onboarding-prev" disabled>Previous</button>
                     <button type="button" class="loop-onboarding-next">Next</button>
@@ -120,7 +116,6 @@ function showOnboarding() {
 
     const finish = ({ save = true } = {}) => {
         if (save) {
-            loopPreferences.autoOpenMiniPlayer = modal.querySelector(".loop-onboarding-mini-player").checked;
             loopPreferences.showLyrics = true;
             loopPreferences.showWriterCredits = modal.querySelector(".loop-onboarding-writer-credits").checked;
             saveLoopPreferences();
@@ -163,7 +158,6 @@ function showOnboarding() {
         modal.querySelector(".loop-onboarding-status").textContent = "Kawarp is disabled.";
     });
     modal.querySelector(".loop-onboarding-config").addEventListener("click", showKawarpConfigEditor);
-    modal.querySelector(".loop-onboarding-mini-player").checked = loopPreferences.autoOpenMiniPlayer !== false;
     modal.querySelector(".loop-onboarding-writer-credits").checked = loopPreferences.showWriterCredits !== false;
     modal.addEventListener("keydown", (event) => { if (event.key === "Escape") finish({ save: false }); });
     renderStep();
