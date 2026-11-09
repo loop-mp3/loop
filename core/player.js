@@ -222,10 +222,6 @@ function updateLoop(artworkURL, trackInfo) {
                     <button id="loop-mini-player-button" class="loop-menu-action" type="button">
                         Open mini player
                     </button>
-                    <label class="loop-navigation-toggle">
-                        <input id="loop-mini-player-toggle" type="checkbox" checked>
-                        Open mini player when minimized
-                    </label>
                 </div>
 
                 <div id="loop-inline-buttons" aria-label="Player utilities">
@@ -378,10 +374,6 @@ function updateLoop(artworkURL, trackInfo) {
                 console.warn("[loop.mp3] Could not open miniplayer:", error);
                 showLoopNotification("Could not open miniplayer");
             });
-        });
-        loop.querySelector("#loop-mini-player-toggle").addEventListener("change", (event) => {
-            loopPreferences.autoOpenMiniPlayer = event.target.checked;
-            saveLoopPreferences();
         });
 
         loop.querySelector("#loop-background-toggle").addEventListener("change", (event) => {
