@@ -201,28 +201,6 @@ loadKawarpRenderer().catch((error) => {
 loadKawarpSettings();
 loadLoopPreferences();
 waitForYTM(init);
-async function checkIsSleepSupported() {
-    const isSleep = await isSleepSupported();
-    const screenOffButton = document.querySelector("#loop-screen-disable");
-
-    if (isSleep) {
-        console.log("[loop.mp3] Screen sleep supported");
-        return;
-    }
-
-    console.warn("[loop.mp3] Screen sleep not supported");
-
-    if (screenOffButton) {
-        screenOffButton.disabled = true;
-        screenOffButton.style.opacity = "0.5";
-        screenOffButton.style.cursor = "not-allowed";
-    }
-
-    showLoopNotification(
-        "Screen disable isn't supported by your platform",
-        6000
-    );
-}
 function isElectron() {
   if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
     return true;
@@ -240,7 +218,6 @@ function isElectron() {
     global.init = init;
     global.ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore = ObliterateDaButtonsIfindNecessaryBecauseISaidTheyWereUnecessaryThatsItThereWouldBeNoMoreDiscussionsOnThisTopicAnyMore;
     global.forceCustomFavicon = forceCustomFavicon;
-    global.checkIsSleepSupported = checkIsSleepSupported;
     global.isElectron = isElectron;
     Object.defineProperty(global, 'observer', { configurable: true, get: () => observer, set: (value) => { observer = value; } });
     Object.defineProperty(global, 'OBLITERATED_FAVICON_URL', { configurable: true, get: () => OBLITERATED_FAVICON_URL, set: (value) => { OBLITERATED_FAVICON_URL = value; } });
