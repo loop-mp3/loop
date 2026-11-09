@@ -515,7 +515,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 28px;
+    gap: 30px;
     width: min(30vw, 520px);
     transform: translateX(-50%);
     pointer-events: auto;
@@ -525,15 +525,15 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 38px;
-    height: 38px;
+    width: 30px;
+    height: 30px;
     padding: 0;
     border: 0;
     border-radius: 50%;
     color: rgba(255, 255, 255, 0.88);
     background: transparent;
     cursor: pointer;
-    font: 400 27px/1 system-ui, sans-serif;
+    font: 400 21px/1 system-ui, sans-serif;
     transition: color 140ms ease, transform 140ms ease;
 }
 
@@ -548,11 +548,11 @@
 }
 
 #loop-playback-controls #loop-play-button {
-    width: 46px;
-    height: 46px;
+    width: 36px;
+    height: 36px;
     color: #fff !important;
     background: transparent !important;
-    font-size: 31px;
+    font-size: 26px;
 }
 
 #loop-inline-buttons {
