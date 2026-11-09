@@ -370,9 +370,12 @@ function triggerYTMAction(action) {
 let feedbackSyncTimers = [];
 
 function scheduleTrackFeedbackSync() {
-    if (feedbackSyncTimers.length) return;
+    // A track can change while the previous track's delayed sync is still
+    // pending. Replace those timers so they cannot leave stale like state.
+    feedbackSyncTimers.forEach((timer) => window.clearTimeout(timer));
+    feedbackSyncTimers = [];
 
-    const delays = [100, 300, 800, 1500, 2500];
+    const delays = [0, 100, 300, 800, 1500, 2500];
 
     feedbackSyncTimers = delays.map((delay, index) =>
         window.setTimeout(() => {
