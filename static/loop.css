@@ -932,9 +932,9 @@
 #loop-lyrics-panel {
     position: absolute;
     top: 12%;
-    right: 5%;
+    right: 4%;
     bottom: 14%;
-    left: 58%;
+    left: 48%;
     z-index: 3;
     overflow: hidden;
     color: #fff;
@@ -1229,7 +1229,7 @@
 }
 
 #loop-lyrics-panel .blyrics-container {
-    width: calc(100% + 7rem);
+    width: 100%;
     max-width: none;
     box-sizing: border-box;
     --blyrics-font-size: 3rem;
