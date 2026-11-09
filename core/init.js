@@ -175,15 +175,7 @@ window.addEventListener("message", (event) => {
     publishElectronMiniPlayerState({ force: true });
 });
 
-document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "hidden") {
-        console.log("[loop.mp3] The application window maximised");
-        publishElectronMiniPlayerCommand("loop:electron-close-mini-player");
-        showLoopNotification("Miniplayer Closed");
-        console.log("[loop.mp3] closed miniplayer");
-        documentPictureInPicture.window?.close();
-    }
-});
+
 
 forceCustomFavicon();
 observeFaviconChanges();
