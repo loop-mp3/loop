@@ -1229,6 +1229,9 @@
 }
 
 #loop-lyrics-panel .blyrics-container {
+    width: calc(100% + 7rem);
+    max-width: none;
+    box-sizing: border-box;
     --blyrics-font-size: 3rem;
     --blyrics-line-height: 1.333;
     --blyrics-padding: 2rem;
