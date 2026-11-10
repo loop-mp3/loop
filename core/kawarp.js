@@ -11,9 +11,50 @@ function loadKawarpRenderer() {
 
 let kawarpResizeHandler;
 
+function syncKawarpCanvasSize(canvas) {
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const width = Math.max(1, Math.round(window.innerWidth * pixelRatio));
+    const height = Math.max(1, Math.round(window.innerHeight * pixelRatio));
+    const changed = canvas.width !== width || canvas.height !== height;
+    if (changed) {
+        canvas.width = width;
+        canvas.height = height;
+    }
+    return changed;
+}
+
+function ensureKawarpCanvas() {
+    let canvas = document.querySelector("#loop-kawarp-background");
+    const loopMount = globalThis.loopVisible !== false
+        ? document.querySelector("#loop-player")
+        : null;
+    const mount = loopMount || document.body || document.documentElement;
+    if (!mount) return null;
+
+    if (!canvas) {
+        canvas = document.createElement("canvas");
+        canvas.id = "loop-kawarp-background";
+        canvas.setAttribute("aria-hidden", "true");
+        mount.appendChild(canvas);
+    } else if (canvas.parentElement !== mount) {
+        // The Loop player needs the canvas inside its stacking context. When the
+        // Loop UI closes, moving it back to body keeps the same renderer page-wide.
+        mount.insertBefore(canvas, mount.firstChild);
+    }
+
+    syncKawarpCanvasSize(canvas);
+    return canvas;
+}
+
+function resizeKawarpCanvas() {
+    const canvas = ensureKawarpCanvas();
+    if (canvas && syncKawarpCanvasSize(canvas)) kawarpBackground?.resize();
+}
+
 function syncKawarpRenderState() {
     if (!kawarpBackground) return;
-    const shouldRender = kawarpEnabled && document.visibilityState !== "hidden" && !videoBackgroundTrackId;
+    const loopVideoIsActive = videoBackgroundTrackId && globalThis.loopVisible !== false;
+    const shouldRender = kawarpEnabled && document.visibilityState !== "hidden" && !loopVideoIsActive;
     if (shouldRender) {
         kawarpBackground.start();
     } else {
@@ -22,8 +63,9 @@ function syncKawarpRenderState() {
 }
 
 function setKawarpCanvasVisibility(enabled) {
-    const canvas = document.querySelector("#loop-kawarp-background");
-    if (canvas) canvas.style.display = enabled ? "block" : "none";
+    const canvas = ensureKawarpCanvas();
+    const loopVideoIsActive = videoBackgroundTrackId && globalThis.loopVisible !== false;
+    if (canvas) canvas.style.display = enabled && !loopVideoIsActive ? "block" : "none";
     syncKawarpRenderState();
 }
 
@@ -41,7 +83,7 @@ function applyKawarpSettings(settings) {
         dithering: kawarpSettings.kawarpDithering,
         scale: kawarpSettings.scale,
     });
-    const canvas = document.querySelector("#loop-kawarp-background");
+    const canvas = ensureKawarpCanvas();
     if (canvas) {
         canvas.style.opacity = String(kawarpSettings.opacity ?? kawarpSettings.kawarpOpacity);
         setKawarpCanvasVisibility(kawarpEnabled);
@@ -413,6 +455,16 @@ function disposeKawarpBackground() {
     kawarpBackground = undefined;
 }
 
+function resetKawarpVideoBackground() {
+    const wasActive = Boolean(videoBackgroundTrackId);
+    videoBackgroundTrackId = undefined;
+    videoBackgroundLastSyncedTime = undefined;
+    videoBackgroundLastPaused = undefined;
+    document.querySelector("#loop-video-background")?.remove();
+    if (wasActive) disposeKawarpBackground();
+    setKawarpCanvasVisibility(kawarpEnabled);
+}
+
 function syncVideoBackgroundPlayback() {
     const iframe = document.querySelector("#loop-video-background iframe");
     const media = getCurrentMedia();
@@ -441,9 +493,9 @@ function syncVideoBackgroundPlayback() {
 }
 
 function updateVideoBackground(trackId, isVideo) {
-    const canvas = document.querySelector("#loop-kawarp-background");
+    const canvas = ensureKawarpCanvas();
     const player = document.querySelector("#loop-player");
-    if (!canvas || !player) return;
+    if (!canvas) return;
 
     let wrapper = document.querySelector("#loop-video-background");
     if (!isVideo || !trackId) {
@@ -454,6 +506,8 @@ function updateVideoBackground(trackId, isVideo) {
         setKawarpCanvasVisibility(kawarpEnabled);
         return;
     }
+
+    if (!player) return;
 
     if (videoBackgroundTrackId === trackId && wrapper) {
         syncVideoBackgroundPlayback();
@@ -494,10 +548,10 @@ function showVideoUi() {
 }
 
 function updateKawarpArtwork(artworkURL) {
-    const canvas = document.querySelector("#loop-kawarp-background");
-    if (!canvas) return;
+    const canvas = ensureKawarpCanvas();
+    if (!canvas || !artworkURL) return;
 
-    if (videoBackgroundTrackId) {
+    if (videoBackgroundTrackId && globalThis.loopVisible !== false) {
         disposeKawarpBackground();
         canvas.style.display = "none";
         return;
@@ -525,7 +579,7 @@ function updateKawarpArtwork(artworkURL) {
             });
             canvas.style.opacity = String(kawarpSettings.opacity ?? kawarpSettings.kawarpOpacity);
             setKawarpCanvasVisibility(kawarpEnabled);
-            kawarpResizeHandler = () => kawarpBackground?.resize();
+            kawarpResizeHandler = resizeKawarpCanvas;
             window.addEventListener("resize", kawarpResizeHandler, { passive: true });
         }
         kawarpBackground.loadImage(artworkURL).catch((error) => {
@@ -556,6 +610,7 @@ function updateKawarpArtwork(artworkURL) {
     global.showLoopNotification = showLoopNotification;
     global.dismissLoopNotification = dismissLoopNotification;
     global.disposeKawarpBackground = disposeKawarpBackground;
+    global.resetKawarpVideoBackground = resetKawarpVideoBackground;
     global.syncVideoBackgroundPlayback = syncVideoBackgroundPlayback;
     global.updateVideoBackground = updateVideoBackground;
     global.showVideoUi = showVideoUi;

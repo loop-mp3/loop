@@ -195,7 +195,9 @@ function applyArtworkPreference() {
         : currentArtworkURL || fallback;
     artwork.src = displayedArtwork;
     artwork.setAttribute("onerror", `this.onerror=null; this.src='${fallback}';`);
-    updateKawarpArtwork(displayedArtwork);
+    updateKawarpArtwork(loop.classList.contains("loop-empty")
+        ? displayedArtwork
+        : currentArtworkURL || displayedArtwork);
 
     const artworkToggle = loop.querySelector("#loop-artwork-toggle");
     if (artworkToggle) {

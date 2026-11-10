@@ -44,7 +44,6 @@ function updateLoop(artworkURL, trackInfo) {
             <div id="loop-player">
                 <button id="loop-back-button" type="button" aria-label="Return to YouTube Music">&#215;</button>
                 <button id="loop-shortcuts-button" type="button" aria-label="Open Loop menu" title="Loop menu">?</button>
-                <canvas id="loop-kawarp-background" aria-hidden="true"></canvas>
                 <svg id="loop-glass-filter-definition" aria-hidden="true" focusable="false">
                     <defs>
                         <filter id="loop-glass-filter" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
@@ -734,7 +733,11 @@ function updateLoop(artworkURL, trackInfo) {
     syncWindowTitle();
     syncTrackFeedbackState();
     scheduleTrackFeedbackSync();
-    updateKawarpArtwork(artwork.src);
+    // Kawarp is page-wide, so it should use the current track artwork even when
+    // Loop's own artwork is hidden or the Loop UI is not currently visible.
+    updateKawarpArtwork(trackInfo.empty
+        ? getFallbackArtwork()
+        : currentArtworkURL || artworkURL || getFallbackArtwork());
     updateLoopLyrics(trackInfo.lyrics, Boolean(trackInfo.empty), currentTrackWriters);
     if (trackInfo.empty) {
         const lyricsPanel = loop.querySelector("#loop-lyrics-panel");

@@ -38,7 +38,13 @@ function restoreYTMSearch() {
     loopSearchResultsObserver = undefined;
     loopQueueObserver?.disconnect();
     loopQueueObserver = undefined;
-    disposeKawarpBackground();
+    const playerBar = getYTMPlayerRoot();
+    const trackId = getCurrentTrackId(playerBar);
+    const pageArtwork = trackId
+        ? getCurrentArtwork(playerBar, trackId)
+        : getFallbackArtwork();
+    resetKawarpVideoBackground();
+    updateKawarpArtwork(pageArtwork);
 
     if (searchBar) {
         searchBar.style.removeProperty("display");

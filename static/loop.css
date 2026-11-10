@@ -89,13 +89,20 @@
 
 
 #loop-kawarp-background {
-    position: absolute;
+    position: fixed;
     inset: 0;
-    z-index: 0;
+    z-index: 2147483640;
     display: block;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+}
+
+#loop #loop-kawarp-background {
+    position: absolute;
+    z-index: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;
 }
 
 #loop-glass-filter-definition {
