@@ -81,11 +81,11 @@ function showOnboarding() {
                 </div>
                 <button type="button" class="loop-onboarding-close" aria-label="Skip onboarding">&#215;</button>
             </div>
-            <div class="loop-onboarding-step" data-step="0">
+            <div class="loop-onboarding-step" data-step="0" data-title="What’s new">
                 <p class="loop-onboarding-description">Here’s what changed in the latest release.</p>
                 <div class="loop-onboarding-changelog" aria-live="polite">Loading changelog...</div>
             </div>
-            <div class="loop-onboarding-step" data-step="1" hidden>
+            <div class="loop-onboarding-step" data-step="1" data-title="Set up Kawarp" hidden>
                 <p class="loop-onboarding-description">Would you like to use Kawarp, Loop’s animated artwork background?</p>
                 <div class="loop-onboarding-choice-row">
                     <button type="button" class="loop-onboarding-choice loop-onboarding-kawarp-yes">Yes, use Kawarp</button>
@@ -94,7 +94,7 @@ function showOnboarding() {
                 <p class="loop-onboarding-status" role="status" aria-live="polite">Kawarp is currently enabled.</p>
                 <button type="button" class="loop-onboarding-secondary loop-onboarding-config">Choose a Kawarp preset or import your own config</button>
             </div>
-            <div class="loop-onboarding-step" data-step="2" hidden>
+            <div class="loop-onboarding-step" data-step="2" data-title="Configure Loop" hidden>
                 <p class="loop-onboarding-description">Choose the everyday settings you want to start with. You can change any of these from the Loop menu later.</p>
                 <div class="loop-onboarding-settings-list">
                     <label class="loop-onboarding-setting-row">
@@ -193,7 +193,7 @@ function showOnboarding() {
                     </label>
                 </div>
             </div>
-            <div class="loop-onboarding-step" data-step="3" hidden>
+            <div class="loop-onboarding-step" data-step="3" data-title="Choose lyric providers" hidden>
                 <p class="loop-onboarding-description">Set the order Loop uses when looking for lyrics. Drag providers to reorder them, toggle providers off, or remove ones you never use.</p>
                 <div class="loop-lyrics-provider-setting loop-onboarding-provider-setting">
                     <div class="loop-lyrics-provider-heading">Lyrics provider priority</div>
@@ -201,7 +201,7 @@ function showOnboarding() {
                     <button id="loop-onboarding-lyrics-provider-restore" class="loop-lyrics-provider-restore" type="button" hidden>Restore removed providers</button>
                 </div>
             </div>
-            <div class="loop-onboarding-step" data-step="4" hidden>
+            <div class="loop-onboarding-step" data-step="4" data-title="Learn shortcuts" hidden>
                 <p class="loop-onboarding-description">Keep this quick reference handy. These are the same shortcuts shown in the Loop menu.</p>
                 <div class="loop-onboarding-shortcuts-list" aria-label="Loop keyboard shortcuts">
                     <div><kbd>M</kbd> Mute / unmute</div>
@@ -218,7 +218,7 @@ function showOnboarding() {
                     <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
                 </div>
             </div>
-            <div class="loop-onboarding-step" data-step="5" hidden>
+            <div class="loop-onboarding-step" data-step="5" data-title="Helpful tips" hidden>
                 <p class="loop-onboarding-description">A few layout tips can make Loop feel much better on a wide display.</p>
                 <div class="loop-onboarding-tips">
                     <article class="loop-onboarding-tip">
@@ -247,6 +247,7 @@ function showOnboarding() {
 
     const steps = [...modal.querySelectorAll(".loop-onboarding-step")];
     const progress = modal.querySelector(".loop-onboarding-progress");
+    const title = modal.querySelector("#loop-onboarding-title");
     const previous = modal.querySelector(".loop-onboarding-prev");
     const next = modal.querySelector(".loop-onboarding-next");
     let currentStep = 0;
@@ -288,6 +289,7 @@ function showOnboarding() {
         // Force a layout pass so the same step animates every time it is shown.
         void activeStep.offsetWidth;
         activeStep.classList.add("loop-onboarding-step-active");
+        title.textContent = activeStep.dataset.title || "Welcome to Loop";
         progress.textContent = `${currentStep + 1} / ${steps.length}`;
         previous.disabled = currentStep === 0;
         next.textContent = currentStep === steps.length - 1 ? "Finish" : "Next";
