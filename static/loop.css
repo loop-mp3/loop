@@ -1247,7 +1247,8 @@
     font-weight: 600;
 }
 
-#loop-lyrics-provider-priority-list {
+#loop-lyrics-provider-priority-list,
+#loop-onboarding-lyrics-provider-priority-list {
     display: grid;
     gap: 5px;
     max-height: 240px;
@@ -3536,8 +3537,8 @@
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    width: min(680px, 100%);
-    max-height: min(760px, 100%);
+    width: min(760px, 100%);
+    max-height: min(820px, 100%);
     padding: 24px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 14px;
@@ -3617,6 +3618,165 @@
 
 #loop-onboarding-modal[data-transition="previous"] .loop-onboarding-step-active {
     animation-name: loop-onboarding-step-back-in;
+}
+
+.loop-onboarding-settings-list {
+    max-height: min(60vh, 560px);
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.loop-onboarding-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 22px;
+    min-height: 62px;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.loop-onboarding-setting-row:last-child {
+    border-bottom: 0;
+}
+
+.loop-onboarding-setting-copy {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.loop-onboarding-setting-copy strong {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.loop-onboarding-setting-copy small {
+    color: rgba(255, 255, 255, 0.56);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.loop-onboarding-setting-control {
+    flex: 0 0 min(280px, 42%);
+}
+
+.loop-onboarding-range-control {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px 10px;
+}
+
+.loop-onboarding-range-control output {
+    min-width: 58px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.loop-onboarding-update-interval-slider,
+.loop-onboarding-kawarp-fps-slider {
+    display: block;
+    width: 100%;
+    accent-color: #fff;
+}
+
+.loop-onboarding-setting-row input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    accent-color: #fff;
+}
+
+.loop-onboarding-setting-row select {
+    flex: 0 0 min(190px, 42%);
+    box-sizing: border-box;
+    padding: 7px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+}
+
+.loop-onboarding-setting-row select option {
+    background: #181818;
+    color: #fff;
+}
+
+.loop-onboarding-setting-row select:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.loop-onboarding-shortcuts-list {
+    box-sizing: border-box;
+    max-height: min(52vh, 430px);
+    margin-top: 0;
+    padding: 12px 14px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+.loop-onboarding-shortcuts-list kbd {
+    display: inline-block;
+    min-width: 58px;
+    margin-right: 5px;
+    padding: 0 5px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 11px;
+    text-align: center;
+}
+
+.loop-onboarding-shortcuts-list span {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.loop-onboarding-provider-setting {
+    max-height: min(58vh, 500px);
+    overflow-y: auto;
+}
+
+.loop-onboarding-tips {
+    display: grid;
+    gap: 10px;
+}
+
+.loop-onboarding-tip {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.loop-onboarding-tip strong {
+    color: #fff;
+}
+
+.loop-onboarding-tip span {
+    color: rgba(255, 255, 255, 0.68);
+    line-height: 1.45;
 }
 
 .loop-onboarding-changelog {
@@ -3752,6 +3912,16 @@
     .loop-onboarding-card {
         max-height: 100%;
         padding: 18px;
+    }
+
+    .loop-onboarding-setting-row {
+        gap: 12px;
+        padding: 12px;
+    }
+
+    .loop-onboarding-setting-control,
+    .loop-onboarding-setting-row select {
+        flex-basis: 40%;
     }
 
     .loop-onboarding-changelog {

@@ -94,12 +94,149 @@ function showOnboarding() {
                 <p class="loop-onboarding-status" role="status" aria-live="polite">Kawarp is currently enabled.</p>
                 <button type="button" class="loop-onboarding-secondary loop-onboarding-config">Choose a Kawarp preset or import your own config</button>
             </div>
+            <div class="loop-onboarding-step" data-step="2" hidden>
+                <p class="loop-onboarding-description">Choose the everyday settings you want to start with. You can change any of these from the Loop menu later.</p>
+                <div class="loop-onboarding-settings-list">
+                    <label class="loop-onboarding-setting-row">
+                        <span class="loop-onboarding-setting-copy">
+                            <strong>Update interval</strong>
+                            <small>How often Loop checks playback and the current track.</small>
+                        </span>
+                        <span class="loop-onboarding-setting-control loop-onboarding-range-control">
+                            <output class="loop-onboarding-update-interval-value">500 ms</output>
+                            <input class="loop-onboarding-update-interval-slider" type="range" min="100" max="1000" step="50" value="500" aria-label="Loop update interval in milliseconds">
+                        </span>
+                    </label>
+                    <label class="loop-onboarding-setting-row">
+                        <span class="loop-onboarding-setting-copy">
+                            <strong>Kawarp FPS cap</strong>
+                            <small>Limit animated artwork rendering to reduce GPU usage.</small>
+                        </span>
+                        <span class="loop-onboarding-setting-control loop-onboarding-range-control">
+                            <output class="loop-onboarding-kawarp-fps-value">60 FPS</output>
+                            <input class="loop-onboarding-kawarp-fps-slider" type="range" min="0" max="5" step="1" value="2" list="loop-onboarding-kawarp-fps-options" aria-label="Kawarp frames per second cap">
+                            <datalist id="loop-onboarding-kawarp-fps-options">
+                                <option value="0" label="15"></option>
+                                <option value="1" label="30"></option>
+                                <option value="2" label="60"></option>
+                                <option value="3" label="120"></option>
+                                <option value="4" label="144"></option>
+                                <option value="5" label="Dynamic"></option>
+                            </datalist>
+                        </span>
+                    </label>
+                    <label class="loop-onboarding-setting-row loop-onboarding-check-row">
+                        <span class="loop-onboarding-setting-copy">
+                            <strong>Translate lyrics</strong>
+                            <small>Show an optional translation alongside available lyrics.</small>
+                        </span>
+                        <input class="loop-onboarding-translation-toggle" type="checkbox">
+                    </label>
+                    <label class="loop-onboarding-setting-row">
+                        <span class="loop-onboarding-setting-copy">
+                            <strong>Translation language</strong>
+                            <small>Choose the language used for lyric translations.</small>
+                        </span>
+                        <select class="loop-onboarding-translation-language" aria-label="Lyrics translation language">
+                            <option value="en">English</option>
+                            <option value="hi">Hindi</option>
+                            <option value="ja">Japanese</option>
+                            <option value="ko">Korean</option>
+                            <option value="zh">Chinese</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="pt">Portuguese</option>
+                            <option value="ru">Russian</option>
+                            <option value="ar">Arabic</option>
+                            <option value="bn">Bengali</option>
+                            <option value="id">Indonesian</option>
+                            <option value="it">Italian</option>
+                            <option value="tr">Turkish</option>
+                            <option value="vi">Vietnamese</option>
+                        </select>
+                    </label>
+                    <label class="loop-onboarding-setting-row loop-onboarding-check-row">
+                        <span class="loop-onboarding-setting-copy">
+                            <strong>Show writer names</strong>
+                            <small>Display songwriter and writer credits below the lyrics.</small>
+                        </span>
+                        <input class="loop-onboarding-writer-credits" type="checkbox">
+                    </label>
+                    <label class="loop-onboarding-setting-row loop-onboarding-check-row">
+                        <span class="loop-onboarding-setting-copy">
+                            <strong>Animate lyric letter wave</strong>
+                            <small>Add the letter-wave animation to lyric lines.</small>
+                        </span>
+                        <input class="loop-onboarding-letter-wave-toggle" type="checkbox">
+                    </label>
+                    <label class="loop-onboarding-setting-row loop-onboarding-check-row">
+                        <span class="loop-onboarding-setting-copy">
+                            <strong>Enable video behavior</strong>
+                            <small>Let Loop manage the video background and video-specific layout.</small>
+                        </span>
+                        <input class="loop-onboarding-video-behavior-toggle" type="checkbox">
+                    </label>
+                    <label class="loop-onboarding-setting-row loop-onboarding-check-row">
+                        <span class="loop-onboarding-setting-copy">
+                            <strong>Avoid music videos</strong>
+                            <small>Prefer the artwork view instead of switching to music videos.</small>
+                        </span>
+                        <input class="loop-onboarding-video-avoidance-toggle" type="checkbox">
+                    </label>
+                    <label class="loop-onboarding-setting-row loop-onboarding-check-row">
+                        <span class="loop-onboarding-setting-copy">
+                            <strong>Rearrange video UI</strong>
+                            <small>Move video controls into Loop’s layout when video behavior is enabled.</small>
+                        </span>
+                        <input class="loop-onboarding-video-ui-toggle" type="checkbox">
+                    </label>
+                </div>
+            </div>
             <div class="loop-onboarding-step" data-step="3" hidden>
-                <p class="loop-onboarding-description">Lyrics are always displayed when available. You can choose the rendering engine and provider later from the Loop menu.</p>
-                <label class="loop-onboarding-check"><input class="loop-onboarding-writer-credits" type="checkbox"> Show writer credits</label>
+                <p class="loop-onboarding-description">Set the order Loop uses when looking for lyrics. Drag providers to reorder them, toggle providers off, or remove ones you never use.</p>
+                <div class="loop-lyrics-provider-setting loop-onboarding-provider-setting">
+                    <div class="loop-lyrics-provider-heading">Lyrics provider priority</div>
+                    <div id="loop-onboarding-lyrics-provider-priority-list" role="list" aria-label="Lyrics provider priority list"></div>
+                    <button id="loop-onboarding-lyrics-provider-restore" class="loop-lyrics-provider-restore" type="button" hidden>Restore removed providers</button>
+                </div>
+            </div>
+            <div class="loop-onboarding-step" data-step="4" hidden>
+                <p class="loop-onboarding-description">Keep this quick reference handy. These are the same shortcuts shown in the Loop menu.</p>
+                <div class="loop-onboarding-shortcuts-list" aria-label="Loop keyboard shortcuts">
+                    <div><kbd>M</kbd> Mute / unmute</div>
+                    <div><kbd>Shift + P / K</kbd> Previous track</div>
+                    <div><kbd>Shift + N / J</kbd> Next track</div>
+                    <div><kbd>H / Shift + ←</kbd> 10 second backward</div>
+                    <div><kbd>L / Shift + →</kbd> 10 second forward</div>
+                    <div><kbd>Ctrl + K</kbd> Search</div>
+                    <div><kbd>Ctrl + Q</kbd> See queue</div>
+                    <div><kbd>Alt + L</kbd> Turn off screen <span>(with Loop running)</span></div>
+                    <div><kbd>~</kbd> Toggle Loop</div>
+                    <div><kbd>Ctrl + F5</kbd> Reload Loop session</div>
+                    <div><kbd>F5</kbd> Reload resources</div>
+                    <div><kbd>Ctrl + P</kbd> Select playlists <span>(not implemented)</span></div>
+                </div>
+            </div>
+            <div class="loop-onboarding-step" data-step="5" hidden>
+                <p class="loop-onboarding-description">A few layout tips can make Loop feel much better on a wide display.</p>
+                <div class="loop-onboarding-tips">
+                    <article class="loop-onboarding-tip">
+                        <strong>Try 80% page scale</strong>
+                        <span>Use your browser’s zoom controls and set the YouTube Music page scale to 80% for more room.</span>
+                    </article>
+                    <article class="loop-onboarding-tip">
+                        <strong>Try a 16:4 window ratio</strong>
+                        <span>A very wide 16:4 window gives the player and lyrics space to breathe side by side.</span>
+                    </article>
+                    <article class="loop-onboarding-tip">
+                        <strong>Open the Loop menu anytime</strong>
+                        <span>Select the ? button in the top corner to revisit settings and shortcuts.</span>
+                    </article>
+                </div>
             </div>
             <div class="loop-onboarding-footer">
-                <span class="loop-onboarding-progress" aria-live="polite">1 / 3</span>
+                <span class="loop-onboarding-progress" aria-live="polite">1 / 6</span>
                 <div class="loop-onboarding-actions">
                     <button type="button" class="loop-onboarding-prev" disabled>Previous</button>
                     <button type="button" class="loop-onboarding-next">Next</button>
@@ -118,6 +255,22 @@ function showOnboarding() {
         if (save) {
             loopPreferences.showLyrics = true;
             loopPreferences.showWriterCredits = modal.querySelector(".loop-onboarding-writer-credits").checked;
+            loopPreferences.enableLyricsTranslation = modal.querySelector(".loop-onboarding-translation-toggle").checked;
+            loopPreferences.lyricsTranslationLanguage = normalizeLyricsTranslationLanguage(
+                modal.querySelector(".loop-onboarding-translation-language").value
+            );
+            loopPreferences.loopUpdateInterval = normalizeLoopUpdateInterval(
+                modal.querySelector(".loop-onboarding-update-interval-slider").value
+            );
+            const kawarpFpsIndex = Math.min(
+                kawarpFpsOptions.length - 1,
+                Math.max(0, Number(modal.querySelector(".loop-onboarding-kawarp-fps-slider").value))
+            );
+            loopPreferences.kawarpFpsCap = normalizeKawarpFpsCap(kawarpFpsOptions[kawarpFpsIndex]);
+            loopPreferences.animateWordWobble = modal.querySelector(".loop-onboarding-letter-wave-toggle").checked;
+            loopPreferences.videoBehaviorEnabled = modal.querySelector(".loop-onboarding-video-behavior-toggle").checked;
+            loopPreferences.videoAvoidance = modal.querySelector(".loop-onboarding-video-avoidance-toggle").checked;
+            loopPreferences.videoUiRearrangement = modal.querySelector(".loop-onboarding-video-ui-toggle").checked;
             saveLoopPreferences();
             applyLoopPreferences();
             if (loopPreferences.showLyrics) fetchLoopLyricsForCurrentTrack();
@@ -158,7 +311,97 @@ function showOnboarding() {
         modal.querySelector(".loop-onboarding-status").textContent = "Kawarp is disabled.";
     });
     modal.querySelector(".loop-onboarding-config").addEventListener("click", showKawarpConfigEditor);
-    modal.querySelector(".loop-onboarding-writer-credits").checked = loopPreferences.showWriterCredits !== false;
+
+    const writerCredits = modal.querySelector(".loop-onboarding-writer-credits");
+    const translationToggle = modal.querySelector(".loop-onboarding-translation-toggle");
+    const translationLanguage = modal.querySelector(".loop-onboarding-translation-language");
+    const updateIntervalSlider = modal.querySelector(".loop-onboarding-update-interval-slider");
+    const updateIntervalValue = modal.querySelector(".loop-onboarding-update-interval-value");
+    const kawarpFpsSlider = modal.querySelector(".loop-onboarding-kawarp-fps-slider");
+    const kawarpFpsValue = modal.querySelector(".loop-onboarding-kawarp-fps-value");
+    const letterWaveToggle = modal.querySelector(".loop-onboarding-letter-wave-toggle");
+    const videoBehaviorToggle = modal.querySelector(".loop-onboarding-video-behavior-toggle");
+    const videoAvoidanceToggle = modal.querySelector(".loop-onboarding-video-avoidance-toggle");
+    const videoUiToggle = modal.querySelector(".loop-onboarding-video-ui-toggle");
+    const getKawarpFpsIndex = () => Math.min(
+        kawarpFpsOptions.length - 1,
+        Math.max(0, Number(kawarpFpsSlider.value))
+    );
+    const syncOnboardingSettings = () => {
+        const interval = normalizeLoopUpdateInterval(updateIntervalSlider.value);
+        const fpsIndex = getKawarpFpsIndex();
+        updateIntervalSlider.value = String(interval);
+        kawarpFpsSlider.value = String(fpsIndex);
+        updateIntervalValue.textContent = `${interval} ms`;
+        kawarpFpsValue.textContent = getKawarpFpsLabel(kawarpFpsOptions[fpsIndex]);
+        translationLanguage.value = normalizeLyricsTranslationLanguage(translationLanguage.value);
+        translationLanguage.disabled = !translationToggle.checked;
+        videoUiToggle.disabled = !videoBehaviorToggle.checked;
+    };
+    writerCredits.checked = loopPreferences.showWriterCredits !== false;
+    translationToggle.checked = loopPreferences.enableLyricsTranslation === true;
+    translationLanguage.value = normalizeLyricsTranslationLanguage(loopPreferences.lyricsTranslationLanguage);
+    updateIntervalSlider.value = String(normalizeLoopUpdateInterval(loopPreferences.loopUpdateInterval));
+    kawarpFpsSlider.value = String(Math.max(0, kawarpFpsOptions.indexOf(normalizeKawarpFpsCap(loopPreferences.kawarpFpsCap))));
+    letterWaveToggle.checked = loopPreferences.animateWordWobble === true;
+    videoBehaviorToggle.checked = loopPreferences.videoBehaviorEnabled !== false;
+    videoAvoidanceToggle.checked = loopPreferences.videoAvoidance === true;
+    videoUiToggle.checked = loopPreferences.videoUiRearrangement === true;
+    updateIntervalSlider.addEventListener("input", () => {
+        loopPreferences.loopUpdateInterval = normalizeLoopUpdateInterval(updateIntervalSlider.value);
+        saveLoopPreferences();
+        startLoopUpdatePolling();
+        syncOnboardingSettings();
+    });
+    kawarpFpsSlider.addEventListener("input", () => {
+        loopPreferences.kawarpFpsCap = kawarpFpsOptions[getKawarpFpsIndex()];
+        saveLoopPreferences();
+        kawarpBackground?.setOptions({ fpsCap: loopPreferences.kawarpFpsCap });
+        updateKawarpFpsPreferenceUI();
+        syncOnboardingSettings();
+    });
+    translationToggle.addEventListener("change", () => {
+        loopPreferences.enableLyricsTranslation = translationToggle.checked;
+        saveLoopPreferences();
+        syncOnboardingSettings();
+    });
+    translationLanguage.addEventListener("change", () => {
+        loopPreferences.lyricsTranslationLanguage = normalizeLyricsTranslationLanguage(translationLanguage.value);
+        saveLoopPreferences();
+        syncOnboardingSettings();
+    });
+    writerCredits.addEventListener("change", () => {
+        loopPreferences.showWriterCredits = writerCredits.checked;
+        saveLoopPreferences();
+    });
+    letterWaveToggle.addEventListener("change", () => {
+        loopPreferences.animateWordWobble = letterWaveToggle.checked;
+        saveLoopPreferences();
+        applyLyricsAnimationPreferences();
+    });
+    videoBehaviorToggle.addEventListener("change", () => {
+        loopPreferences.videoBehaviorEnabled = videoBehaviorToggle.checked;
+        saveLoopPreferences();
+        applyVideoPresentationPreferences();
+        syncOnboardingSettings();
+    });
+    videoAvoidanceToggle.addEventListener("change", () => {
+        loopPreferences.videoAvoidance = videoAvoidanceToggle.checked;
+        saveLoopPreferences();
+        applyVideoPresentationPreferences();
+        if (videoAvoidanceToggle.checked && document.querySelector("#loop")?.dataset.trackVideo === "true") {
+            avoidMusicVideo();
+        }
+    });
+    videoUiToggle.addEventListener("change", () => {
+        if (videoUiToggle.disabled) return;
+        loopPreferences.videoUiRearrangement = videoUiToggle.checked;
+        saveLoopPreferences();
+        applyVideoPresentationPreferences();
+    });
+    syncOnboardingSettings();
+
+    renderLyricsProviderPriorityUI(modal, () => renderLyricsProviderPriorityUI(modal));
     modal.addEventListener("keydown", (event) => { if (event.key === "Escape") finish({ save: false }); });
     renderStep();
 

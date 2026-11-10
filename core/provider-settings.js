@@ -100,9 +100,8 @@ function restoreLyricsProviders() {
     saveLyricsProviderState();
 }
 
-function renderLyricsProviderPriorityUI() {
-    const loop = document.querySelector("#loop");
-    const container = loop?.querySelector("#loop-lyrics-provider-priority-list");
+function renderLyricsProviderPriorityUI(root = document.querySelector("#loop"), onChange) {
+    const container = root?.querySelector("#loop-lyrics-provider-priority-list, #loop-onboarding-lyrics-provider-priority-list");
     if (!container) return;
 
     const disabledIds = new Set(loopPreferences.lyricsDisabledProviderIds || []);
@@ -133,13 +132,19 @@ function renderLyricsProviderPriorityUI() {
         toggle.type = "checkbox";
         toggle.checked = !disabledIds.has(provider.id);
         toggle.setAttribute("aria-label", `Enable ${provider.label}`);
-        toggle.addEventListener("change", () => setLyricsProviderEnabled(provider.id, toggle.checked));
+        toggle.addEventListener("change", () => {
+            setLyricsProviderEnabled(provider.id, toggle.checked);
+            onChange?.();
+        });
         toggleLabel.append(toggle, document.createTextNode("Enabled"));
         const remove = document.createElement("button");
         remove.type = "button";
         remove.className = "loop-lyrics-provider-priority-remove";
         remove.textContent = "Remove";
-        remove.addEventListener("click", () => removeLyricsProvider(provider.id));
+        remove.addEventListener("click", () => {
+            removeLyricsProvider(provider.id);
+            onChange?.();
+        });
         row.append(rank, dragHandle, label, toggleLabel, remove);
 
         row.addEventListener("dragstart", (event) => {
@@ -162,14 +167,18 @@ function renderLyricsProviderPriorityUI() {
             if (rows.indexOf(dragged) < rows.indexOf(row)) container.insertBefore(dragged, row);
             else container.insertBefore(dragged, row.nextSibling);
             setLyricsProviderOrder([...container.children].map((item) => item.dataset.providerId));
+            onChange?.();
         });
         container.appendChild(row);
     });
 
-    const restore = loop.querySelector("#loop-lyrics-provider-restore");
+    const restore = root.querySelector("#loop-lyrics-provider-restore, #loop-onboarding-lyrics-provider-restore");
     if (restore) {
         restore.hidden = !(loopPreferences.lyricsRemovedProviderIds || []).length;
-        restore.onclick = restoreLyricsProviders;
+        restore.onclick = () => {
+            restoreLyricsProviders();
+            onChange?.();
+        };
     }
 }
 
