@@ -2185,6 +2185,8 @@ class AmLyrics extends i {
         }
       }
       const timeToMs = AmLyrics.parseTTMLTime;
+      const getTTMLAttribute = (node, namespace, localName, qualifiedName = localName) => node?.getAttributeNS?.(namespace, localName) || node?.getAttribute?.(qualifiedName) || undefined;
+      const isBackgroundSpan = node => getTTMLAttribute(node, 'http://www.w3.org/ns/ttml#metadata', 'role', 'ttm:role') === 'x-bg';
       const transliterationNodes = doc.getElementsByTagName('transliteration');
       for (let i = 0; i < transliterationNodes.length; i += 1) {
         const texts = transliterationNodes[i].getElementsByTagName('text');
@@ -2237,23 +2239,23 @@ class AmLyrics extends i {
         const key = p.getAttributeNS('http://lrc.red/lyric-ttml-internal', 'key') || p.getAttribute('itunes:key');
         const beginMs = timeToMs(p.getAttribute('begin'));
         const endMs = timeToMs(p.getAttribute('end'), beginMs);
-        const agentId = p.getAttribute('ttm:agent') || undefined;
+        const agentId = getTTMLAttribute(p, 'http://www.w3.org/ns/ttml#metadata', 'agent', 'ttm:agent');
         const lineLanguage = p.getAttribute('xml:lang') || p.getAttribute('lang') || documentLanguage;
         let songPart;
-        if (p.parentNode && p.parentNode.tagName === 'div') {
+        if (p.parentNode && p.parentNode.localName === 'div') {
           songPart = p.parentNode.getAttributeNS('http://lrc.red/lyric-ttml-internal', 'songPart') || p.parentNode.getAttribute('itunes:songPart') || undefined;
         }
         const mainSyllables = [];
         const bgSyllables = [];
         const spans = p.getElementsByTagName('span');
         const hasWordLevelSync = Array.from(spans).some(span => {
-          const isBackground = span.getAttribute('ttm:role') === 'x-bg' || span.parentNode?.getAttribute?.('ttm:role') === 'x-bg';
+          const isBackground = isBackgroundSpan(span) || isBackgroundSpan(span.parentNode);
           return !isBackground && Boolean(span.getAttribute('begin')) && Boolean(span.getAttribute('end'));
         });
         if (spans.length > 0) {
           for (let j = 0; j < spans.length; j += 1) {
             const span = spans[j];
-            if (span.getAttribute('ttm:role') === 'x-bg') {
+            if (isBackgroundSpan(span)) {
               const bgInnerSpans = span.getElementsByTagName('span');
               for (let k = 0; k < bgInnerSpans.length; k += 1) {
                 const bgSpan = bgInnerSpans[k];
@@ -2273,7 +2275,7 @@ class AmLyrics extends i {
               // eslint-disable-next-line no-continue
               continue;
             }
-            if (span.parentNode && span.parentNode.getAttribute?.('ttm:role') === 'x-bg') {
+            if (isBackgroundSpan(span.parentNode)) {
               // eslint-disable-next-line no-continue
               continue;
             }
@@ -2292,7 +2294,7 @@ class AmLyrics extends i {
           }
         }
         if (mainSyllables.length === 0) {
-          const primaryLineText = Array.from(p.childNodes).filter(node => !(node instanceof Element && node.getAttribute('ttm:role') === 'x-bg')).map(node => node.textContent || '').join('').trim();
+          const primaryLineText = Array.from(p.childNodes).filter(node => !(node?.nodeType === 1 && isBackgroundSpan(node))).map(node => node.textContent || '').join('').trim();
           mainSyllables.push({
             text: primaryLineText,
             timestamp: beginMs,

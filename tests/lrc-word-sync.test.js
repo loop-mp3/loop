@@ -179,3 +179,17 @@ test("honors xml:space preserve while ignoring formatted indentation", () => {
     assert.equal(line.parts[0].words, "one  ");
     assert.equal(line.parts[1].words, "two");
 });
+
+test("keeps timed chorus vocals nested in lrc.red background spans", () => {
+    const ttml = `<tt xmlns="http://www.w3.org/ns/ttml" xmlns:lrc="http://lrc.red/lyric-ttml-internal" xmlns:ttm="http://www.w3.org/ns/ttml#metadata"><body><div lrc:songPart="Chorus"><p begin="20.376s" end="24.983s"><span begin="20.376s" end="20.724s">My</span> <span begin="20.724s" end="21.313s">momma</span> <span ttm:role="x-bg"><span begin="22.961s" end="23.454s">(My</span> <span begin="23.454s" end="24.052s">oh</span> <span begin="24.052s" end="24.983s">my)</span></span></p></div></body></tt>`;
+    const [line] = parseSyncedLyrics(ttml);
+
+    assert.equal(line.words, "My momma (My oh my)");
+    assert.deepEqual(JSON.parse(JSON.stringify(line.parts.map(({ startTimeMs, words }) => ({ startTimeMs, words })))), [
+        { startTimeMs: 20_376, words: "My " },
+        { startTimeMs: 20_724, words: "momma " },
+        { startTimeMs: 22_961, words: "(My " },
+        { startTimeMs: 23_454, words: "oh " },
+        { startTimeMs: 24_052, words: "my)" },
+    ]);
+});

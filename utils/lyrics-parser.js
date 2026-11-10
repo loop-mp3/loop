@@ -70,6 +70,16 @@ function getTTMLTextNodeContent(node) {
     return text === " " ? text : "";
 }
 
+const TTML_METADATA_NAMESPACE = "http://www.w3.org/ns/ttml#metadata";
+
+function getTTMLAttribute(node, namespace, localName, qualifiedName = localName) {
+    return node?.getAttributeNS?.(namespace, localName) || node?.getAttribute?.(qualifiedName) || null;
+}
+
+function isTTMLBackgroundSpan(node) {
+    return getTTMLAttribute(node, TTML_METADATA_NAMESPACE, "role", "ttm:role") === "x-bg";
+}
+
 function parseTTMLLyrics(ttml, songDurationMs) {
     if (typeof DOMParser !== "function") return [];
     const documentRoot = new DOMParser().parseFromString(String(ttml), "application/xml");
@@ -88,26 +98,49 @@ function parseTTMLLyrics(ttml, songDurationMs) {
         const parts = [];
         let pendingText = "";
         let leadingText = "";
-        for (const child of paragraph.childNodes || []) {
-            if (child.nodeType !== 1 || child.localName !== "span") {
-                pendingText += child.nodeType === 3 ? getTTMLTextNodeContent(child) : "";
-                continue;
-            }
-            const partStartTimeMs = parseTTMLTimestamp(child.getAttribute("begin"));
-            const explicitEndTimeMs = parseTTMLTimestamp(child.getAttribute("end"));
-            const explicitDurationMs = parseTTMLTimestamp(child.getAttribute("dur"));
+        const appendPendingText = () => {
+            if (!pendingText) return;
+            if (parts.length) parts[parts.length - 1].words += pendingText;
+            else leadingText += pendingText;
+            pendingText = "";
+        };
+        const appendTimedSpan = (span) => {
+            const partStartTimeMs = parseTTMLTimestamp(span.getAttribute("begin"));
+            const explicitEndTimeMs = parseTTMLTimestamp(span.getAttribute("end"));
+            const explicitDurationMs = parseTTMLTimestamp(span.getAttribute("dur"));
             const partDurationMs = Number.isFinite(explicitDurationMs)
                 ? explicitDurationMs
                 : Number.isFinite(explicitEndTimeMs) && Number.isFinite(partStartTimeMs)
                     ? explicitEndTimeMs - partStartTimeMs
                     : NaN;
-            if (!Number.isFinite(partStartTimeMs) || !Number.isFinite(partDurationMs) || partDurationMs < 0 || !child.textContent) continue;
-            if (pendingText) {
-                if (parts.length) parts[parts.length - 1].words += pendingText;
-                else leadingText += pendingText;
-                pendingText = "";
+            if (!Number.isFinite(partStartTimeMs) || !Number.isFinite(partDurationMs) || partDurationMs < 0 || !span.textContent) return false;
+            appendPendingText();
+            parts.push({ startTimeMs: partStartTimeMs, durationMs: partDurationMs, words: span.textContent });
+            return true;
+        };
+        const appendNestedTimedSpans = (node) => {
+            let appended = false;
+            for (const descendant of node.childNodes || []) {
+                if (descendant.nodeType !== 1 || descendant.localName !== "span") {
+                    pendingText += descendant.nodeType === 3 ? getTTMLTextNodeContent(descendant) : "";
+                    continue;
+                }
+                const appendedSpan = appendTimedSpan(descendant);
+                appended = appendedSpan || appended;
+                if (!appendedSpan) appended = appendNestedTimedSpans(descendant) || appended;
             }
-            parts.push({ startTimeMs: partStartTimeMs, durationMs: partDurationMs, words: child.textContent });
+            return appended;
+        };
+        for (const child of paragraph.childNodes || []) {
+            if (child.nodeType !== 1 || child.localName !== "span") {
+                pendingText += child.nodeType === 3 ? getTTMLTextNodeContent(child) : "";
+                continue;
+            }
+            if (isTTMLBackgroundSpan(child) && !appendTimedSpan(child)) {
+                appendNestedTimedSpans(child);
+                continue;
+            }
+            appendTimedSpan(child);
         }
         const trailingText = pendingText;
         const words = `${leadingText}${parts.map((part) => part.words).join("")}${trailingText}`.trim();
