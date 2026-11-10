@@ -1,6 +1,32 @@
 
 All notable changes to Loop are documented here.
 
+## [0.8.2] - 2026-11-10
+
+### Highlights
+
+* Added the AM Lyrics rendering engine with word-level synchronization, playback-aware rendering, and click-to-seek lyric lines.
+* Overhauled onboarding into a six-step setup flow covering Kawarp, playback and lyric preferences, provider priority, keyboard shortcuts, and layout tips. Lyric providers can now be reordered, enabled, removed, or restored during setup.
+* Added automatic GitHub release update checks with a dismissible in-app notice and a direct update link.
+* Made Kawarp page-wide so animated artwork can continue outside the Loop player while respecting video backgrounds and viewport resizing.
+* Added an Electron migration notice that directs desktop-app users to the recommended web extension.
+* Refined horizontal and portrait layouts: lyrics are shown by default in horizontal mode, portrait artwork and lyric views transition smoothly, playback controls are more compact and better positioned, and the Loop launcher remains accessible on responsive/mobile YouTube Music layouts.
+* Moved track actions beside the track title into an animated overflow menu with outside-click and Escape dismissal, synchronized artwork labels, and improved stacking behavior.
+* Kept previous and next track controls available by removing the preference that could hide them.
+
+### Fixes
+
+* Fixed Chorus and AM Lyrics rendering for namespaced TTML metadata, background spans, nested timed spans, and word-synchronized lyrics.
+* Fixed stale liked-state feedback when tracks change rapidly by replacing pending synchronization timers and syncing immediately for the new track.
+* Fixed portrait-mode overlap issues involving playback controls, lyrics, volume-slider tooltips, and the Loop menu drawer, and fixed settings and track-mode menus not dismissing correctly on outside clicks.
+* Fixed onboarding titles so they update correctly when moving between steps.
+
+### Internal and maintenance changes
+
+* Updated the Manifest V3 configuration for Chromium environments and added a Firefox `web-ext` lint test, along with regression coverage for lyric word synchronization.
+* Removed the fullscreen feature and Electron-only automatic mini-player, screen-off, and related visibility integrations.
+* Disabled input focus outlines to keep the mouse-oriented UI visually cleaner and aligned playback time labels beneath the seek slider.
+
 ## [0.8.1] - 2026-11-07
 
 ### Highlights
