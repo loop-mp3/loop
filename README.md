@@ -31,6 +31,9 @@ Designed with performance, flexibility, and aesthetics in mind, Loop brings your
 5. Click the gear icon in the top-right and select **Install Add-on From File**.
 6. Select the downloaded ZIP file.
 
+> [!WARNING]
+> Firefox may warn you about the extention not being signed and may contain privacy risks but you are good till you have verified the source of the download
+
 </details>
 
 ### Features
