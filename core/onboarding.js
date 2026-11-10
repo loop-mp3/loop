@@ -1,5 +1,5 @@
 function getOnboardingStorageKey() {
-    return `${getInstalledVersion()}IsOnboarded`;
+    return `${globalThis.getInstalledVersion()}IsOnboarded`;
 }
 
 function isOnboardingComplete() {
@@ -419,132 +419,6 @@ function showOnboarding() {
     modal.querySelector(".loop-onboarding-next").focus();
 }
 
-function getUpdateURL() {
-    return defaultUpdateURL;
-}
-
-function openUpdateInBrowser(event, updateURL) {
-    const isElectron = /Electron/i.test(navigator.userAgent) ||
-        Boolean(globalThis.process?.versions?.electron);
-    if (!isElectron) return;
-
-    // Electron clients commonly handle window.open as an external browser
-    // request. Keep the normal anchor fallback if that handler is absent.
-    event.preventDefault();
-    const browserWindow = window.open(updateURL, "_blank", "noopener,noreferrer");
-    if (!browserWindow) window.location.assign(updateURL);
-}
-
-function showUpdateNotice(config) {
-    const loopPlayer = document.querySelector("#loop-player");
-    if (!loopPlayer || document.getElementById("loop-update-notice")) return;
-
-    const notice = document.createElement("aside");
-    notice.id = "loop-update-notice";
-    notice.setAttribute("role", "status");
-
-    const message = document.createElement("span");
-    message.textContent = config.update_notice || "A new Loop update is available.";
-    const link = document.createElement("a");
-    const updateURL = getUpdateURL();
-    link.href = updateURL;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = "Download the update";
-    const dismiss = document.createElement("button");
-    dismiss.type = "button";
-    dismiss.className = "loop-update-notice-dismiss";
-    dismiss.setAttribute("aria-label", "Dismiss update notice");
-    dismiss.textContent = "×";
-    notice.append(message, link, dismiss);
-    loopPlayer.prepend(notice);
-
-    link.addEventListener("click", (event) => openUpdateInBrowser(event, updateURL));
-    dismiss.addEventListener("click", (event) => {
-        event.stopPropagation();
-        notice.remove();
-    });
-}
-
-function showRequiredUpdateBlocker(config) {
-    if (document.getElementById("loop-required-update")) return;
-
-    const blocker = document.createElement("div");
-    blocker.id = "loop-required-update";
-    blocker.setAttribute("role", "alertdialog");
-    blocker.setAttribute("aria-modal", "true");
-
-    const title = document.createElement("h1");
-    title.textContent = "Loop needs an update";
-    const message = document.createElement("p");
-    message.textContent = config.update_notice ||
-        "This version of Loop is no longer supported. Update to continue.";
-    const link = document.createElement("a");
-    const updateURL = getUpdateURL();
-    link.href = updateURL;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = "Download the update";
-    blocker.append(title, message, link);
-    link.addEventListener("click", (event) => openUpdateInBrowser(event, updateURL));
-    (document.body || document.documentElement).appendChild(blocker);
-}
-
-function getInstalledVersion() {
-    try {
-        const runtime = globalThis.chrome?.runtime || globalThis.browser?.runtime;
-        return runtime?.getManifest?.().version || "0.0.0";
-    } catch {
-        return "0.0.0";
-    }
-}
-
-function compareVersions(left, right) {
-    const parse = (version) => String(version).split(".").map((part) => {
-        const match = part.match(/^\d+/);
-        return match ? Number(match[0]) : 0;
-    });
-    const leftParts = parse(left);
-    const rightParts = parse(right);
-    const length = Math.max(leftParts.length, rightParts.length);
-
-    for (let index = 0; index < length; index += 1) {
-        const difference = (leftParts[index] || 0) - (rightParts[index] || 0);
-        if (difference !== 0) return difference > 0 ? 1 : -1;
-    }
-    return 0;
-}
-
-async function checkForUpdates() {
-    try {
-        const response = await fetch("https://loop.mizucode.qzz.io/config.json", {
-            cache: "no-store",
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const config = await response.json();
-        if (!config || typeof config !== "object") return false;
-
-        // A notice is only meaningful when the server advertises a newer
-        // version. This prevents arbitrary update_notice text from becoming
-        // a false alert while the installed version is already current.
-        if (!config.version || compareVersions(config.version, getInstalledVersion()) <= 0) {
-            return false;
-        }
-
-        const updateRequired = Number(config.is_update_required) === 1;
-        if (updateRequired) {
-            showRequiredUpdateBlocker(config);
-            loopUpdateBlocked = true;
-            return true;
-        }
-
-        return config;
-    } catch (error) {
-        console.warn("[loop.mp3] update check failed:", error);
-        return null;
-    }
-}
 
 // Explicit cross-file API: MV3 classic content scripts do not share lexical bindings.
 (function publishLoopModule(global) {
@@ -554,11 +428,5 @@ async function checkForUpdates() {
     global.escapeHTML = escapeHTML;
     global.renderChangelogMarkdown = renderChangelogMarkdown;
     global.showOnboarding = showOnboarding;
-    global.getUpdateURL = getUpdateURL;
-    global.openUpdateInBrowser = openUpdateInBrowser;
-    global.showUpdateNotice = showUpdateNotice;
-    global.showRequiredUpdateBlocker = showRequiredUpdateBlocker;
-    global.getInstalledVersion = getInstalledVersion;
-    global.compareVersions = compareVersions;
-    global.checkForUpdates = checkForUpdates;
+
 })(globalThis);

@@ -117,7 +117,6 @@ const {
     manualLyricsCacheKeyPrefix,
     translationCacheKeyPrefix,
     trackWritersCacheKeyPrefix,
-    defaultUpdateURL,
     lyricsTranslationEndpoint,
     unisonTranslationRetryDelaysMs,
     grooveEditorURL,
@@ -166,7 +165,6 @@ let notificationTimer;
 let notificationAnimationTimer;
 let notificationAnimationFrame;
 let authWarningShown = false;
-let loopUpdateBlocked = false;
 let loopVisible = false;
 let loopUpdateIntervalId;
 let loopUpdatePlayerBar;
@@ -227,7 +225,6 @@ const translationRequestCache = new Map();
     Object.defineProperty(global, 'notificationAnimationTimer', { configurable: true, get: () => notificationAnimationTimer, set: (value) => { notificationAnimationTimer = value; } });
     Object.defineProperty(global, 'notificationAnimationFrame', { configurable: true, get: () => notificationAnimationFrame, set: (value) => { notificationAnimationFrame = value; } });
     Object.defineProperty(global, 'authWarningShown', { configurable: true, get: () => authWarningShown, set: (value) => { authWarningShown = value; } });
-    Object.defineProperty(global, 'loopUpdateBlocked', { configurable: true, get: () => loopUpdateBlocked, set: (value) => { loopUpdateBlocked = value; } });
     Object.defineProperty(global, 'loopVisible', { configurable: true, get: () => loopVisible, set: (value) => { loopVisible = value; } });
     Object.defineProperty(global, 'loopUpdateIntervalId', { configurable: true, get: () => loopUpdateIntervalId, set: (value) => { loopUpdateIntervalId = value; } });
     Object.defineProperty(global, 'loopUpdatePlayerBar', { configurable: true, get: () => loopUpdatePlayerBar, set: (value) => { loopUpdatePlayerBar = value; } });
@@ -250,7 +247,6 @@ const translationRequestCache = new Map();
     Object.defineProperty(global, 'manualLyricsCacheKeyPrefix', { configurable: true, get: () => manualLyricsCacheKeyPrefix, set: (value) => { manualLyricsCacheKeyPrefix = value; } });
     Object.defineProperty(global, 'translationCacheKeyPrefix', { configurable: true, get: () => translationCacheKeyPrefix, set: (value) => { translationCacheKeyPrefix = value; } });
     Object.defineProperty(global, 'trackWritersCacheKeyPrefix', { configurable: true, get: () => trackWritersCacheKeyPrefix, set: (value) => { trackWritersCacheKeyPrefix = value; } });
-    Object.defineProperty(global, 'defaultUpdateURL', { configurable: true, get: () => defaultUpdateURL, set: (value) => { defaultUpdateURL = value; } });
     Object.defineProperty(global, 'lyricsTranslationEndpoint', { configurable: true, get: () => lyricsTranslationEndpoint, set: (value) => { lyricsTranslationEndpoint = value; } });
     Object.defineProperty(global, 'unisonTranslationRetryDelaysMs', { configurable: true, get: () => unisonTranslationRetryDelaysMs, set: (value) => { unisonTranslationRetryDelaysMs = value; } });
     Object.defineProperty(global, 'grooveEditorURL', { configurable: true, get: () => grooveEditorURL, set: (value) => { grooveEditorURL = value; } });

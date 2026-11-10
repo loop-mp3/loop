@@ -317,7 +317,6 @@ function startLoopUpdatePolling(playerBar) {
     if (!loopUpdatePlayerBar) return;
     window.clearInterval(loopUpdateIntervalId);
     loopUpdateIntervalId = window.setInterval(() => {
-        if (loopUpdateBlocked) return;
         ensureLoopRecordButton();
         updateForCurrentTrack(loopUpdatePlayerBar);
         watchPlaybackState();

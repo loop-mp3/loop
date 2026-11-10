@@ -7,18 +7,7 @@ async function init(playerBar) {
     watchTrackChanges(playerBar);
     // Do not make the first GUI render wait for the network update check.
     updateForCurrentTrack(playerBar);
-    checkForUpdates().then((updateConfig) => {
-        if (updateConfig === true || !updateConfig) return;
-
-        const showNoticeWhenReady = () => {
-            if (document.querySelector("#loop-player")) {
-                showUpdateNotice(updateConfig);
-                return;
-            }
-            requestAnimationFrame(showNoticeWhenReady);
-        };
-        showNoticeWhenReady();
-    });
+    globalThis.startLoopUpdateChecking();
     startLoopUpdatePolling(playerBar);
 }
 // yeah we do that here

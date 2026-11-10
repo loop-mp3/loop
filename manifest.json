@@ -24,6 +24,7 @@
         "core/app-bootstrap.js",
         "core/provider-settings.js",
         "core/onboarding.js",
+        "core/update-checker.js",
         "services/lyrics-cache.js",
         "core/dialogs.js",
         "core/preferences.js",

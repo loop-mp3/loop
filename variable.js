@@ -92,7 +92,6 @@
         manualLyricsCacheKeyPrefix: "lyrics_manual_",
         translationCacheKeyPrefix: "translation_",
         trackWritersCacheKeyPrefix: "track_writers_",
-        defaultUpdateURL: "https://loop.mizucode.qzz.io/update",
         lyricsTranslationEndpoint: "https://unison.boidu.dev/translate",
         unisonTranslationRetryDelaysMs: Object.freeze([3_000, 5_000, 10_000, 15_000]),
         grooveEditorURL: "https://loop.mizucode.qzz.io/groove/",
