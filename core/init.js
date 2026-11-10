@@ -1,5 +1,6 @@
 async function init(playerBar) {
     console.log("[loop.mp3] YTM is ready", playerBar);
+    if (isElectron()) globalThis.showElectronMigrationModal?.();
     document.title = "loop";
     warnIfNotSignedIn();
     bindLoopRecordEvents();

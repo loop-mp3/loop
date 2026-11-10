@@ -109,6 +109,51 @@ function showLoopResetModal() {
 // extension's isolated-world globals.
 document.addEventListener("loop:show-reset-modal", showLoopResetModal);
 
+const LOOP_WEB_EXTENSION_INSTALL_URL = "https://github.com/loop-mp3/loop#insallation";
+
+function showElectronMigrationModal() {
+    if (document.getElementById("loop-electron-migration-modal")) return;
+
+    const modal = document.createElement("div");
+    modal.id = "loop-electron-migration-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "loop-electron-migration-title");
+    modal.innerHTML = `
+        <section class="loop-reset-modal-card loop-electron-migration-card">
+            <div class="loop-reset-modal-header">
+                <div>
+                    <div class="loop-reset-modal-kicker">Desktop app notice</div>
+                    <h2 id="loop-electron-migration-title">Move Loop to the web extension</h2>
+                </div>
+                <button type="button" class="loop-reset-modal-close" aria-label="Close migration notice">&#215;</button>
+            </div>
+            <p class="loop-reset-modal-description">
+                You are using Loop's Electron app. The web extension is the recommended way to use Loop and receives the latest updates directly in your browser.
+            </p>
+            <div class="loop-reset-modal-actions">
+                <a class="loop-electron-migration-link" href="${LOOP_WEB_EXTENSION_INSTALL_URL}" target="_blank" rel="noopener noreferrer">
+                    Install the web extension
+                </a>
+                <button type="button" class="loop-reset-modal-cancel">Continue in the desktop app</button>
+            </div>
+        </section>`;
+
+    (document.getElementById("loop") || document.body || document.documentElement).appendChild(modal);
+
+    const close = () => modal.remove();
+    modal.querySelector(".loop-reset-modal-close").addEventListener("click", close);
+    modal.querySelector(".loop-reset-modal-cancel").addEventListener("click", close);
+    modal.addEventListener("click", (event) => {
+        if (event.target === modal) close();
+    });
+    modal.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") close();
+    });
+
+    modal.querySelector(".loop-electron-migration-link").focus();
+}
+
 function showLyricsSubmissionModal() {
     if (document.getElementById("loop-lyrics-submit-modal")) return;
 
@@ -495,5 +540,6 @@ function showLyricsSubmissionModal() {
 // Explicit cross-file API: MV3 classic content scripts do not share lexical bindings.
 (function publishLoopModule(global) {
     global.showLoopResetModal = showLoopResetModal;
+    global.showElectronMigrationModal = showElectronMigrationModal;
     global.showLyricsSubmissionModal = showLyricsSubmissionModal;
 })(globalThis);
