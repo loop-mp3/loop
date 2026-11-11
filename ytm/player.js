@@ -24,18 +24,7 @@ function bindLoopRecordEvents() {
     }, true);
 }
 
-function isVisibleYtmControl(element) {
-    if (!element) return false;
-    const bounds = element.getBoundingClientRect();
-    return bounds.width > 0 && bounds.height > 0 &&
-        getComputedStyle(element).display !== "none" &&
-        getComputedStyle(element).visibility !== "hidden";
-}
-
 function ensureLoopRecordButton() {
-    const castButton = [...document.querySelectorAll("ytmusic-cast-button")]
-        .find(isVisibleYtmControl);
-
     let recordButton = document.getElementById("loop-record-button");
     if (!recordButton) {
         recordButton = document.createElement("button");
@@ -46,15 +35,9 @@ function ensureLoopRecordButton() {
         recordButton.innerHTML = '<i class="fa-solid fa-record-vinyl" aria-hidden="true"></i>';
     }
 
-    if (castButton) {
-        recordButton.classList.remove("loop-record-button-floating");
-        castButton.insertAdjacentElement("beforebegin", recordButton);
-        return;
-    }
-
-    // The responsive/mobile player does not always render the cast control.
-    // Keep a visible entry point in the page so Loop can be reopened after the
-    // user returns to normal YouTube Music without relying on the keyboard.
+    // Keep the entry point in the same fixed fallback position on every layout.
+    // The YouTube Music header can be replaced or covered while Loop is open,
+    // so the button should not move depending on whether cast is rendered.
     recordButton.classList.add("loop-record-button-floating");
     (document.body || document.documentElement).appendChild(recordButton);
 }
