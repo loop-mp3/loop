@@ -1,0 +1,76 @@
+import { hasUnplacedContextSweeps } from "./contextSweep.js";
+import { resetLineAnimationState } from "./lineAnimationState.js";
+import { isLineVisibleDuringScroll, LINE_SCROLL_WILL_CHANGE_VALUE } from "./lineScroll.js";
+// Use screen intersections because transformed scrolling decouples layout coordinates from visibility.
+const ONE_VIEWPORT_OVERSCAN = "100% 0px 100% 0px";
+export function setupLineCullObserver(engine) {
+    engine.lineCullObserver?.disconnect();
+    engine.lineCullObserver = null;
+    clearOffscreenLineCulling(engine);
+    const Observer = engine.window.IntersectionObserver;
+    if (engine.layout === "stage" || typeof Observer !== "function" || engine.lines.length === 0)
+        return;
+    // The engine owns scrollTop; Firefox's scroll anchoring would answer cull height shifts with a scroll the
+    // engine reads as the user's.
+    engine.host.getScrollElement()?.style.setProperty("overflow-anchor", "none");
+    pinCulledLineHeights(engine);
+    const observer = new Observer(entries => {
+        for (const entry of entries) {
+            const element = entry.target;
+            if (entry.isIntersecting) {
+                if (engine.culledLineElements.delete(element))
+                    uncullLine(element);
+                restartUnplacedLine(engine, element);
+            }
+            else if (!engine.culledLineElements.has(element)) {
+                cullLine(element);
+                engine.culledLineElements.add(element);
+            }
+        }
+    }, { root: null, rootMargin: ONE_VIEWPORT_OVERSCAN, threshold: 0 });
+    for (const line of engine.lines)
+        observer.observe(line.lyricElement);
+    engine.lineCullObserver = observer;
+}
+/** A line that started while it was skipped starts over now that its words have boxes to place on. */
+function restartUnplacedLine(engine, element) {
+    const line = engine.lines.find(candidate => candidate.lyricElement === element);
+    if (line && hasUnplacedContextSweeps(line))
+        resetLineAnimationState(line);
+}
+export function clearOffscreenLineCulling(engine) {
+    for (const element of engine.culledLineElements)
+        uncullLine(element);
+    engine.culledLineElements = new Set();
+}
+function pinCulledLineHeights(engine) {
+    const renderedHeights = engine.lines.map(line => line.lyricElement.offsetHeight);
+    engine.lines.forEach((line, index) => {
+        line.lyricElement.style.setProperty("contain-intrinsic-block-size", `auto ${renderedHeights[index]}px`);
+    });
+}
+function cullLine(element) {
+    element.style.setProperty("content-visibility", "auto");
+}
+function uncullLine(element) {
+    element.style.removeProperty("content-visibility");
+}
+export function updateVisibleLyricWillChange(engine, lines, fromScrollTop, toScrollTop, viewportHeight) {
+    const visibleElements = new Set();
+    for (const line of lines) {
+        if (!isLineVisibleDuringScroll(line, fromScrollTop, toScrollTop, viewportHeight))
+            continue;
+        line.lyricElement.style.setProperty("will-change", LINE_SCROLL_WILL_CHANGE_VALUE);
+        visibleElements.add(line.lyricElement);
+    }
+    for (const element of engine.visibleWillChangeElements) {
+        if (!visibleElements.has(element))
+            element.style.removeProperty("will-change");
+    }
+    engine.visibleWillChangeElements = visibleElements;
+}
+export function clearVisibleLyricWillChange(engine) {
+    for (const element of engine.visibleWillChangeElements)
+        element.style.removeProperty("will-change");
+    engine.visibleWillChangeElements = new Set();
+}

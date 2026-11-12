@@ -53,3 +53,5 @@ export function detectNonLatinLanguage(text) {
     }
     return null;
 }
+const comparable = (text) => text.toLowerCase().replaceAll(/\p{P}/gu, "").trim();
+export const isSameText = (a, b) => comparable(a) === comparable(b);

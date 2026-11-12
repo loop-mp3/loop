@@ -11,10 +11,16 @@
 // diagnostic overlay supplies the sink, and one that says nothing draws nothing.
 import { imageHighlights, refreshInstrumentalImages } from "./imageHighlights.js";
 import { CUSTOM_THEME_STYLE_ID } from "./constants.js";
-import { clearLyrics, clearOnScreenLyrics as clearEngineOnScreenLyrics, clearStyleCaches as clearEngineStyleCaches, createAnimationEngineInstance, getRenderedLines, getRenderedSyncType, hasUnsyncedLyrics, noteContainerResize, noteUserScroll as noteEngineUserScroll, noteVisibilityChange as noteEngineVisibilityChange, relayout, resetScrollResume, resolveTickOptions, retickFromPlaybackClock as retickEngineFromPlaybackClock, scheduleLyricPositionUpdate as scheduleEngineLyricPositionUpdate, tickView, } from "./engine.js";
+import { clearLyrics, clearOnScreenLyrics as clearEngineOnScreenLyrics, getRenderedLines, getRenderedSyncType, settleSwappedLines, } from "./engine/renderedLines.js";
+import { clearStyleCaches as clearEngineStyleCaches } from "./engine/cssValues.js";
+import { createAnimationEngineInstance } from "./engine/instance.js";
+import { hasUnsyncedLyrics } from "./engine/passiveScroll.js";
+import { hasContainerResized, noteUserScroll as noteEngineUserScroll, resetScrollResume } from "./engine/userScroll.js";
+import { noteVisibilityChange as noteEngineVisibilityChange } from "./engine/timingLogs.js";
+import { relayout, resolveTickOptions, retickAtLastTime, retickFromPlaybackClock as retickEngineFromPlaybackClock, scheduleLyricPositionUpdate as scheduleEngineLyricPositionUpdate, tickView, } from "./engine/tick.js";
 import { parseThemeConfig, setThemeSettings } from "./themeSettings.js";
 import { applyLyricLanguage, normalizeLanguage, resolveLyricLanguages } from "./language.js";
-import { setLyrics as buildLyricsView } from "./view.js";
+import { setLyrics as buildLyricsView, swapLyrics as swapLyricsView } from "./view.js";
 /**
  * What the default `seek` dispatches at the mount. A consumer that gave the renderer no way to
  * reach its player can listen for this instead of writing a host.
@@ -170,7 +176,8 @@ export function createLyricsRenderer(rendererOptions) {
      */
     function measure(measureLines = true) {
         forgetScrollElement();
-        relayout(engine, measureLines && areLinesMeasurable(getRenderedLines(engine)));
+        if (relayout(engine, measureLines && areLinesMeasurable(getRenderedLines(engine))))
+            retickAtLastTime(engine);
     }
     function stopObservingContainer() {
         containerResizeObserver?.disconnect();
@@ -199,7 +206,7 @@ export function createLyricsRenderer(rendererOptions) {
             const target = entries[entries.length - 1]?.target;
             if (!target)
                 return;
-            if (noteContainerResize(engine, target.clientWidth, target.clientHeight))
+            if (hasContainerResized(engine, target.clientWidth, target.clientHeight))
                 measure();
         });
         observer.observe(container);
@@ -269,23 +276,35 @@ export function createLyricsRenderer(rendererOptions) {
             if (!nextMount) {
                 throw new Error("A lyrics renderer needs a mount: give one to createLyricsRenderer or to setLyrics");
             }
-            // Before the mount moves, so a second song built somewhere else takes the first one's
-            // container with it rather than orphaning it in the mount it was built in.
-            clearBuiltView();
-            mount = nextMount;
-            buildLyricsView(engine, nextMount, lyrics, {
+            const viewOptions = {
                 language: options?.language,
                 loaderVisible: options?.loaderVisible ?? false,
                 noLyrics: options?.noLyrics ?? false,
                 songwriters: options?.songwriters,
                 showCredits: options?.showCredits,
-            });
+                songKey: options?.songKey,
+            };
+            // Lyrics for the song already on screen are swapped in, so whatever the two share stays exactly
+            // as it was. Read before the swap: the scroll is where the reader was.
+            const scrollTopBefore = host.getScrollElement()?.scrollTop ?? 0;
+            const swapped = swapLyricsView(engine, nextMount, lyrics, viewOptions);
+            if (swapped === null) {
+                // Before the mount moves, so a second song built somewhere else takes the first one's
+                // container with it rather than orphaning it in the mount it was built in.
+                clearBuiltView();
+                mount = nextMount;
+                buildLyricsView(engine, nextMount, lyrics, viewOptions);
+            }
             syncImagePaint();
             currentLyrics = lyrics;
             currentLanguage = normalizeLanguage(options?.language);
             measure();
-            if (engine.lyricsContainer)
+            if (swapped !== null) {
+                settleSwappedLines(engine, swapped, scrollTopBefore);
+            }
+            else if (engine.lyricsContainer) {
                 observeContainer(engine.lyricsContainer);
+            }
         },
         setLanguage(language) {
             const normalized = normalizeLanguage(language);
