@@ -15,6 +15,7 @@ import { addSeekHandler, applyDirection, buildLineSyncedParts, createLyricsLine,
 import { refreshInstrumentalImages } from "./imageHighlights.js";
 import { createInstrumentalElement } from "./instrumental.js";
 import { applyLyricLanguage, resolveLyricLanguages } from "./language.js";
+import { isGecko } from "./util.js";
 const INITIAL_SKIP_SCROLLS = 2;
 const SKIP_SCROLL_DECAY_MS = 2000;
 function buildInstrumentalLine(doc, lyricElement, lyrics, lineIndex) {
@@ -73,6 +74,8 @@ export function setLyrics(engine, mount, lyrics, options) {
     const doc = engine.document;
     const container = doc.createElement("div");
     container.className = LYRICS_CLASS;
+    if (isGecko())
+        container.dataset.browserEngine = "gecko";
     mount.replaceChildren(container);
     const allZero = lyrics.every(item => item.startTimeMs === 0);
     const seek = (timeS) => engine.host.seek(timeS);

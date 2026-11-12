@@ -1,6 +1,13 @@
 export function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
 }
+/**
+ * Whether the page renders with Gecko (Firefox). Detects the engine by a feature only it ships, so
+ * spoofed user agents and Firefox forks resolve the same way.
+ */
+export function isGecko() {
+    return typeof CSS !== "undefined" && CSS.supports("-moz-appearance", "none");
+}
 export function positiveModulo(value, divisor) {
     return ((value % divisor) + divisor) % divisor;
 }
