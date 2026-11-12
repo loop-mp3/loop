@@ -123,7 +123,7 @@ export function createLudoLyricsRenderer(lines, view) {
                 Math.abs(opacityVelocity[index]) <= 0.01;
             if (settled) {
                 animatedIndices.delete(index);
-                line.style.removeProperty("will-change");
+                elements[index].style.removeProperty("will-change");
             } else {
                 moving = true;
             }
