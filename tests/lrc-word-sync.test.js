@@ -193,3 +193,14 @@ test("keeps timed chorus vocals nested in lrc.red background spans", () => {
         { startTimeMs: 24_052, words: "my)" },
     ]);
 });
+
+test("preserves TTML voice agents, including inherited agents", () => {
+    const ttml = `<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata"><head><metadata><ttm:agent xml:id="v1" type="person"><ttm:name>Verity</ttm:name></ttm:agent><ttm:agent xml:id="v2" type="person"><ttm:name>Mob</ttm:name></ttm:agent><ttm:agent xml:id="v4" type="other"><ttm:name>Sample</ttm:name></ttm:agent></metadata></head><body><div ttm:agent="v1"><p begin="0s" end="1s"><span begin="0s" end="1s">I know</span></p><p begin="1s" end="2s" ttm:agent="v2"><span begin="1s" end="2s">Well, that's great!</span></p><p begin="2s" end="3s" ttm:agent="v4"><span begin="2s" end="3s">Sample line</span></p></div></body></tt>`;
+    const lines = parseSyncedLyrics(ttml);
+
+    assert.deepEqual(JSON.parse(JSON.stringify(lines.map(({ words, agent, agentType }) => ({ words, agent, agentType })))), [
+        { words: "I know", agent: "v1", agentType: "person" },
+        { words: "Well, that's great!", agent: "v2", agentType: "person" },
+        { words: "Sample line", agent: "v4", agentType: "other" },
+    ]);
+});

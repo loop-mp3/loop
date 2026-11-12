@@ -76,19 +76,40 @@ function getTTMLAttribute(node, namespace, localName, qualifiedName = localName)
     return node?.getAttributeNS?.(namespace, localName) || node?.getAttribute?.(qualifiedName) || null;
 }
 
+function getInheritedTTMLAttribute(node, namespace, localName, qualifiedName = localName) {
+    for (let current = node; current; current = current.parentNode) {
+        const value = getTTMLAttribute(current, namespace, localName, qualifiedName);
+        if (value) return value;
+    }
+    return null;
+}
+
 function isTTMLBackgroundSpan(node) {
     return getTTMLAttribute(node, TTML_METADATA_NAMESPACE, "role", "ttm:role") === "x-bg";
+}
+
+function getTTMLAgentTypes(documentRoot) {
+    const agentTypes = new Map();
+    for (const agent of documentRoot.getElementsByTagNameNS("*", "agent")) {
+        const id = agent.getAttribute("xml:id");
+        const type = agent.getAttribute("type");
+        if (id && type) agentTypes.set(id, type);
+    }
+    return agentTypes;
 }
 
 function parseTTMLLyrics(ttml, songDurationMs) {
     if (typeof DOMParser !== "function") return [];
     const documentRoot = new DOMParser().parseFromString(String(ttml), "application/xml");
     if (documentRoot.querySelector("parsererror")) return [];
+    const agentTypes = getTTMLAgentTypes(documentRoot);
     const paragraphs = [...documentRoot.getElementsByTagNameNS("*", "p")];
     return paragraphs.map((paragraph, index) => {
         const startTimeMs = parseTTMLTimestamp(paragraph.getAttribute("begin"));
         if (!Number.isFinite(startTimeMs)) return null;
         const nextStartTimeMs = parseTTMLTimestamp(paragraphs[index + 1]?.getAttribute("begin"));
+        const agent = getInheritedTTMLAttribute(paragraph, TTML_METADATA_NAMESPACE, "agent", "ttm:agent");
+        const agentType = agentTypes.get(agent);
         const explicitEndTimeMs = parseTTMLTimestamp(paragraph.getAttribute("end"));
         const durationMs = Math.max(0,
             Number.isFinite(explicitEndTimeMs) ? explicitEndTimeMs - startTimeMs :
@@ -149,6 +170,8 @@ function parseTTMLLyrics(ttml, songDurationMs) {
             durationMs,
             words,
             parts: parts.length ? parts : undefined,
+            agent: agent || undefined,
+            agentType: agentType || undefined,
         };
     }).filter((line) => line?.words).sort((left, right) => left.startTimeMs - right.startTimeMs);
 }

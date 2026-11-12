@@ -71,3 +71,14 @@
 .blyrics-container[data-layout="stage"][data-stage-duet] > .blyrics--line:not([data-agent="v2"], [data-agent="v3"], [data-agent="v1000"])[data-direction="rtl"] > .blyrics--romanized {
 	margin-right: 0;
 }
+
+.blyrics-container[data-layout="stage"][data-stage-duet] > .blyrics--line:is([data-agent="v1000"], [data-agent-type="group"], [data-agent-type="other"]) {
+	margin: 0 auto !important;
+	text-align: center;
+	transform-origin: center center !important;
+}
+
+.blyrics-container[data-layout="stage"][data-stage-duet] > .blyrics--line:is([data-agent="v1000"], [data-agent-type="group"], [data-agent-type="other"]) > .blyrics--romanized {
+	margin-left: auto;
+	margin-right: auto;
+}

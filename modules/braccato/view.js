@@ -42,6 +42,9 @@ function buildSungLine(doc, lyricElement, lyricItem, line) {
     if (lyricItem.agent) {
         lyricElement.dataset.agent = lyricItem.agent;
     }
+    if (lyricItem.agentType) {
+        lyricElement.dataset.agentType = lyricItem.agentType;
+    }
 }
 function formatSongwriters(names) {
     return names.length > 1 ? `${names.slice(0, -1).join(", ")} & ${names.at(-1)}` : (names[0] ?? "");
@@ -114,9 +117,11 @@ export function setLyrics(engine, mount, lyrics, options) {
     if (engine.layout === "stage") {
         container.dataset.layout = "stage";
         // Sides only when both are sung, so a song with one singer stays centred whichever voice it is.
-        const sung = lyrics.filter(item => !item.isInstrumental && item.words?.trim() && item.agent !== "v1000");
-        const onRight = (item) => item.agent === "v2" || item.agent === "v3";
-        if (sung.some(onRight) && sung.some(item => !onRight(item))) {
+        const sung = lyrics.filter(item => !item.isInstrumental && item.words?.trim());
+        const isCentered = (item) => item.agent === "v1000" || item.agentType === "group" || item.agentType === "other";
+        const onRight = (item) => !isCentered(item) && (item.agent === "v2" || item.agent === "v3");
+        const onLeft = (item) => !isCentered(item) && !onRight(item);
+        if (sung.some(onRight) && sung.some(onLeft)) {
             container.dataset.stageDuet = "";
         }
     }
