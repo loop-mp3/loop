@@ -6,7 +6,7 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@braccato/core": "^1.21.5",
+    "@braccato/core": "^1.16.3",
     "@kawarp/core": "1.2.0",
     "@uimaxbai/am-lyrics": "^1.9.0",
     "web-ext": "^10.8.0"

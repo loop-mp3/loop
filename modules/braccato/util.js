@@ -4,13 +4,6 @@ export function clamp(value, min, max) {
 export function positiveModulo(value, divisor) {
     return ((value % divisor) + divisor) % divisor;
 }
-/**
- * Whether the page renders with Gecko (Firefox). Detects the engine by a feature only it ships, so
- * spoofed user agents and Firefox forks resolve the same way.
- */
-export function isGecko() {
-    return typeof CSS !== "undefined" && CSS.supports("-moz-appearance", "none");
-}
 export function roundedMs(value) {
     return Math.round(value * 10) / 10;
 }

@@ -6,7 +6,6 @@
 // `createLyricsRenderer` is the way in. The four values beside it are what one instance cannot
 // answer for on its own: the song level operations address every live view at once, and the
 // injection helpers decorate lines that are already built.
-export { resetPlaybackClock } from "./engine/clock.js";
-export { resumeAllAutoscroll } from "./engine/userScroll.js";
-export { injectRomanization, injectTranslation, removeRomanization, removeTranslation, } from "./inject.js";
+export { resetPlaybackClock, resumeAllAutoscroll } from "./engine.js";
+export { injectRomanization, injectTranslation } from "./inject.js";
 export { createLyricsRenderer } from "./renderer.js";

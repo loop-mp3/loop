@@ -8,21 +8,22 @@
 // because a marketplace theme selects on the shape as well as on the names.
 //
 // A part is not a word. Providers hand over parts that run to several words, and the unit the sweep
-// animates is one word, so every part is split on whitespace with its timing pro-rated across the
-// split by character count. A line that arrives with no timed parts at all is rebuilt the same way
-// into zero duration words, so line synced lyrics reach the DOM the sweep already knows.
-import { releasePart } from "./engine/lineAnimationState.js";
+// A timed part may contain multiple words, so every part is split on whitespace with its timing
+// pro-rated across the split by character count. A line with no timed parts is rebuilt into zero-
+// duration words, but those words share the line timestamp and advance together.
+import { alignImageGlowRun, wrapImageHighlight } from "./imageHighlights.js";
 import { normalizeLanguage } from "./language.js";
-import { BACKGROUND_LINE_CLASS, BACKGROUND_LYRIC_CLASS, BIDI_RUN_CLASS, BIDI_SENSITIVE_CLASS, CONTENT_LINE_CLASS, EXPLICIT_WORD_CLASS, HIGHLIGHT_RUN_CLASS, LETTER_CLASS, LINE_MAIN_CLASS, LINE_SYNCED_WORD_CLASS, LONG_WORD_GROUP_CLASS, ROMANIZED_LYRICS_CLASS, RTL_CLASS, SWEEP_CELL_CLASS, SWEEP_GLOW_CLASS, SWEEP_MASK_CLASS, SWEEP_TEXT_CLASS, TRANSLATED_LYRICS_CLASS, WORD_CLASS, WORD_GROUP_CLASS, WORD_HIGHLIGHT_CLASS, WORD_HIGHLIGHT_CONTEXT_CLASS, WORD_HIGHLIGHT_LETTERED_CLASS, WORD_HIGHLIGHT_SWEEP_CLASS, WORD_STATE_ATTR, WORD_STATE_UPCOMING, ZERO_DURATION_ANIMATION_CLASS, } from "./constants.js";
-import { letterClusters } from "./letters.js";
+import { BACKGROUND_LINE_CLASS, BACKGROUND_LYRIC_CLASS, BIDI_RUN_CLASS, BIDI_SENSITIVE_CLASS, CONTENT_LINE_CLASS, EXPLICIT_WORD_CLASS, HIGHLIGHT_RUN_CLASS, LETTER_CLASS, LINE_MAIN_CLASS, LINE_SYNCED_WORD_CLASS, LONG_WORD_GROUP_CLASS, ROMANIZED_LYRICS_CLASS, RTL_CLASS, TRANSLATED_LYRICS_CLASS, WORD_CLASS, WORD_GROUP_CLASS, WORD_HIGHLIGHT_CLASS, WORD_HIGHLIGHT_LETTERED_CLASS, WORD_STATE_ATTR, WORD_STATE_UPCOMING, ZERO_DURATION_ANIMATION_CLASS, } from "./constants.js";
 import { getSeekTimeFromClick } from "./seek.js";
-import { isSameText, testJoiningScript, testRtl } from "./text.js";
+import { testJoiningScript, testRtl } from "./text.js";
 import { registerThemeSetting } from "./themeSettings.js";
 export let disableRichsync = registerThemeSetting("blyrics-disable-richsync", false, true);
+
 let longWordThreshold = registerThemeSetting("blyrics-long-word-threshold", 1500, true);
 let longWordWrapThreshold = registerThemeSetting("blyrics-long-word-wrap-threshold", 10, true);
 let letterWave = registerThemeSetting("blyrics-letter-wave", true, true);
 export const hideCredits = registerThemeSetting("blyrics-hide-credits", false, true);
+const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 const LTR_SCRIPT_REGEX = /[\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}\p{Script=Han}\p{Script=Hangul}\p{Script=Hiragana}\p{Script=Katakana}]/u;
 const SPACE_REGEX = /^\s+$/u;
 export function findNearestAgent(lyrics, fromIndex) {
@@ -63,14 +64,13 @@ export function deriveSyncType(lyrics) {
         return "richsync";
     return lyrics.every(item => item.startTimeMs === 0) ? "none" : "synced";
 }
-function newPartData(part, span, highlight, wobbleElements, letterElements, highlightLetterElements, sweep) {
+function newPartData(part, span, highlight, wobbleElements, letterElements, highlightLetterElements) {
     return {
         time: part.startTimeMs / 1000,
         duration: part.durationMs / 1000,
         lyricElement: span,
         highlightElement: highlight,
-        sweep,
-        sweepContext: highlight.classList.contains(WORD_HIGHLIGHT_CONTEXT_CLASS) ? {} : undefined,
+        imageLayers: wrapImageHighlight(highlight),
         letterElements,
         highlightLetterElements,
         wobbleElements,
@@ -139,7 +139,6 @@ function splitPartIntoTokens(part) {
             part: {
                 words: chunk,
                 isBackground: part.isBackground,
-                backgroundGroup: part.backgroundGroup,
                 explicit: part.explicit,
             },
         });
@@ -166,7 +165,7 @@ function splitPartIntoTokens(part) {
 function normalizeParts(parts) {
     return parts.flatMap(splitPartIntoTokens);
 }
-function groupTokensByWord(tokens, splitBackgroundGroups) {
+function groupTokensByWord(tokens) {
     const groups = [];
     let current = null;
     const flush = () => {
@@ -182,10 +181,9 @@ function groupTokensByWord(tokens, splitBackgroundGroups) {
             continue;
         }
         const isBackground = token.part?.isBackground === true;
-        const backgroundGroup = splitBackgroundGroups ? token.part?.backgroundGroup : undefined;
-        if (!current || current.isBackground !== isBackground || current.backgroundGroup !== backgroundGroup) {
+        if (!current || current.isBackground !== isBackground) {
             flush();
-            current = { text: "", isBackground, backgroundGroup, tokens: [] };
+            current = { text: "", isBackground, tokens: [] };
         }
         current.text += token.text;
         current.tokens.push(token);
@@ -193,21 +191,25 @@ function groupTokensByWord(tokens, splitBackgroundGroups) {
     flush();
     return groups;
 }
-function appendLongWordBreaks(doc, span, clusters, threshold) {
-    if (clusters.length <= threshold) {
-        span.textContent = clusters.join("");
+function appendLongWordBreaks(doc, span, text, threshold) {
+    if (text.length <= threshold) {
+        span.textContent = text;
         return false;
     }
-    for (let i = 0; i < clusters.length; i += threshold) {
-        span.appendChild(doc.createTextNode(clusters.slice(i, i + threshold).join("")));
-        if (i + threshold < clusters.length) {
+    for (let i = 0; i < text.length; i += threshold) {
+        span.appendChild(doc.createTextNode(text.slice(i, i + threshold)));
+        if (i + threshold < text.length) {
             span.appendChild(doc.createElement("wbr"));
         }
     }
     return true;
 }
-function appendLetters(doc, wordElement, chars) {
+function appendLetters(doc, wordElement, text) {
+    const chars = [...graphemeSegmenter.segment(text)].map(segment => segment.segment);
     wordElement.style.setProperty("--letters", String(chars.length));
+    // Width of the reveal mask's soft edge as a percentage of its (n+2)-letter-wide box, so the fade
+    // spans the same 0.1*letters of a letter that the old gradient did. See the mask rule in lyrics.css.
+    wordElement.style.setProperty("--mask-fade", `${(10 * chars.length) / (chars.length + 2)}%`);
     return chars.map(char => {
         const letter = doc.createElement("span");
         letter.classList.add(LETTER_CLASS);
@@ -216,53 +218,12 @@ function appendLetters(doc, wordElement, chars) {
         return letter;
     });
 }
-function fillWordText(doc, host, clusters, wrapThreshold, perLetter, preserveJoining) {
-    if (perLetter)
-        return appendLetters(doc, host, clusters);
-    if (preserveJoining)
-        host.textContent = clusters.join("");
-    else
-        appendLongWordBreaks(doc, host, clusters, wrapThreshold);
-    return undefined;
-}
-const SWEEP_GLOW_RADII = ["wide", "tight"];
-export function createSweepCell(doc, host, fill) {
-    const mask = doc.createElement("span");
-    mask.classList.add(SWEEP_MASK_CLASS);
-    const text = doc.createElement("span");
-    text.classList.add(SWEEP_TEXT_CLASS);
-    mask.appendChild(text);
-    const letters = fill(text);
-    const glows = SWEEP_GLOW_RADII.map(radius => {
-        const glow = doc.createElement("span");
-        glow.classList.add(SWEEP_GLOW_CLASS, `${SWEEP_GLOW_CLASS}--${radius}`);
-        const glowLetters = fill(glow);
-        text.appendChild(glow);
-        return { glow, letters: glowLetters };
-    });
-    host.classList.add(SWEEP_CELL_CLASS);
-    host.appendChild(mask);
-    return { mask, text, letters, glows };
-}
-/** Makes each letter of a word that flows inline its own sweep cell, holding the letter's text. */
-function createLetterSweepCells(doc, letters) {
-    return letters.map(letter => {
-        const text = letter.textContent ?? "";
-        letter.textContent = "";
-        return createSweepCell(doc, letter, into => {
-            into.appendChild(doc.createTextNode(text));
-            return undefined;
-        });
-    });
-}
-function createTimedWordSpan(doc, part, wrapThreshold, perLetter, preserveJoining, atomic) {
+function createTimedWordSpan(doc, part, wrapThreshold, perLetter, preserveJoining) {
     const span = doc.createElement("span");
     const highlight = doc.createElement("span");
     highlight.classList.add(WORD_HIGHLIGHT_CLASS);
-    let sweep;
     let letters;
     let highlightLetters;
-    const clusters = perLetter || (!preserveJoining && part.words.length > wrapThreshold) ? letterClusters(part.words) : [part.words];
     for (const wordElement of [span, highlight]) {
         wordElement.classList.add(WORD_CLASS);
         wordElement.dir = "auto";
@@ -280,52 +241,42 @@ function createTimedWordSpan(doc, part, wrapThreshold, perLetter, preserveJoinin
             wordElement.classList.add(EXPLICIT_WORD_CLASS);
         if (perLetter) {
             wordElement.classList.add("blyrics-word--lettered");
-            if (wordElement === highlight)
+            const collected = appendLetters(doc, wordElement, part.words);
+            if (wordElement === span) {
+                letters = collected;
+            }
+            else {
+                highlightLetters = collected;
                 wordElement.classList.add(WORD_HIGHLIGHT_LETTERED_CLASS);
+            }
         }
-        if (wordElement === highlight && atomic) {
-            const cell = createSweepCell(doc, highlight, into => fillWordText(doc, into, clusters, wrapThreshold, perLetter, preserveJoining));
-            sweep = [cell];
-            highlightLetters = cell.letters;
+        else if (preserveJoining) {
+            wordElement.textContent = part.words;
         }
         else {
-            const collected = fillWordText(doc, wordElement, clusters, wrapThreshold, perLetter, preserveJoining);
-            if (wordElement === span)
-                letters = collected;
-            else
-                highlightLetters = collected;
-            if (wordElement === highlight && collected)
-                sweep = createLetterSweepCells(doc, collected);
+            appendLongWordBreaks(doc, wordElement, part.words, wrapThreshold);
         }
-        if (wordElement === highlight && sweep)
-            highlight.classList.add(WORD_HIGHLIGHT_SWEEP_CLASS);
-        else if (wordElement === highlight)
-            highlight.classList.add(WORD_HIGHLIGHT_CONTEXT_CLASS);
         wordElement.dataset.time = String(part.startTimeMs / 1000);
         wordElement.dataset.duration = String(part.durationMs / 1000);
         wordElement.dataset.content = part.words;
         wordElement.setAttribute(WORD_STATE_ATTR, WORD_STATE_UPCOMING);
         wordElement.style.setProperty("--blyrics-duration", part.durationMs + "ms");
     }
-    return { span, highlight, letters, highlightLetters, sweep };
+    return { span, highlight, letters, highlightLetters };
 }
-function createWordGroup(doc, group, lineData, wordsFlowInline) {
+function createWordGroup(doc, group, lineData) {
     const wrapThreshold = Math.max(1, longWordWrapThreshold.getNumberValue());
     // Atomic grapheme spans disrupt the browser's bidi ordering inside a mixed word.
     const mixedDirection = testRtl(group.text) && [...group.text].some(char => /[\p{Letter}\p{Number}]/u.test(char) && !testRtl(char));
     const preserveJoining = testJoiningScript(group.text);
     const perLetter = letterWave.getBooleanValue() && !preserveJoining && !mixedDirection;
-    const isLongGroup = group.text.length > wrapThreshold * 2 && letterClusters(group.text).length > wrapThreshold * 2;
     const lyricGroup = doc.createElement("span");
     const highlightGroup = doc.createElement("span");
-    // A word that is its own inline-block box can hold the sweep's block layers. Long groups and
-    // bidi-sensitive rows lay their words out inline, where a word can break across lines.
-    const atomic = !wordsFlowInline && !isLongGroup;
     for (const groupElement of [lyricGroup, highlightGroup]) {
         groupElement.classList.add(WORD_GROUP_CLASS);
         groupElement.dir = "auto";
         groupElement.dataset.content = group.text;
-        if (isLongGroup) {
+        if (group.text.length > wrapThreshold * 2) {
             groupElement.classList.add(LONG_WORD_GROUP_CLASS);
         }
         if (group.isBackground) {
@@ -335,9 +286,9 @@ function createWordGroup(doc, group, lineData, wordsFlowInline) {
     for (const token of group.tokens) {
         if (token.kind === "space")
             continue;
-        const { span, highlight, letters, highlightLetters, sweep } = createTimedWordSpan(doc, token.part, wrapThreshold, perLetter, preserveJoining, atomic);
+        const { span, highlight, letters, highlightLetters } = createTimedWordSpan(doc, token.part, wrapThreshold, perLetter, preserveJoining);
         const wobbleElements = lyricGroup.childNodes.length === 0 ? [lyricGroup, highlightGroup] : [];
-        lineData.parts.push(newPartData(token.part, span, highlight, wobbleElements, letters, highlightLetters, sweep));
+        lineData.parts.push(newPartData(token.part, span, highlight, wobbleElements, letters, highlightLetters));
         lyricGroup.appendChild(span);
         highlightGroup.appendChild(highlight);
     }
@@ -379,36 +330,24 @@ export function createLyricsLine(doc, parts, line, lyricElement, options = { spl
             .map(part => part.words)
             .join("")
         : lineText;
-    const backgroundTextOf = (group) => parts
-        .filter(part => part.isBackground === true && (part.backgroundGroup ?? 0) === group)
+    const backgroundText = parts
+        .filter(part => part.isBackground === true)
         .map(part => part.words)
         .join("");
     const main = createContentLine(doc, LINE_MAIN_CLASS, mainText);
     const mainRun = createBidiRun(doc, mainText);
     const mainHighlightRun = createHighlightRun(doc, mainText);
-    const groupedTokens = groupTokensByWord(normalizeParts(parts), options.splitBackgroundLine);
-    const backgroundRows = new Map();
-    const backgroundRowOf = (group) => {
-        let row = backgroundRows.get(group);
-        if (!row) {
-            const text = backgroundTextOf(group);
-            row = {
-                line: createContentLine(doc, BACKGROUND_LINE_CLASS, text),
-                run: createBidiRun(doc, text),
-                highlightRun: createHighlightRun(doc, text),
-                used: false,
-            };
-            row.line.appendChild(row.highlightRun);
-            row.line.appendChild(row.run);
-            backgroundRows.set(group, row);
-        }
-        return row;
-    };
-    backgroundRowOf(0);
+    const groupedTokens = groupTokensByWord(normalizeParts(parts));
+    const backgroundLine = createContentLine(doc, BACKGROUND_LINE_CLASS, backgroundText);
+    const backgroundRun = createBidiRun(doc, backgroundText);
+    const backgroundHighlightRun = createHighlightRun(doc, backgroundText);
+    let hasBackground = false;
     let pendingForegroundSpace = "";
     let pendingBackgroundSpace = "";
     main.appendChild(mainHighlightRun);
     main.appendChild(mainRun);
+    backgroundLine.appendChild(backgroundHighlightRun);
+    backgroundLine.appendChild(backgroundRun);
     for (const item of groupedTokens) {
         if ("kind" in item) {
             // Is a RenderToken, not a WordGroup, only whitespace should enter this path
@@ -417,20 +356,18 @@ export function createLyricsLine(doc, parts, line, lyricElement, options = { spl
         }
         else {
             const shouldUseBackgroundLine = options.splitBackgroundLine && item.isBackground;
-            const backgroundRow = shouldUseBackgroundLine ? backgroundRowOf(item.backgroundGroup ?? 0) : null;
-            const target = backgroundRow ? backgroundRow.run : mainRun;
-            const highlightRun = backgroundRow ? backgroundRow.highlightRun : mainHighlightRun;
+            const target = shouldUseBackgroundLine ? backgroundRun : mainRun;
+            const highlightRun = shouldUseBackgroundLine ? backgroundHighlightRun : mainHighlightRun;
             const pendingSpace = shouldUseBackgroundLine ? pendingBackgroundSpace : pendingForegroundSpace;
             if (target.childNodes.length > 0 && pendingSpace.length > 0) {
                 target.appendChild(createSpaceNode(doc, pendingSpace, shouldUseBackgroundLine));
                 highlightRun.appendChild(createSpaceNode(doc, pendingSpace, shouldUseBackgroundLine));
             }
-            const contentLine = backgroundRow ? backgroundRow.line : main;
-            const { lyricGroup, highlightGroup } = createWordGroup(doc, item, line, contentLine.classList.contains(BIDI_SENSITIVE_CLASS));
+            const { lyricGroup, highlightGroup } = createWordGroup(doc, item, line);
             target.appendChild(lyricGroup);
             highlightRun.appendChild(highlightGroup);
-            if (backgroundRow) {
-                backgroundRow.used = true;
+            if (shouldUseBackgroundLine) {
+                hasBackground = true;
                 pendingBackgroundSpace = "";
             }
             else {
@@ -438,24 +375,28 @@ export function createLyricsLine(doc, parts, line, lyricElement, options = { spl
             }
         }
     }
-    const usedBackgroundRows = [...backgroundRows]
-        .filter(([, row]) => row.used)
-        .sort(([a], [b]) => a - b)
-        .map(([, row]) => row);
+    alignImageGlowRun(mainHighlightRun, line.parts);
+    if (hasBackground)
+        alignImageGlowRun(backgroundHighlightRun, line.parts);
     lyricElement.appendChild(main);
-    for (const row of usedBackgroundRows)
-        lyricElement.appendChild(row.line);
+    if (hasBackground) {
+        lyricElement.appendChild(backgroundLine);
+    }
     return main;
 }
 export function buildLineSyncedParts(item) {
     const parts = [];
     const tokens = item.words.match(/\s+|\S+/gu) ?? [];
+
     for (const token of tokens) {
+        const isSpace = SPACE_REGEX.test(token);
+        const startTimeMs = item.startTimeMs;
         parts.push({
-            startTimeMs: item.startTimeMs,
+            startTimeMs,
             words: token,
             durationMs: 0,
         });
+
     }
     return parts;
 }
@@ -471,88 +412,8 @@ export function addSeekHandler(seek, lyricElement, allZero) {
         seek(seekTime);
     });
 }
-function repeatsLine(lyricElement, text) {
-    const mainRun = [
-        ...(lyricElement.querySelector(`:scope > .${LINE_MAIN_CLASS}`)?.querySelectorAll(`:scope > .${BIDI_RUN_CLASS}`) ??
-            []),
-    ].find(run => !run.classList.contains(HIGHLIGHT_RUN_CLASS));
-    return mainRun?.textContent != null && isSameText(mainRun.textContent, text);
-}
-/**
- * What each injected decoration was made from. A line a swap kept still carries what was hung on it,
- * so injecting the same again is nothing to do and injecting something else replaces it.
- */
-const decorationSources = new WeakMap();
-/**
- * Has the next tick set a line's animations up again, the parts just added to it included. A line
- * already being sung sets its parts up once, so parts added after that would stay still until the
- * line came round again. Its running animations are left alone: the setup replaces each one, so
- * nothing on the line goes still in between.
- */
-function rearmLineAnimations(lineData) {
-    lineData.isAnimating = false;
-}
-/** Takes a decoration off its line, along with any timed parts it brought, and stops their animations. */
-function removeDecoration(lineData, decoration) {
-    lineData.parts = lineData.parts.filter(part => {
-        if (!decoration.contains(part.lyricElement))
-            return true;
-        releasePart(part);
-        return false;
-    });
-    decoration.remove();
-}
-/**
- * Takes the romanization off a line, along with any timed parts it brought. A line a swap kept goes on
- * carrying what was hung on it, so this is how a consumer drops one it no longer wants. Answers
- * whether there was one to take off.
- */
-export function removeRomanization(lyricElement, lineData) {
-    const existing = lyricElement.querySelector(`:scope > .${ROMANIZED_LYRICS_CLASS}`);
-    if (existing === null)
-        return false;
-    removeDecoration(lineData, existing);
-    return true;
-}
-/**
- * Takes the translation off a line. A line a swap kept goes on carrying what was hung on it, so this is
- * how a consumer drops one it no longer wants. Answers whether there was one to take off.
- */
-export function removeTranslation(lyricElement) {
-    const existing = lyricElement.querySelector(`:scope > .${TRANSLATED_LYRICS_CLASS}`);
-    if (existing === null)
-        return false;
-    existing.remove();
-    return true;
-}
-/**
- * Moves the translation and romanization hung on one line onto the line built in its place, with any
- * timed parts they brought, so a line rebuilt for its timing keeps what the consumer hung on it. The
- * parts are let go of whatever the old line was showing; the new line sets them up again with its own.
- */
-export function moveDecorations(from, to) {
-    const decorations = Array.from(from.lyricElement.childNodes).filter((node) => node.classList?.contains(ROMANIZED_LYRICS_CLASS) === true ||
-        node.classList?.contains(TRANSLATED_LYRICS_CLASS) === true);
-    for (const decoration of decorations) {
-        from.parts = from.parts.filter(part => {
-            if (!decoration.contains(part.lyricElement))
-                return true;
-            releasePart(part);
-            to.parts.push(part);
-            return false;
-        });
-        to.lyricElement.appendChild(decoration);
-    }
-}
 export function injectRomanization(doc, lyricElement, lineData, text, timedRomanization = null) {
-    const source = JSON.stringify([text, timedRomanization ?? null]);
-    const existing = lyricElement.querySelector(`:scope > .${ROMANIZED_LYRICS_CLASS}`);
-    if (existing !== null) {
-        if (decorationSources.get(existing) === source)
-            return;
-        removeDecoration(lineData, existing);
-    }
-    if (repeatsLine(lyricElement, text))
+    if (lyricElement.querySelector(`.${ROMANIZED_LYRICS_CLASS}`))
         return;
     const romanizedLine = doc.createElement("div");
     romanizedLine.classList.add(ROMANIZED_LYRICS_CLASS, CONTENT_LINE_CLASS);
@@ -562,24 +423,15 @@ export function injectRomanization(doc, lyricElement, lineData, text, timedRoman
     applyDirection(romanizedLine, text);
     if (timedRomanization && timedRomanization.length > 0 && !disableRichsync.getBooleanValue()) {
         createLyricsLine(doc, timedRomanization, lineData, romanizedLine, { splitBackgroundLine: false });
-        rearmLineAnimations(lineData);
     }
     else {
         romanizedLine.textContent = text;
     }
-    decorationSources.set(romanizedLine, source);
     const translation = lyricElement.querySelector(`.${TRANSLATED_LYRICS_CLASS}`);
     lyricElement.insertBefore(romanizedLine, translation);
 }
 export function injectTranslation(doc, lyricElement, text, language) {
-    const source = JSON.stringify([text, normalizeLanguage(language)]);
-    const existing = lyricElement.querySelector(`:scope > .${TRANSLATED_LYRICS_CLASS}`);
-    if (existing !== null) {
-        if (decorationSources.get(existing) === source)
-            return;
-        existing.remove();
-    }
-    if (repeatsLine(lyricElement, text))
+    if (lyricElement.querySelector(`.${TRANSLATED_LYRICS_CLASS}`))
         return;
     const translatedText = text.startsWith("(") && text.endsWith(")") ? text : `(${text})`;
     const translatedLine = doc.createElement("div");
@@ -588,6 +440,5 @@ export function injectTranslation(doc, lyricElement, text, language) {
     translatedLine.lang = normalizeLanguage(language);
     applyDirection(translatedLine, translatedText);
     translatedLine.textContent = translatedText;
-    decorationSources.set(translatedLine, source);
     lyricElement.appendChild(translatedLine);
 }

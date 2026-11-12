@@ -57,6 +57,11 @@
 	transform: translateY(-4%);
 }
 
+.blyrics--paused .blyrics--wave-clip {
+	transition-duration: 100000000s !important;
+	transform: translateY(100%) !important;
+}
+
 .blyrics--wave-path {
 	/* Set the transform origin to the bottom of the wave shape (y=4). */
 	transform-box: fill-box;
@@ -66,12 +71,6 @@
 	transform: scaleY(1.2);
 
 	d: var(--blyrics-instrumental-wave-path-high);
-}
-
-/* Gecko misplaces a fill-box origin inside a clipPath, so pin the wave's floor (y=4) in user units. */
-.blyrics-container[data-browser-engine="gecko"] .blyrics--wave-path {
-	transform-box: view-box;
-	transform-origin: 0 4px;
 }
 
 /* Trigger the Flattening */

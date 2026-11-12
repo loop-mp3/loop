@@ -23,26 +23,8 @@
 	padding-bottom: calc(var(--blyrics-padding-bottom));
 	padding-top: 2rem;
 	position: relative !important;
-	will-change: transform;
+
 	z-index: 1;
-}
-
-/* Firefox does not reliably keep the compositor sweep's text/mask copies aligned. Keep timing and
-   whole-word state changes, but render only the base text layer so misaligned copies cannot ghost. */
-.blyrics-container[data-browser-engine="gecko"] {
-	--blyrics-animate-word-wobble: 0 !important;
-	--blyrics-animate-highlight-swipe: 0 !important;
-	--blyrics-animate-highlight-glow: 0 !important;
-}
-
-.blyrics-container[data-browser-engine="gecko"] .blyrics-highlight-run,
-.blyrics-container[data-browser-engine="gecko"] .blyrics-sweep-context {
-	display: none !important;
-}
-
-.blyrics-container[data-browser-engine="gecko"] .blyrics--word[data-word-state="active"],
-.blyrics-container[data-browser-engine="gecko"] .blyrics--word[data-word-state="past"] {
-	color: var(--blyrics-lyric-active-color);
 }
 
 .blyrics-container > div {
@@ -145,13 +127,96 @@
 	white-space: inherit;
 }
 
+@property --lyric-transition-amount-start {
+	syntax: "<number>";
+	inherits: true;
+	initial-value: -0.2;
+}
+
+@property --lyric-transition-amount-end {
+	syntax: "<number>";
+	inherits: true;
+	initial-value: -0.1;
+}
+
+.blyrics--word[data-word-state="upcoming"] {
+	/* Upcoming lyrics stay visible while the renderer prepares the active line early. */
+	color: #666;
+	transition: color 80ms linear;
+}
+
+.blyrics--word[data-word-state="active"]:not(.blyrics-line-synced-word) {
+	/* Rich-sync words use the active color as soon as their timestamp is reached. */
+	color: var(--blyrics-lyric-active-color);
+	transition: color 120ms ease-out;
+}
+
+/* The source word is animated rather than the highlight overlay, so this remains a small,
+   compositor-friendly visual cue and does not interfere with the timestamped reveal. */
+.blyrics--word[data-word-state="active"]:not(.blyrics-line-synced-word):not(.blyrics-word-highlight) {
+	animation: blyrics-word-activate 180ms ease-out both;
+}
+
+@keyframes blyrics-word-activate {
+	from {
+		filter: brightness(0.95);
+		opacity: 0.86;
+	}
+	to {
+		filter: brightness(1.05);
+		opacity: 1;
+	}
+}
+
+.blyrics--word[data-word-state="past"] {
+	color: #fff;
+	transition: color 80ms linear;
+}
+
 .blyrics--word.blyrics-word-highlight {
+	color: transparent;
+	background-image: linear-gradient(
+		90deg,
+		var(--blyrics-lyric-active-color)
+			calc(100% * var(--lyric-transition-amount-start)),
+		#00000000
+			calc(100% * var(--lyric-transition-amount-end) + 1px)
+	);
+	background-clip: text;
 	opacity: 0;
 	pointer-events: none;
+	--lyric-transition-amount-start: var(
+		--blyrics-highlight-swipe-start-from,
+		-0.2
+	);
+	--lyric-transition-amount-end: var(--blyrics-highlight-swipe-end-from, -0.1);
+}
+.blyrics-word-highlight.blyrics-rtl {
+	background-image: linear-gradient(
+		270deg,
+		var(--blyrics-lyric-active-color)
+			calc(100% * var(--lyric-transition-amount-start)),
+		#00000000
+			calc(100% * var(--lyric-transition-amount-end) + 1px)
+	);
+}
+
+/* Keep completed syllables highlighted even when a seek, tab switch, or dropped animation frame
+   prevents the Web Animation from reaching its final keyframe. The active part still uses the
+   gradient/mask above, so its fill progresses with the provider's timestamp. */
+.blyrics--word.blyrics-word-highlight[data-word-state="past"] {
+	background-image: none;
+	color: #fff;
+	opacity: 1;
+}
+
+.blyrics--word.blyrics-word-highlight[data-word-state="past"] .blyrics--letter {
+	-webkit-mask-image: none;
+	mask-image: none;
 }
 
 .blyrics--letter {
-	display: inline-block;
+    display: inline-block;
 }
 
 /* Atomic letter boxes otherwise take their visual ordering from the surrounding
@@ -160,161 +225,58 @@
 	unicode-bidi: isolate;
 }
 
-/* WebRender snaps 2D-translated glyphs to whole pixels; perspective rasterizes them in local space. */
-.blyrics-container[data-browser-engine="gecko"] .blyrics--animating .blyrics-word--lettered {
-	perspective: 100000px;
+.blyrics-word-highlight.blyrics-word-highlight--lettered {
+	background-image: none;
 }
 
-/* The compositor's sweep. A cell is a word that is its own inline-block box, or one letter of a word
-   that flows inline. Its mask box is 3 + fade cells wide and starts a cell before the cell: opaque up
-   to half a cell past the cell's end (SWEEP_REST in sweepPlans.ts), then a soft edge `fade` cells
-   wide, where fade is the swipe's width from its last start stop to its last end stop, in cells. The
-   engine slides the mask back to where the swipe begins and the text inside it the other way by the
-   same distance, so the glyphs hold still while the edge crosses them. The glow's two halos sit in
-   that same text, so the edge reveals them with it. With nothing animating the mask rests with the
-   cell lit and its halos whole. */
-.blyrics--word.blyrics-word-highlight.blyrics-word-highlight--sweep {
+.blyrics-word-highlight .blyrics--letter {
 	color: var(--blyrics-lyric-active-color);
-	--blyrics-sweep-angle: 90deg;
-	--blyrics-sweep-fade: calc(
-		var(--blyrics-highlight-swipe-end-to, 1.5) - var(--blyrics-highlight-swipe-start-to, 1.4)
-	);
-}
-
-.blyrics--word.blyrics-word-highlight.blyrics-word-highlight--sweep.blyrics-rtl,
-.blyrics-sweep-window.blyrics-sweep-cell[dir="rtl"] {
-	--blyrics-sweep-angle: 270deg;
-}
-
-.blyrics-word-highlight--sweep .blyrics--letter.blyrics-sweep-cell {
-	--blyrics-sweep-fade: calc(
-		(var(--blyrics-highlight-swipe-end-to, 1.5) - var(--blyrics-highlight-swipe-start-to, 1.4)) *
-			var(--letters, 1)
-	);
-}
-
-/* The mask boxes are laid out by direction, which a `dir="auto"` word does not hand down to its letters,
-   so each cell takes the direction of the word the engine sweeps it for. */
-.blyrics-sweep-cell {
-	direction: ltr;
-	/* The mask boxes add nothing to the row's scroll width; the margin keeps the glow's halo. */
-	overflow: clip;
-	overflow-clip-margin: 2rem;
-	position: relative;
-}
-
-.blyrics-word-highlight--sweep.blyrics-rtl .blyrics-sweep-cell,
-.blyrics-sweep-window.blyrics-sweep-cell[dir="rtl"] {
-	direction: rtl;
-}
-
-.blyrics-sweep-mask {
-	--blyrics-sweep-widths: calc(3 + var(--blyrics-sweep-fade));
-	box-sizing: content-box;
-	display: block;
-	margin-inline-start: -100%;
-	width: calc(var(--blyrics-sweep-widths) * 100%);
-	/* Room above and below for the halo, the letter wave and glyphs that reach past the line box. */
-	padding-block: calc(0.5em + var(--blyrics-highlight-glow-radius-from, 0.8rem));
-	margin-block: calc(-0.5em - var(--blyrics-highlight-glow-radius-from, 0.8rem));
-	--blyrics-sweep-solid: calc(250% / var(--blyrics-sweep-widths));
-	--blyrics-sweep-clear: calc((2.5 + var(--blyrics-sweep-fade)) * 100% / var(--blyrics-sweep-widths));
-	-webkit-mask-image: linear-gradient(var(--blyrics-sweep-angle), #000 var(--blyrics-sweep-solid), #0000 var(--blyrics-sweep-clear));
-	mask-image: linear-gradient(var(--blyrics-sweep-angle), #000 var(--blyrics-sweep-solid), #0000 var(--blyrics-sweep-clear));
+	-webkit-mask-image: linear-gradient(90deg, #000 0, #000 50%, #0000 calc(50% + var(--mask-fade, 3%)));
+	mask-image: linear-gradient(90deg, #000 0, #000 50%, #0000 calc(50% + var(--mask-fade, 3%)));
 	-webkit-mask-repeat: no-repeat;
 	mask-repeat: no-repeat;
+	-webkit-mask-size: calc((var(--letters, 1) + 2) * 100%) 100%;
+	mask-size: calc((var(--letters, 1) + 2) * 100%) 100%;
+	-webkit-mask-position: 0% 0%;
+	mask-position: 0% 0%;
 }
 
-.blyrics-sweep-text {
-	box-sizing: content-box;
-	display: block;
-	isolation: isolate;
-	margin-inline-start: calc(100% / var(--blyrics-sweep-widths));
-	position: relative;
-	width: calc(100% / var(--blyrics-sweep-widths));
+.blyrics-word-highlight.blyrics-rtl .blyrics--letter {
+	-webkit-mask-image: linear-gradient(270deg, #000 0, #000 50%, #0000 calc(50% + var(--mask-fade, 3%)));
+	mask-image: linear-gradient(270deg, #000 0, #000 50%, #0000 calc(50% + var(--mask-fade, 3%)));
+	-webkit-mask-position: 100% 0%;
+	mask-position: 100% 0%;
 }
 
-/* A halo is a copy of the text whose own glyphs are clear, under a text shadow that never changes; the
-   engine fades it by opacity. */
-.blyrics-sweep-glow {
-	--blyrics-sweep-glow-radius: var(--blyrics-highlight-glow-radius-from, 0.8rem);
-	color: transparent;
-	inset: 0;
-	opacity: 0;
-	pointer-events: none;
-	position: absolute;
-	text-shadow: 0 0 var(--blyrics-sweep-glow-radius) var(--blyrics-glow-color);
-	user-select: none;
-	z-index: -1;
+/* Line-synced lyrics have no syllable timestamps. Once their line starts, paint every word white
+   together instead of showing the rich-sync word-by-word progression. */
+.blyrics--word.blyrics-line-synced-word[data-word-state="active"],
+.blyrics--word.blyrics-line-synced-word[data-word-state="past"] {
+	color: #fff;
 }
 
-/* The glow shrinks as it fades. The engine crossfades from the wide halo to this one, which sits where
-   the radius has shrunk to by the time the wide one is gone. */
-.blyrics-sweep-glow--tight {
-	--blyrics-sweep-glow-radius: calc(var(--blyrics-highlight-glow-radius-from, 0.8rem) * 0.4);
+.blyrics--word.blyrics-word-highlight.blyrics-line-synced-word[data-word-state="active"],
+.blyrics--word.blyrics-word-highlight.blyrics-line-synced-word[data-word-state="past"] {
+	background-image: none !important;
+	color: #fff;
+	opacity: 1 !important;
 }
 
-/* A word that flows inline keeps its text here only for layout; its sweep is drawn by cells placed over
-   each box it breaks into, which show the word from copies of its line. */
-.blyrics--word.blyrics-word-highlight.blyrics-word-highlight--context {
-	color: transparent;
+.blyrics--word.blyrics-word-highlight.blyrics-line-synced-word[data-word-state="active"] .blyrics--letter,
+.blyrics--word.blyrics-word-highlight.blyrics-line-synced-word[data-word-state="past"] .blyrics--letter {
+	-webkit-mask-image: none;
+	mask-image: none;
 }
 
-.blyrics-sweep-context {
-	inset: 0;
-	opacity: 0;
-	pointer-events: none;
-	position: absolute;
-	user-select: none;
-	z-index: 1;
-}
-
-.blyrics-sweep-window {
-	--blyrics-sweep-angle: 90deg;
-	position: absolute;
-}
-
-.blyrics-sweep-window .blyrics-sweep-mask,
-.blyrics-sweep-window .blyrics-sweep-text {
-	height: 100%;
-}
-
-.blyrics-sweep-clone {
-	color: transparent;
-	max-width: none;
-	position: absolute;
-	text-shadow: none;
-}
-
-.blyrics-sweep-clone .blyrics--word {
-	color: transparent;
-}
-
-.blyrics-sweep-clone .blyrics--word.blyrics-sweep-target {
-	color: var(--blyrics-lyric-active-color);
-}
-
-.blyrics-sweep-glow .blyrics-sweep-clone .blyrics--word.blyrics-sweep-target {
-	color: transparent;
-	text-shadow: 0 0 var(--blyrics-sweep-glow-radius) var(--blyrics-glow-color);
-}
-
-/* text-decoration skips inline-block letters and rides the wave, so draw on the word box instead, from its
-   center (fixed against the text at any line-height), with layout-neutral padding so a tight box can hold it. */
 [blyrics-alt-hover] .blyrics--word:hover {
-	padding-block: 0.25em;
-	margin-block: -0.25em;
-	background-image: linear-gradient(currentColor, currentColor);
-	background-position: 0 calc(50% + 0.54em);
-	background-repeat: no-repeat;
-	background-size: 100% 0.06em;
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
 }
 
 .blyrics--line > .blyrics-line-main > .blyrics-background-lyric,
 .blyrics--line > .blyrics-background-line > .blyrics-background-lyric,
 .blyrics--line > .blyrics-line-main > .blyrics-bidi-run > .blyrics-background-lyric,
-.blyrics--line > .blyrics-background-line > .blyrics-bidi-run > .blyrics-background-lyric,
-.blyrics-sweep-clone > .blyrics-background-lyric {
+.blyrics--line > .blyrics-background-line > .blyrics-bidi-run > .blyrics-background-lyric {
 	font-size: 0.75em;
 	font-weight: 500;
 }
@@ -333,8 +295,12 @@
 	color: var(--blyrics-translated-color);
 	display: block;
 	font-family: var(--blyrics-translated-font-family, var(--blyrics-font-family, var(--blyrics-default-font-family)));
-	font-size: var(--blyrics-translated-font-size);
-	font-weight: var(--blyrics-translated-font-weight);
+/* instead of calling the variables we can just hard code them cuz i dont know for some reason THESE ARE NOT WORKING IF CHANGE THE VALUE OF THE VARIABLES*/
+	font-size: 2rem;
+	font-weight: 600;
+	color: color(
+			display-p3 1 1 1 / var(--blyrics-translated-opacity, 0.6)
+		);
 	line-height: normal;
 	margin-top: 8px;
 	max-width: 100%;
