@@ -1,6 +1,25 @@
 
 All notable changes to Loop are documented here.
 
+## [0.8.3] - 2026-11-12
+
+### Highlights
+
+* Added TTML vocal-agent support: lyric agents are resolved from metadata, inherited through the TTML hierarchy, and exposed to the renderer with their agent types so duet, group, and other vocals can be laid out correctly.
+* Made the Loop launcher resize-safe by keeping the Open Loop button in a consistent floating fallback position instead of depending on the presence or placement of YouTube Music's cast control.
+* Improved Firefox lyric animation stability with a smoothed playback clock, Gecko-specific glyph redraw nudges, and perspective rendering for lettered words to reduce letter-wave jitter.
+
+### Fixes
+
+* Fixed video-mode control placement by moving track information above the control strip, giving playback controls their own bottom-left position, and making the seek bar span the available width. The layout now also accounts for mobile safe-area insets, while hiding the unused artwork and player overlay in video mode.
+* Fixed Firefox instrumental-wave positioning by using a Gecko-specific transform box and origin so the wave remains anchored to its floor.
+* Fixed Ludo lyric animation cleanup so `will-change` is removed from the line that actually finished animating instead of an unrelated variable.
+
+### Internal and maintenance changes
+
+* Added regression coverage for TTML agent metadata, including inherited agents and agent types.
+* Bumped the extension manifest version to `0.8.3`.
+
 ## [0.8.2] - 2026-11-10
 
 ### Highlights
