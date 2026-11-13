@@ -65,8 +65,8 @@
 
     const lyricsProviders = [
         { id: "unison", label: "Unison", endpoint: "https://unison.boidu.dev" },
-        { id: "lyricsplus", label: "LyricsPlus", endpoint: "https://lyricsplus.prjktla.my.id/v2/lyrics/get" },
         { id: "binilyrics-ttml", label: "Binilyrics (lrc.red TTML)", endpoint: "https://lrc.red", format: "ttml" },
+        { id: "lyricsplus", label: "LyricsPlus", endpoint: "https://lyricsplus.prjktla.my.id/v2/lyrics/get" },
         { id: "binilyrics-lrc", label: "Binilyrics (lrc.red LRC)", endpoint: "https://lrc.red", format: "lrc" },
         { id: "lrclib", label: "LRCLIB", endpoint: "https://lrclib.net/api/search" },
         { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/v1/track" },
