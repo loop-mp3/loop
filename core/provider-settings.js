@@ -106,6 +106,14 @@ function renderLyricsProviderPriorityUI(root = document.querySelector("#loop"), 
 
     const disabledIds = new Set(loopPreferences.lyricsDisabledProviderIds || []);
     const order = getLyricsProviderDisplayOrder();
+    let draggedRow = null;
+    const moveDraggedRow = (targetRow, clientY, sourceRow = draggedRow) => {
+        if (!sourceRow || sourceRow === targetRow) return;
+        const targetBounds = targetRow.getBoundingClientRect();
+        const insertAfter = clientY >= targetBounds.top + targetBounds.height / 2;
+        const insertionPoint = insertAfter ? targetRow.nextSibling : targetRow;
+        if (insertionPoint !== sourceRow) container.insertBefore(sourceRow, insertionPoint);
+    };
     container.replaceChildren();
     order.forEach((providerId, index) => {
         const provider = lyricsProviders.find((entry) => entry.id === providerId);
@@ -148,14 +156,19 @@ function renderLyricsProviderPriorityUI(root = document.querySelector("#loop"), 
         row.append(rank, dragHandle, label, toggleLabel, remove);
 
         row.addEventListener("dragstart", (event) => {
+            draggedRow = row;
             event.dataTransfer.effectAllowed = "move";
             event.dataTransfer.setData("text/plain", provider.id);
             row.classList.add("is-dragging");
         });
-        row.addEventListener("dragend", () => row.classList.remove("is-dragging"));
+        row.addEventListener("dragend", () => {
+            row.classList.remove("is-dragging");
+            draggedRow = null;
+        });
         row.addEventListener("dragover", (event) => {
             event.preventDefault();
             event.dataTransfer.dropEffect = "move";
+            moveDraggedRow(row, event.clientY);
         });
         row.addEventListener("drop", (event) => {
             event.preventDefault();
@@ -163,9 +176,7 @@ function renderLyricsProviderPriorityUI(root = document.querySelector("#loop"), 
             if (!draggedId || draggedId === provider.id) return;
             const dragged = container.querySelector(`[data-provider-id="${CSS.escape(draggedId)}"]`);
             if (!dragged) return;
-            const rows = [...container.children];
-            if (rows.indexOf(dragged) < rows.indexOf(row)) container.insertBefore(dragged, row);
-            else container.insertBefore(dragged, row.nextSibling);
+            moveDraggedRow(row, event.clientY, dragged);
             setLyricsProviderOrder([...container.children].map((item) => item.dataset.providerId));
             onChange?.();
         });
