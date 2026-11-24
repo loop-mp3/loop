@@ -366,11 +366,29 @@ function showKawarpConfigEditor() {
     modal.querySelector(".loop-kawarp-config-upload").focus();
 }
 
+const legacyLyricsProviderOrders = [
+    ["unison", "lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
+    ["unison", "lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev", "betterlyrics"],
+];
+
 async function loadLoopPreferences() {
     loopPreferences = { ...loopPreferences, ...(await getStoredLoopPreferences()) };
     loopPreferences.showLyrics = true;
     loopPreferences.lyricsDisabledProviderIds = [...new Set((Array.isArray(loopPreferences.lyricsDisabledProviderIds) ? loopPreferences.lyricsDisabledProviderIds : []).filter((id) => lyricsProviders.some((provider) => provider.id === id)))];
     loopPreferences.lyricsRemovedProviderIds = [...new Set((Array.isArray(loopPreferences.lyricsRemovedProviderIds) ? loopPreferences.lyricsRemovedProviderIds : []).filter((id) => lyricsProviders.some((provider) => provider.id === id)))];
+
+    const storedProviderOrder = Array.isArray(loopPreferences.lyricsProviderOrder)
+        ? loopPreferences.lyricsProviderOrder
+        : [];
+    let providerOrderMigrated = false;
+    if (legacyLyricsProviderOrders.some((legacyOrder) =>
+        legacyOrder.length === storedProviderOrder.length &&
+        legacyOrder.every((providerId, index) => providerId === storedProviderOrder[index])
+    )) {
+        loopPreferences.lyricsProviderOrder = [...(globalThis.defaultLyricsProviderIds || [])];
+        providerOrderMigrated = true;
+    }
+
     loopPreferences.trackPresentationModes = normalizeTrackPresentationModes(loopPreferences.trackPresentationModes);
     loopPreferences.lyricsRenderingEngine = normalizeLyricsRenderingEngine(loopPreferences.lyricsRenderingEngine);
     loopPreferences.enableLyricsTranslation = loopPreferences.enableLyricsTranslation === true;
@@ -379,6 +397,7 @@ async function loadLoopPreferences() {
     loopPreferences.loopUpdateInterval = normalizeLoopUpdateInterval(loopPreferences.loopUpdateInterval);
     loopPreferences.kawarpFpsCap = normalizeKawarpFpsCap(loopPreferences.kawarpFpsCap);
     loopPreferences.kawarpFpsLogging = loopPreferences.kawarpFpsLogging === true;
+    if (providerOrderMigrated) saveLoopPreferences();
     applyKawarpSettings(kawarpSettings);
     applyLoopPreferences();
     startLoopUpdatePolling(loopUpdatePlayerBar);
