@@ -115,6 +115,7 @@ services/lyricsplus.js
 services/unison.js
 services/binilyrics.js
 services/lrclib.js
+services/betterlyrics.js
 core/app-bootstrap.js
 core/provider-settings.js
 core/onboarding.js
@@ -438,6 +439,7 @@ The current pipeline is provider-driven and concurrent. The old single-provider 
 | `lrclib` | LRCLIB | `https://lrclib.net/api/search` |
 | `groove` | Groove | `https://groove.mizucode.qzz.io/api/v1/track` |
 | `groove-dev` | Groove (dev) | `http://127.0.0.1:8787/api/v1/track` |
+| `betterlyrics` | BetterLyrics | `https://api.betterlyrics.org`, TTML |
 
 Each adapter file registers a factory in `LoopLyricsProviderAdapters`. `services/lyrics-providers.js` turns the definitions and factories into a service with provider lookup, one-provider requests, and candidate fan-out. Adapter factories receive shared dependencies such as `normalizeLyricsResponse`, timestamp validation, and preference access.
 
@@ -448,6 +450,7 @@ Provider-specific behavior includes:
 - Binilyrics searches for an ISRC, then fetches either TTML or LRC and validates the format.
 - LRCLIB performs fallback searches, returns candidate results, skips lyrics that exceed track duration, and handles instrumental results.
 - Groove uses the track ID and can request Groove overrides according to preferences.
+- BetterLyrics queries the API with video ID, title, artist, album, and duration, then normalizes its TTML response.
 
 When adding a provider:
 

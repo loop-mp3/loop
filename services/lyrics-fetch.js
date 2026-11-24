@@ -4,6 +4,7 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
     const loop = document.querySelector("#loop");
     const title = loop?.querySelector("#loop-track-title")?.textContent.trim();
     const artist = loop?.querySelector("#loop-track-artist")?.textContent.trim();
+    const album = loop?.querySelector("#loop-track-album")?.textContent.trim() || "";
     if (!trackId || !title || !artist) {
         updateLoopLyrics(null);
         return;
@@ -47,7 +48,8 @@ async function fetchLoopLyricsForCurrentTrack(forceRefresh = false) {
                     updateLoopLyrics(replacement);
                 }
             }
-        }
+        },
+        album
     );
     if (
         requestId !== lyricsRequestId ||

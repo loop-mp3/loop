@@ -124,8 +124,8 @@ function normalizeLyricsResponse(payload, providerId) {
 
 let lyricsProviderService;
 
-async function getLyricsCandidatesForAllProviders(trackId, title, artist, duration, queryOverride = "") {
-    return lyricsProviderService.getCandidates(trackId, title, artist, duration, queryOverride);
+async function getLyricsCandidatesForAllProviders(trackId, title, artist, duration, queryOverride = "", album = "") {
+    return lyricsProviderService.getCandidates(trackId, title, artist, duration, queryOverride, album);
 }
 
 function applyLyricsTimestampOffset(syncedLyrics, offsetSeconds) {
@@ -140,7 +140,7 @@ function applyLyricsTimestampOffset(syncedLyrics, offsetSeconds) {
     });
 }
 
-async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSeconds = getCurrentTrackDurationInSeconds(), forceRefresh = false, onLyricsResolved = null) {
+async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSeconds = getCurrentTrackDurationInSeconds(), forceRefresh = false, onLyricsResolved = null, album = "") {
     trackDurationInSeconds ??= await waitForCurrentTrackDuration();
     const resolutionStartedAt = performance.now();
     const preferredProvider = currentTrackLyricsProvider.trackId === trackId
@@ -186,6 +186,7 @@ async function getLyricsFromTrackInfo(trackId, title, artist, trackDurationInSec
             trackId,
             title,
             artist,
+            album,
             duration: trackDurationInSeconds,
             signal: controller.signal,
         });

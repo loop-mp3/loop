@@ -530,7 +530,8 @@ function showLyricsCandidateModal(trackId, title, artist, duration) {
         searchButton.disabled = true;
         status.textContent = "Searching all lyrics providersâ€¦";
         list.replaceChildren();
-        getLyricsCandidatesForAllProviders(trackId, title, artist, duration, queryInput.value.trim()).then((candidates) => {
+        const album = document.querySelector("#loop")?.querySelector("#loop-track-album")?.textContent.trim() || "";
+        getLyricsCandidatesForAllProviders(trackId, title, artist, duration, queryInput.value.trim(), album).then((candidates) => {
         if (!modal.isConnected) return;
         status.textContent = candidates.length
             ? `${candidates.length} candidate${candidates.length === 1 ? "" : "s"} found`

@@ -41,7 +41,7 @@
             return candidatesHandler({ provider: getProvider(providerId), ...context });
         }
 
-        async function getCandidates(trackId, title, artist, duration, queryOverride = "") {
+        async function getCandidates(trackId, title, artist, duration, queryOverride = "", album = "") {
             const enabledIds = new Set(getEnabledProviderIds());
             const providerResults = await Promise.all(providers
                 .filter((provider) => enabledIds.has(provider.id))
@@ -53,6 +53,7 @@
                             artist,
                             duration,
                             queryOverride,
+                            album,
                         });
                         return { provider, candidates: Array.isArray(candidates) ? candidates : [candidates] };
                     } catch (error) {

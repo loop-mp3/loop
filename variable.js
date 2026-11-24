@@ -50,7 +50,7 @@
         enableLyricsTranslation: false,
         lyricsTranslationLanguage: "en",
         lyricsGapNoteThreshold: 5,
-        lyricsProviderOrder: ["unison", "lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
+        lyricsProviderOrder: ["unison", "lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev", "betterlyrics"],
         lyricsDisabledProviderIds: [],
         lyricsRemovedProviderIds: [],
         loopUpdateInterval: 500,
@@ -71,6 +71,7 @@
         { id: "lrclib", label: "LRCLIB", endpoint: "https://lrclib.net/api/search" },
         { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/v1/track" },
         { id: "groove-dev", label: "Groove (dev)", endpoint: "http://127.0.0.1:8787/api/v1/track" },
+        { id: "betterlyrics", label: "BetterLyrics", endpoint: "https://api.betterlyrics.org" },
     ];
 
     global.LoopVariables = Object.freeze({
@@ -99,7 +100,7 @@
         unisonURL: "https://unison.prjktla.my.id/submit",
         onboardingChangelogURL: "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md",
         lyricsProviders: Object.freeze(lyricsProviders.map((provider) => Object.freeze(provider))),
-        defaultLyricsProviderIds: Object.freeze(["lyricsplus", "binilyrics-ttml", "unison", "binilyrics-lrc", "lrclib", "groove", "groove-dev"]),
+        defaultLyricsProviderIds: Object.freeze(["lyricsplus", "binilyrics-ttml", "unison", "binilyrics-lrc", "lrclib", "groove", "groove-dev", "betterlyrics"]),
         supportedLyricsTranslationLanguages: new Set([
             "ar", "bn", "de", "en", "es", "fr", "hi", "id", "it", "ja", "ko", "pt", "ru", "tr", "vi", "zh",
         ]),

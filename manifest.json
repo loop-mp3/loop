@@ -21,6 +21,7 @@
         "services/unison.js",
         "services/binilyrics.js",
         "services/lrclib.js",
+        "services/betterlyrics.js",
         "core/app-bootstrap.js",
         "core/provider-settings.js",
         "core/onboarding.js",
