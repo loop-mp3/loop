@@ -117,7 +117,7 @@ test("betterlyrics is loaded and registered as a default lyrics provider", () =>
         "groove-dev",
     ];
 
-    assert.deepEqual(providerIds, expectedOrder);
+    assert.deepEqual([...providerIds], expectedOrder);
     assert.deepEqual([...variables.defaultLyricsProviderIds], expectedOrder);
     assert.deepEqual([...variables.defaultLoopPreferences.lyricsProviderOrder], expectedOrder);
 
