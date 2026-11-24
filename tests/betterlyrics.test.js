@@ -106,9 +106,20 @@ test("betterlyrics is loaded and registered as a default lyrics provider", () =>
     const variables = context.globalThis.LoopVariables;
     const providerIds = variables.lyricsProviders.map((provider) => provider.id);
 
-    assert.ok(providerIds.includes("betterlyrics"));
-    assert.ok(variables.defaultLyricsProviderIds.includes("betterlyrics"));
-    assert.ok(variables.defaultLoopPreferences.lyricsProviderOrder.includes("betterlyrics"));
+    const expectedOrder = [
+        "unison",
+        "betterlyrics",
+        "binilyrics-ttml",
+        "lyricsplus",
+        "binilyrics-lrc",
+        "lrclib",
+        "groove",
+        "groove-dev",
+    ];
+
+    assert.deepEqual(providerIds, expectedOrder);
+    assert.deepEqual([...variables.defaultLyricsProviderIds], expectedOrder);
+    assert.deepEqual([...variables.defaultLoopPreferences.lyricsProviderOrder], expectedOrder);
 
     const provider = variables.lyricsProviders.find((entry) => entry.id === "betterlyrics");
     assert.equal(provider.label, "BetterLyrics");

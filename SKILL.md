@@ -433,13 +433,13 @@ The current pipeline is provider-driven and concurrent. The old single-provider 
 | ID | Label | Format / endpoint |
 | --- | --- | --- |
 | `unison` | Unison | `https://unison.boidu.dev` |
-| `lyricsplus` | LyricsPlus | `https://lyricsplus.prjktla.my.id/v2/lyrics/get` |
+| `betterlyrics` | BetterLyrics | `https://api.betterlyrics.org`, TTML |
 | `binilyrics-ttml` | Binilyrics (lrc.red TTML) | `https://lrc.red`, TTML |
+| `lyricsplus` | LyricsPlus | `https://lyricsplus.prjktla.my.id/v2/lyrics/get` |
 | `binilyrics-lrc` | Binilyrics (lrc.red LRC) | `https://lrc.red`, LRC |
 | `lrclib` | LRCLIB | `https://lrclib.net/api/search` |
 | `groove` | Groove | `https://groove.mizucode.qzz.io/api/v1/track` |
 | `groove-dev` | Groove (dev) | `http://127.0.0.1:8787/api/v1/track` |
-| `betterlyrics` | BetterLyrics | `https://api.betterlyrics.org`, TTML |
 
 Each adapter file registers a factory in `LoopLyricsProviderAdapters`. `services/lyrics-providers.js` turns the definitions and factories into a service with provider lookup, one-provider requests, and candidate fan-out. Adapter factories receive shared dependencies such as `normalizeLyricsResponse`, timestamp validation, and preference access.
 

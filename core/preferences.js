@@ -42,7 +42,7 @@ async function resetLoopData() {
         enableLyricsTranslation: false,
         lyricsTranslationLanguage: "en",
         lyricsGapNoteThreshold: defaultLyricsGapNoteThreshold,
-        lyricsProviderOrder: ["unison", "lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev", "betterlyrics"],
+        lyricsProviderOrder: ["unison", "betterlyrics", "binilyrics-ttml", "lyricsplus", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
         lyricsDisabledProviderIds: [],
         lyricsRemovedProviderIds: [],
         loopUpdateInterval: defaultLoopUpdateInterval,

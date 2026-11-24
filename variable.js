@@ -50,7 +50,7 @@
         enableLyricsTranslation: false,
         lyricsTranslationLanguage: "en",
         lyricsGapNoteThreshold: 5,
-        lyricsProviderOrder: ["unison", "lyricsplus", "binilyrics-ttml", "binilyrics-lrc", "lrclib", "groove", "groove-dev", "betterlyrics"],
+        lyricsProviderOrder: ["unison", "betterlyrics", "binilyrics-ttml", "lyricsplus", "binilyrics-lrc", "lrclib", "groove", "groove-dev"],
         lyricsDisabledProviderIds: [],
         lyricsRemovedProviderIds: [],
         loopUpdateInterval: 500,
@@ -65,13 +65,13 @@
 
     const lyricsProviders = [
         { id: "unison", label: "Unison", endpoint: "https://unison.boidu.dev" },
+        { id: "betterlyrics", label: "BetterLyrics", endpoint: "https://api.betterlyrics.org" },
         { id: "binilyrics-ttml", label: "Binilyrics (lrc.red TTML)", endpoint: "https://lrc.red", format: "ttml" },
         { id: "lyricsplus", label: "LyricsPlus", endpoint: "https://lyricsplus.prjktla.my.id/v2/lyrics/get" },
         { id: "binilyrics-lrc", label: "Binilyrics (lrc.red LRC)", endpoint: "https://lrc.red", format: "lrc" },
         { id: "lrclib", label: "LRCLIB", endpoint: "https://lrclib.net/api/search" },
         { id: "groove", label: "Groove", endpoint: "https://groove.mizucode.qzz.io/api/v1/track" },
         { id: "groove-dev", label: "Groove (dev)", endpoint: "http://127.0.0.1:8787/api/v1/track" },
-        { id: "betterlyrics", label: "BetterLyrics", endpoint: "https://api.betterlyrics.org" },
     ];
 
     global.LoopVariables = Object.freeze({
@@ -100,7 +100,7 @@
         unisonURL: "https://unison.prjktla.my.id/submit",
         onboardingChangelogURL: "https://raw.githubusercontent.com/loop-mp3/loop/refs/heads/main/CHANGELOG.md",
         lyricsProviders: Object.freeze(lyricsProviders.map((provider) => Object.freeze(provider))),
-        defaultLyricsProviderIds: Object.freeze(["lyricsplus", "binilyrics-ttml", "unison", "binilyrics-lrc", "lrclib", "groove", "groove-dev", "betterlyrics"]),
+        defaultLyricsProviderIds: Object.freeze(["unison", "betterlyrics", "binilyrics-ttml", "lyricsplus", "binilyrics-lrc", "lrclib", "groove", "groove-dev"]),
         supportedLyricsTranslationLanguages: new Set([
             "ar", "bn", "de", "en", "es", "fr", "hi", "id", "it", "ja", "ko", "pt", "ru", "tr", "vi", "zh",
         ]),
