@@ -1,6 +1,25 @@
 
 All notable changes to Loop are documented here.
 
+## [0.8.4] - 2026-11-25
+
+### Highlights
+
+* Added BetterLyrics as a lyrics provider. It fetches TTML from `https://api.betterlyrics.org` and normalizes it into the shared synced-lyrics pipeline, using the track ID, title, artist, album, and duration when building requests.
+* Reordered the default lyrics provider priority to Unison, BetterLyrics, Binilyrics (TTML), LyricsPlus, Binilyrics (LRC), LRCLIB, Groove, and Groove (dev).
+* Migrated saved profiles that still use the previous default provider order so the new priority takes effect without discarding custom provider orders.
+
+### Fixes
+
+* Fixed the lyrics provider priority manager drag-and-drop so the dragged row follows the pointer and is inserted at the correct position.
+* Fixed the web-ext lint test harness so it runs correctly under the repository's ESM setup.
+
+### Internal and maintenance changes
+
+* Added BetterLyrics regression coverage for request parameters, TTML normalization, invalid responses, provider registration, and default provider order.
+* Updated reset defaults and maintainer documentation for the new provider and priority order.
+* Bumped the extension manifest version to `0.8.4`.
+
 ## [0.8.3] - 2026-11-12
 
 ### Highlights
