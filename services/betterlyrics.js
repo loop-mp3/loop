@@ -4,8 +4,30 @@
 
     global.LoopLyricsProviderAdapters.betterlyrics = ({
         normalizeLyricsResponse,
+        getMusicBrainzAlbum,
     }) => ({
         async request({ provider, trackId, title, artist, album, duration, signal }) {
+            const usableAlbumName = (value) => {
+                const name = String(value || "").trim();
+                return name && !/^unknown(?:\s+album)?$/i.test(name) ? name : "";
+            };
+
+            const resolveAlbumName = async () => {
+                const providedAlbum = usableAlbumName(album);
+                if (providedAlbum) return providedAlbum;
+                if (typeof getMusicBrainzAlbum !== "function") return "";
+                try {
+                    return usableAlbumName(await getMusicBrainzAlbum(title, artist));
+                } catch {
+                    return "";
+                }
+            };
+
+            const resolvedAlbum = await resolveAlbumName();
+            if (!resolvedAlbum) {
+                throw new Error(`${provider.label} skipped: no album name available`);
+            }
+
             const normalizeBetterLyrics = (payload, fallbackMetadata = {}) => {
                 const ttml = String(payload?.ttml || "").trim();
 
@@ -32,7 +54,7 @@
             const params = new URLSearchParams({
                 s: String(title || ""),
                 a: String(artist || ""),
-                al: String(album || ""),
+                al: resolvedAlbum,
                 d: String(
                     Number.isFinite(requestedDuration)
                         ? Math.max(0, Math.round(requestedDuration))
@@ -71,7 +93,7 @@
             const lyrics = normalizeBetterLyrics(payload, {
                 title,
                 artist,
-                album,
+                album: resolvedAlbum,
                 duration,
                 videoId,
             });

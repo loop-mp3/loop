@@ -450,7 +450,7 @@ Provider-specific behavior includes:
 - Binilyrics searches for an ISRC, then fetches either TTML or LRC and validates the format.
 - LRCLIB performs fallback searches, returns candidate results, skips lyrics that exceed track duration, and handles instrumental results.
 - Groove uses the track ID and can request Groove overrides according to preferences.
-- BetterLyrics queries the API with video ID, title, artist, album, and duration, then normalizes its TTML response.
+- BetterLyrics queries the API with video ID, title, artist, album, and duration, then normalizes its TTML response. Missing or unknown album names are resolved through MusicBrainz first; if no album name is available, the adapter skips the request entirely.
 
 When adding a provider:
 
@@ -524,7 +524,7 @@ Translation uses the Unison translation endpoint, an in-memory pending-request m
 
 - YouTube oEmbed and player/browse responses for canonical title, artist, album, video type, and URLs;
 - YouTube browse data for writer credits when available;
-- MusicBrainz recording/work relationships for composer and lyricist fallback;
+- MusicBrainz recording/work relationships for composer and lyricist fallback, plus cached recording-release lookups for album names;
 - cached writer results to avoid repeated network calls;
 - recommendation shelves/cards for the empty state.
 

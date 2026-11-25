@@ -106,6 +106,8 @@ const MUSICBRAINZ_REQUEST_INTERVAL_MS = 1_100;
 const MUSICBRAINZ_REQUEST_TIMEOUT_MS = 10_000;
 const musicBrainzWriterCache = new Map();
 const musicBrainzWriterRequests = new Map();
+const musicBrainzAlbumCache = new Map();
+const musicBrainzAlbumRequests = new Map();
 let musicBrainzRequestQueue = Promise.resolve();
 let musicBrainzLastRequestAt = 0;
 
@@ -229,6 +231,45 @@ async function getMusicBrainzWriterCredits(title, artist) {
         })
         .finally(() => musicBrainzWriterRequests.delete(cacheKey));
     musicBrainzWriterRequests.set(cacheKey, request);
+    return request;
+}
+
+function getMusicBrainzReleaseTitle(recording) {
+    const releases = Array.isArray(recording?.releases) ? recording.releases : [];
+    return releases
+        .map((release) => String(release?.title || "").trim())
+        .find((title) => title && !/^unknown(?:\s+album)?$/i.test(title)) || "";
+}
+
+async function resolveMusicBrainzAlbum(title, artist) {
+    const query = `recording:"${escapeMusicBrainzQueryValue(title)}" AND artist:"${escapeMusicBrainzQueryValue(artist)}"`;
+    const searchParams = new URLSearchParams({ query, fmt: "json", limit: "5" });
+    const search = await requestMusicBrainzJSON(`/recording?${searchParams}`);
+    const recordings = Array.isArray(search?.recordings) ? search.recordings : [];
+    const match = recordings.find((recording) => isMusicBrainzRecordingMatch(recording, title, artist));
+    return match ? getMusicBrainzReleaseTitle(match) : "";
+}
+
+async function getMusicBrainzAlbum(title, artist) {
+    const normalizedTitle = normalizeMusicBrainzText(title);
+    const normalizedArtist = normalizeMusicBrainzText(artist);
+    if (!normalizedTitle || !normalizedArtist) return "";
+    const cacheKey = `${normalizedTitle}|${normalizedArtist}`;
+    if (musicBrainzAlbumCache.has(cacheKey)) return musicBrainzAlbumCache.get(cacheKey);
+    if (musicBrainzAlbumRequests.has(cacheKey)) return musicBrainzAlbumRequests.get(cacheKey);
+
+    const request = resolveMusicBrainzAlbum(title, artist)
+        .then((album) => {
+            musicBrainzAlbumCache.set(cacheKey, album);
+            return album;
+        })
+        .catch((error) => {
+            console.warn("[loop.mp3] MusicBrainz album lookup failed:", error);
+            musicBrainzAlbumCache.set(cacheKey, "");
+            return "";
+        })
+        .finally(() => musicBrainzAlbumRequests.delete(cacheKey));
+    musicBrainzAlbumRequests.set(cacheKey, request);
     return request;
 }
 
@@ -564,6 +605,7 @@ function rerenderLyricsForSelectedEngine() {
     global.getTrackWritersFromBrowse = getTrackWritersFromBrowse;
     global.getMusicBrainzWriterCredits = getMusicBrainzWriterCredits;
     global.getMusicBrainzWriterNames = getMusicBrainzWriterNames;
+    global.getMusicBrainzAlbum = getMusicBrainzAlbum;
     global.getPlayerMetadataPrettyPrint = getPlayerMetadataPrettyPrint;
     global.getTrackInfoFromTrackId = getTrackInfoFromTrackId;
     global.getRecommendationText = getRecommendationText;

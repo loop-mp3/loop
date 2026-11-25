@@ -58,6 +58,9 @@ lyricsProviderService = LoopLyricsServices.createLyricsProviderService({
         lyricsPlusToTTML,
         hasSyncedLyricTimestamps,
         lyricsDurationExceedsTrack,
+        getMusicBrainzAlbum: (title, artist) => globalThis.getMusicBrainzAlbum
+            ? globalThis.getMusicBrainzAlbum(title, artist)
+            : Promise.resolve(""),
     },
 });
 

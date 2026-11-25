@@ -68,6 +68,35 @@ test("uses MusicBrainz composer and lyricist relationships for writer credits", 
     assert.equal(requests.length, 3);
 });
 
+test("resolves and caches a MusicBrainz album title from recording releases", async () => {
+    const { module, requests } = createMetadataModule([{
+        recordings: [{
+            id: "recording-id",
+            title: "Example Song",
+            "artist-credit": [{ name: "Example Artist" }],
+            releases: [{ id: "release-id", title: "Example Album" }],
+        }],
+    }]);
+
+    const album = await module.getMusicBrainzAlbum("Example Song", "Example Artist");
+
+    assert.equal(album, "Example Album");
+    assert.equal(requests.length, 1);
+    assert.match(requests[0], /musicbrainz\.org\/ws\/2\/recording\?/);
+    assert.match(requests[0], /recording%3A%22Example\+Song%22/);
+
+    assert.equal(await module.getMusicBrainzAlbum("Example Song", "Example Artist"), "Example Album");
+    assert.equal(requests.length, 1);
+});
+
+test("does not query MusicBrainz for an incomplete album identity", async () => {
+    const { module, requests } = createMetadataModule([]);
+
+    assert.equal(await module.getMusicBrainzAlbum("", "Example Artist"), "");
+    assert.equal(await module.getMusicBrainzAlbum("Example Song", ""), "");
+    assert.equal(requests.length, 0);
+});
+
 test("returns YouTube metadata before MusicBrainz fallback resolves", async () => {
     const requests = [];
     let resolveMusicBrainz;

@@ -7,9 +7,10 @@ const adapterSource = fs.readFileSync(new URL("../services/betterlyrics.js", imp
 const variableSource = fs.readFileSync(new URL("../variable.js", import.meta.url), "utf8");
 const manifestSource = fs.readFileSync(new URL("../manifest.json", import.meta.url), "utf8");
 
-function createBetterLyricsAdapter(payload, status = 200) {
+function createBetterLyricsAdapter(payload, { status = 200, albumFromMusicBrainz = "" } = {}) {
     const requests = [];
     const normalizationCalls = [];
+    const albumLookups = [];
     const context = {
         URLSearchParams,
         fetch: async (url) => {
@@ -34,8 +35,12 @@ function createBetterLyricsAdapter(payload, status = 200) {
                 plainLyrics: lyrics.plainLyrics,
             };
         },
+        getMusicBrainzAlbum: async (title, artist) => {
+            albumLookups.push({ title, artist });
+            return albumFromMusicBrainz;
+        },
     });
-    return { adapter, requests, normalizationCalls };
+    return { adapter, requests, normalizationCalls, albumLookups };
 }
 
 const TTML = `<tt xmlns="http://www.w3.org/ns/ttml"><body><div>` +
@@ -43,7 +48,7 @@ const TTML = `<tt xmlns="http://www.w3.org/ns/ttml"><body><div>` +
     `</div></body></tt>`;
 
 test("betterlyrics requests TTML with track metadata and normalizes the response", async () => {
-    const { adapter, requests, normalizationCalls } = createBetterLyricsAdapter({
+    const { adapter, requests, normalizationCalls, albumLookups } = createBetterLyricsAdapter({
         ttml: TTML,
         duration: 210,
         source: "betterlyrics-api",
@@ -59,6 +64,7 @@ test("betterlyrics requests TTML with track metadata and normalizes the response
         signal: new AbortController().signal,
     });
 
+    assert.equal(albumLookups.length, 0);
     assert.equal(requests.length, 1);
     const url = new URL(requests[0]);
     assert.equal(url.origin + url.pathname, "https://api.betterlyrics.org/getLyrics");
@@ -86,11 +92,54 @@ test("betterlyrics rejects responses without usable TTML", async () => {
             trackId: "abc123",
             title: "A Song",
             artist: "An Artist",
+            album: "An Album",
             duration: 210,
             signal: new AbortController().signal,
         }),
         /BetterLyrics returned invalid lyrics/
     );
+});
+
+test("betterlyrics resolves Unknown album through MusicBrainz before requesting", async () => {
+    const { adapter, requests, albumLookups, normalizationCalls } = createBetterLyricsAdapter(
+        { ttml: TTML, duration: 210 },
+        { albumFromMusicBrainz: "Resolved Album" }
+    );
+
+    await adapter.request({
+        provider: { endpoint: "https://api.betterlyrics.org", label: "BetterLyrics" },
+        trackId: "abc123",
+        title: "A Song",
+        artist: "An Artist",
+        album: "Unknown album",
+        duration: 210,
+        signal: new AbortController().signal,
+    });
+
+    assert.deepEqual(albumLookups, [{ title: "A Song", artist: "An Artist" }]);
+    assert.equal(requests.length, 1);
+    assert.equal(new URL(requests[0]).searchParams.get("al"), "Resolved Album");
+    assert.equal(normalizationCalls[0].lyrics.album, "Resolved Album");
+});
+
+test("betterlyrics skips its request when no album name can be resolved", async () => {
+    const { adapter, requests, albumLookups } = createBetterLyricsAdapter({ ttml: TTML });
+
+    await assert.rejects(
+        adapter.request({
+            provider: { endpoint: "https://api.betterlyrics.org", label: "BetterLyrics" },
+            trackId: "abc123",
+            title: "A Song",
+            artist: "An Artist",
+            album: "Unknown album",
+            duration: 210,
+            signal: new AbortController().signal,
+        }),
+        /no album name available/
+    );
+
+    assert.equal(albumLookups.length, 1);
+    assert.equal(requests.length, 0);
 });
 
 test("betterlyrics is loaded and registered as a default lyrics provider", () => {
