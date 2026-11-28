@@ -1,4 +1,51 @@
 // Unison provider adapter.
+function normalizeUnisonBadge(badge) {
+    if (!badge || typeof badge !== "object") return null;
+    const key = String(badge.key || "").trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(key)) return null;
+    const tier = Number(badge.tier);
+    return {
+        key,
+        name: String(badge.name || key).trim() || key,
+        tier: Number.isFinite(tier) && tier > 0 ? Math.trunc(tier) : null,
+    };
+}
+
+function normalizeUnisonSubmitter(submitter) {
+    if (!submitter || typeof submitter !== "object") return null;
+    const displayName = String(submitter.displayName || "").trim();
+    const keyId = String(submitter.keyId || "").trim();
+    if (!displayName && !keyId) return null;
+
+    const featured = Array.isArray(submitter.featured)
+        ? submitter.featured
+        : Array.isArray(submitter.badges) ? submitter.badges : [];
+    const badges = [];
+    for (const badge of [...featured, submitter.topBadge]) {
+        const normalized = normalizeUnisonBadge(badge);
+        if (normalized && !badges.some((existing) => existing.key === normalized.key)) badges.push(normalized);
+    }
+
+    const avatarUrl = String(submitter.avatarUrl || "").trim();
+    const tier = String(submitter.tier || "").trim();
+    const level = Number(submitter.level);
+    const levelProgress = Number(submitter.levelProgress);
+    const reputation = Number(submitter.reputation);
+    const badgeCount = Number(submitter.badgeCount);
+    return {
+        keyId: keyId || null,
+        displayName: displayName || keyId,
+        avatarUrl: /^https?:\/\//i.test(avatarUrl) ? avatarUrl : null,
+        tier: tier || null,
+        level: Number.isFinite(level) && level > 0 ? Math.trunc(level) : null,
+        levelProgress: Number.isFinite(levelProgress) ? Math.min(Math.max(levelProgress, 0), 1) : null,
+        reputation: Number.isFinite(reputation) && reputation >= 0 ? reputation : null,
+        badgeCount: Number.isFinite(badgeCount) && badgeCount >= 0 ? Math.trunc(badgeCount) : badges.length,
+        topBadge: normalizeUnisonBadge(submitter.topBadge),
+        badges,
+    };
+}
+
 (function registerUnisonAdapter(global) {
     global.LoopLyricsProviderAdapters ||= {};
     global.LoopLyricsProviderAdapters.unison = ({ normalizeLyricsResponse, hasSyncedLyricTimestamps }) => ({
@@ -25,6 +72,7 @@
                     return normalizeLyricsResponse({
                         ...fallbackMetadata,
                         ...entry,
+                        submitter: normalizeUnisonSubmitter(entry.submitter),
                         syncedLyrics: lyricsText,
                         plainLyrics: null,
                         duration: entry.duration ?? fallbackMetadata.duration,

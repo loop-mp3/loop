@@ -190,6 +190,7 @@ function cacheLyrics(trackId, title, artist, duration, lyrics) {
             : Number.isFinite(responseDuration) ? responseDuration : null,
         syncedLyrics: lyrics.syncedLyrics || null,
         plainLyrics: lyrics.plainLyrics || null,
+        submitter: lyrics.meta.submitter || null,
         override: lyrics.meta.override === true,
         cachedAt: Date.now(),
     };
@@ -230,6 +231,7 @@ function restoreCachedLyrics(cachedLyrics) {
             title: cachedLyrics.title,
             artist: cachedLyrics.artist,
             duration: cachedLyrics.duration,
+            ...(cachedLyrics.submitter ? { submitter: cachedLyrics.submitter } : {}),
             override: cachedLyrics.override === true,
             cachedAt: cachedLyrics.cachedAt,
         },

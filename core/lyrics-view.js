@@ -1,4 +1,7 @@
 const material3LoaderURL = LoopUtils.getExtensionURL("static/material3-loader.svg");
+const unisonCuratorURL = "https://unison.betterlyrics.org/curator/";
+// Unison publishes badge art by badge key, with a tier suffix for tiered badges.
+const unisonBadgeAssetBaseURL = "https://raw.githubusercontent.com/better-lyrics/unison/master/assets/badges";
 
 const braccatoLyricsShadowCSS = `
     :host { display: block; width: 100%; height: 100%; color: #fff; font-family: Satoshi, system-ui, sans-serif; }
@@ -21,10 +24,10 @@ const braccatoLyricsShadowCSS = `
     .blyrics-container .blyrics-word-highlight:not([data-long-word]) { --blyrics-glow-color: var(--blyrics-highlight-color, color(display-p3 1 1 1 / 0.5)); }
     .loop-track-writers-label { display: block; color: rgba(255,255,255,.72); font: 400 16px/1.2 Satoshi, system-ui, sans-serif; margin-bottom: .45em; }
     .loop-track-writers-names { display: block; color: #fff; font: 400 1.25em/1.25 Satoshi, system-ui, sans-serif; text-wrap: balance; }
-    #loop-lyrics-footer { position: absolute; right: 0; bottom: 0; left: 0; z-index: 2; display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; box-sizing: border-box; margin: 0; padding: 12px 0 16px .25em !important; border-top: 1px solid rgba(255,255,255,.12); visibility: hidden; opacity: 0; pointer-events: none; cursor: default; transform: none !important; transition: opacity 150ms ease; }
+    #loop-lyrics-footer { position: absolute; right: 0; bottom: 0; left: 0; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 10px; width: 100%; box-sizing: border-box; margin: 0; padding: 12px 0 16px .25em !important; border-top: 1px solid rgba(255,255,255,.12); visibility: hidden; opacity: 0; pointer-events: none; cursor: default; transform: none !important; transition: opacity 150ms ease; }
     #loop-lyrics-footer.is-visible { visibility: visible; opacity: 1; pointer-events: auto; background: transparent; }
     .loop-lyrics-footer-actions { display: flex; align-items: center; justify-content: flex-start; gap: 8px; }
-    #loop-track-writers { position: absolute; right: 0; bottom: 85px; left: 0; z-index: 2; display: block; box-sizing: border-box; width: 100%; margin: 0; padding: 0 0 12px; color: #fff; text-align: center; font-size: 2.5rem; opacity: 0; transform: translateY(.5em); transition: opacity 700ms cubic-bezier(.22,1,.36,1), transform 700ms cubic-bezier(.22,1,.36,1); }
+    #loop-track-writers { position: absolute; right: 0; bottom: calc(var(--loop-writers-footer-height, 63px) + 22px); left: 0; z-index: 2; display: block; box-sizing: border-box; width: 100%; margin: 0; padding: 0 0 12px; color: #fff; text-align: center; font-size: 2.5rem; opacity: 0; transform: translateY(.5em); transition: opacity 700ms cubic-bezier(.22,1,.36,1), transform 700ms cubic-bezier(.22,1,.36,1); }
     #loop-track-writers.is-visible { opacity: 1; transform: translateY(0); }
     #loop-lyrics-footer[hidden] { display: none; }
     .loop-lyrics-footer-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: auto; height: 34px; min-width: 0; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 0 13px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; }
@@ -40,13 +43,35 @@ const braccatoLyricsShadowCSS = `
     .loop-lyrics-footer-provider { height: 34px; max-width: 115px; border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 0 8px; color: rgba(255,255,255,.86); background: rgba(255,255,255,.08); font: inherit; font-size: 12px; cursor: pointer; }
     .loop-lyrics-footer-provider:focus-visible { outline: 2px solid rgba(255,255,255,.8); outline-offset: 1px; }
     .loop-lyrics-footer-provider option { color: #fff; background: #181818; }
+    .loop-lyrics-submitter { display: inline-flex; align-items: center; gap: 12px; max-width: 100%; min-width: 0; box-sizing: border-box; padding: 10px 18px 10px 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 14px; color: #fff; background: rgba(18,12,8,.2); text-decoration: none; transition: border-color 150ms ease, background 150ms ease; }
+    .loop-lyrics-submitter[hidden] { display: none; }
+    .loop-lyrics-submitter:hover, .loop-lyrics-submitter:focus-visible { border-color: rgba(255,255,255,.5); background: rgba(255,255,255,.2); }
+    .loop-lyrics-submitter-avatar { position: relative; display: block; flex: 0 0 auto; width: 46px; height: 46px; box-sizing: border-box; padding: 2px; border-radius: 50%; background: conic-gradient(from -90deg, #f0a83c calc(var(--loop-submitter-progress, 0) * 1%), rgba(255,255,255,.2) 0); }
+    .loop-lyrics-submitter-avatar-initials { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border-radius: 50%; background: #2a2119; color: #fff; font-size: 15px; font-weight: 700; letter-spacing: .02em; }
+    .loop-lyrics-submitter-avatar-image { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #2a2119; }
+    .loop-lyrics-submitter-avatar-initials[hidden], .loop-lyrics-submitter-avatar-image[hidden] { display: none; }
+    .loop-lyrics-submitter-level { position: absolute; right: -5px; bottom: -4px; display: flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box; border: 2px solid #1a120c; border-radius: 999px; color: #1a120c; background: #f5b942; font-size: 10px; font-weight: 800; line-height: 1; }
+    .loop-lyrics-submitter-level[hidden] { display: none; }
+    .loop-lyrics-submitter-content { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+    .loop-lyrics-submitter-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .loop-lyrics-submitter-name { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 600; }
+    .loop-lyrics-submitter-tier { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 7px; border-radius: 999px; color: rgba(255,255,255,.9); background: rgba(255,255,255,.12); font-size: 12px; font-weight: 600; }
+    .loop-lyrics-submitter-tier[hidden] { display: none; }
+    .loop-lyrics-submitter-tier-icon { display: block; }
+    .loop-lyrics-submitter-tier-image { display: block; width: 15px; height: 15px; opacity: .85; }
+    .loop-lyrics-submitter-badges { display: flex; align-items: center; gap: 6px; }
+    .loop-lyrics-submitter-badge { display: block; width: 26px; height: 26px; }
+    .loop-lyrics-submitter-badge[hidden] { display: none; }
+    .loop-lyrics-submitter-caption { color: rgba(255,255,255,.55); font-size: 12px; }
     #loop-lyrics-resume { position: absolute; top: 16px; left: 50%; z-index: 3; display: inline-flex; align-items: center; justify-content: center; min-height: 34px; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; padding: 0 14px; color: #fff; background: rgba(12,20,19,.88); box-shadow: 0 8px 24px rgba(0,0,0,.24); backdrop-filter: blur(10px); font: inherit; font-size: 12px; cursor: pointer; transform: translateX(-50%); transition: border-color 150ms ease, background 150ms ease; }
     #loop-lyrics-resume:hover, #loop-lyrics-resume:focus-visible { border-color: rgba(255,255,255,.68); background: rgba(255,255,255,.16); }
     #loop-lyrics-resume[hidden] { display: none; }
     @media (orientation: portrait), (max-aspect-ratio: 4/5) {
         .blyrics-container { --blyrics-font-size: clamp(1.5rem, 8vw, 2.25rem); --blyrics-padding: clamp(.75rem, 4vw, 1.25rem); }
-        #loop-track-writers { bottom: 64px; font-size: clamp(1.25rem, 6vw, 2rem); }
+        #loop-track-writers { bottom: calc(var(--loop-writers-footer-height, 52px) + 12px); font-size: clamp(1.25rem, 6vw, 2rem); }
         #loop-lyrics-footer { padding: 8px 0 10px .25em !important; }
+        .loop-lyrics-submitter-name { max-width: 140px; }
+        .loop-lyrics-submitter-badge { width: 22px; height: 22px; }
     }
 `;
 lyricsProviderService = LoopLyricsServices.createLyricsProviderService({
@@ -416,6 +441,171 @@ function ensureLyricsFooter(shadow) {
     return footer;
 }
 
+function getUnisonBadgeAssetFileName(badge) {
+    const key = String(badge?.key || "").trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(key)) return null;
+    const tier = Number(badge?.tier);
+    return Number.isFinite(tier) && tier > 0 ? `${key}_${Math.trunc(tier)}.svg` : `${key}.svg`;
+}
+
+function createUnisonBadgeImage(badge, className) {
+    const fileName = getUnisonBadgeAssetFileName(badge);
+    if (!fileName) return null;
+    const label = String(badge?.name || badge?.key || "");
+    const image = document.createElement("img");
+    image.className = className;
+    image.alt = label;
+    image.title = label;
+    image.referrerPolicy = "no-referrer";
+    image.src = `${unisonBadgeAssetBaseURL}/${fileName}`;
+    image.addEventListener("error", () => {
+        // Tiered badge art may not exist for every tier, so fall back to the base key.
+        const baseFileName = fileName.replace(/_\d+\.svg$/, ".svg");
+        if (image.dataset.badgeFallbackApplied || baseFileName === fileName) {
+            image.hidden = true;
+            return;
+        }
+        image.dataset.badgeFallbackApplied = "true";
+        image.src = `${unisonBadgeAssetBaseURL}/${baseFileName}`;
+    });
+    return image;
+}
+
+function formatUnisonTierLabel(tier) {
+    return String(tier || "")
+        .trim()
+        .replace(/[-_]+/g, " ")
+        .replace(/\b[a-z]/g, (character) => character.toUpperCase());
+}
+
+function ensureLyricsSubmitterCard(shadow) {
+    const footer = ensureLyricsFooter(shadow);
+    let card = footer.querySelector(".loop-lyrics-submitter");
+    if (card) return card;
+
+    card = document.createElement("a");
+    card.className = "loop-lyrics-submitter";
+    card.target = "_blank";
+    card.rel = "noopener noreferrer";
+    card.hidden = true;
+
+    const avatar = document.createElement("span");
+    avatar.className = "loop-lyrics-submitter-avatar";
+    const initials = document.createElement("span");
+    initials.className = "loop-lyrics-submitter-avatar-initials";
+    const avatarImage = document.createElement("img");
+    avatarImage.className = "loop-lyrics-submitter-avatar-image";
+    avatarImage.alt = "";
+    avatarImage.referrerPolicy = "no-referrer";
+    avatarImage.hidden = true;
+    avatarImage.addEventListener("error", () => {
+        avatarImage.hidden = true;
+        initials.hidden = false;
+    });
+    const level = document.createElement("span");
+    level.className = "loop-lyrics-submitter-level";
+    level.hidden = true;
+    avatar.append(initials, avatarImage, level);
+
+    const content = document.createElement("span");
+    content.className = "loop-lyrics-submitter-content";
+    const top = document.createElement("span");
+    top.className = "loop-lyrics-submitter-top";
+    const name = document.createElement("span");
+    name.className = "loop-lyrics-submitter-name";
+    const tier = document.createElement("span");
+    tier.className = "loop-lyrics-submitter-tier";
+    tier.hidden = true;
+    const tierIcon = document.createElement("span");
+    tierIcon.className = "loop-lyrics-submitter-tier-icon";
+    const tierLabel = document.createElement("span");
+    tierLabel.className = "loop-lyrics-submitter-tier-label";
+    tier.append(tierIcon, tierLabel);
+    const badges = document.createElement("span");
+    badges.className = "loop-lyrics-submitter-badges";
+    top.append(name, tier, badges);
+    const caption = document.createElement("span");
+    caption.className = "loop-lyrics-submitter-caption";
+    caption.textContent = "submitted this lyric";
+    content.append(top, caption);
+    card.append(avatar, content);
+    footer.append(card);
+    return card;
+}
+
+function updateLyricsSubmitterCard(shadow, lyrics) {
+    const submitter = lyrics?.meta?.submitter;
+    const footer = ensureLyricsFooter(shadow);
+    const existingCard = footer.querySelector(".loop-lyrics-submitter");
+    if (!submitter || typeof submitter !== "object") {
+        if (existingCard) existingCard.hidden = true;
+        return;
+    }
+
+    const card = existingCard || ensureLyricsSubmitterCard(shadow);
+    const displayName = String(submitter.displayName || "").trim() || "Unison contributor";
+    const keyId = String(submitter.keyId || "").trim();
+    const tierKey = String(submitter.tier || "").trim();
+    const badgeList = Array.isArray(submitter.badges) ? submitter.badges : [];
+    const signature = [keyId, displayName, tierKey, submitter.avatarUrl || "",
+        badgeList.map((badge) => `${badge.key}:${badge.tier ?? ""}`).join(",")].join("|");
+
+    card.hidden = false;
+    if (card.dataset.submitterSignature === signature) return;
+    card.dataset.submitterSignature = signature;
+
+    const stats = [
+        tierKey ? `${formatUnisonTierLabel(tierKey)} tier` : "",
+        submitter.level ? `Level ${submitter.level}` : "",
+        submitter.badgeCount ? `${submitter.badgeCount} badges` : "",
+        submitter.reputation ? `${submitter.reputation} reputation` : "",
+    ].filter(Boolean);
+    card.title = stats.length ? `${displayName} — ${stats.join(" · ")}` : displayName;
+    if (keyId) card.href = `${unisonCuratorURL}${encodeURIComponent(keyId)}`;
+    else card.removeAttribute("href");
+
+    card.querySelector(".loop-lyrics-submitter-name").textContent = displayName;
+
+    const avatar = card.querySelector(".loop-lyrics-submitter-avatar");
+    const initials = card.querySelector(".loop-lyrics-submitter-avatar-initials");
+    const avatarImage = card.querySelector(".loop-lyrics-submitter-avatar-image");
+    initials.textContent = displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "?";
+    const avatarUrl = typeof submitter.avatarUrl === "string" && /^https?:\/\//i.test(submitter.avatarUrl)
+        ? submitter.avatarUrl
+        : "";
+    if (avatarUrl) {
+        avatarImage.hidden = false;
+        initials.hidden = true;
+        if (avatarImage.getAttribute("src") !== avatarUrl) avatarImage.src = avatarUrl;
+    } else {
+        avatarImage.removeAttribute("src");
+        avatarImage.hidden = true;
+        initials.hidden = false;
+    }
+    const progress = Number(submitter.levelProgress);
+    avatar.style.setProperty("--loop-submitter-progress", String(Number.isFinite(progress)
+        ? Math.round(Math.min(Math.max(progress, 0), 1) * 100)
+        : 0));
+
+    const level = card.querySelector(".loop-lyrics-submitter-level");
+    level.hidden = !submitter.level;
+    level.textContent = submitter.level ? String(submitter.level) : "";
+
+    const tier = card.querySelector(".loop-lyrics-submitter-tier");
+    tier.hidden = !tierKey;
+    card.querySelector(".loop-lyrics-submitter-tier-label").textContent = formatUnisonTierLabel(tierKey);
+    const tierImage = createUnisonBadgeImage(
+        { key: tierKey, name: `${formatUnisonTierLabel(tierKey)} tier` },
+        "loop-lyrics-submitter-tier-image"
+    );
+    card.querySelector(".loop-lyrics-submitter-tier-icon").replaceChildren(...[tierImage].filter(Boolean));
+
+    const badges = card.querySelector(".loop-lyrics-submitter-badges");
+    badges.replaceChildren(...badgeList
+        .map((badge) => createUnisonBadgeImage(badge, "loop-lyrics-submitter-badge"))
+        .filter(Boolean));
+}
+
 function ensureLyricsResumeButton(shadow) {
     let button = shadow.querySelector("#loop-lyrics-resume");
     if (button) return button;
@@ -447,6 +637,12 @@ function syncLyricsFooterVisibility(shadow) {
     const view = shadow.querySelector("#loop-lyrics-view");
     const footer = shadow.querySelector("#loop-lyrics-footer");
     if (!view || !footer || footer.hidden) return;
+    const writers = shadow.querySelector("#loop-track-writers");
+    // The footer grows when it carries the Unison submitter card, so measure it
+    // instead of relying on a fixed offset that the card would overlap.
+    if (writers && footer.offsetHeight) {
+        writers.style.setProperty("--loop-writers-footer-height", `${footer.offsetHeight}px`);
+    }
     const endThreshold = Math.max(footer.offsetHeight + 24, view.clientHeight * 0.08);
     const lyricLines = view.querySelectorAll(".blyrics-container .blyrics--line");
     const lastLyric = lyricLines[lyricLines.length - 1];
@@ -458,7 +654,6 @@ function syncLyricsFooterVisibility(shadow) {
     const reachedEnd = Boolean(lastLyricFocused) ||
         view.scrollTop + view.clientHeight >= view.scrollHeight - endThreshold;
     footer.classList.toggle("is-visible", reachedEnd);
-    const writers = shadow.querySelector("#loop-track-writers");
     if (writers) {
         writers.classList.toggle("is-visible", reachedEnd);
         writers.hidden = !reachedEnd;
@@ -787,6 +982,7 @@ function updateLyricsFooter(shadow, lyrics, songwriters = [], hasSungLyrics = tr
     const artist = loop?.querySelector("#loop-track-artist")?.textContent.trim();
     const geniusLink = footer.querySelector(".loop-lyrics-genius-link");
     if (geniusLink && title && artist) geniusLink.href = getGeniusLyricsURL(title, artist);
+    updateLyricsSubmitterCard(shadow, lyrics);
     footer.hidden = false;
     syncLyricsFooterVisibility(shadow);
 }
@@ -800,7 +996,7 @@ function updateCurrentLyricsWriterCredits(songwriters = currentTrackWriters) {
         currentTrackLyricsProvider?.providerId;
     updateLyricsFooter(
         shadow,
-        { meta: { instrumental: !hasSungLyrics, provider: providerId } },
+        { meta: { instrumental: !hasSungLyrics, provider: providerId, submitter: currentLyricsPayload?.meta?.submitter } },
         songwriters,
         hasSungLyrics
     );
@@ -1155,6 +1351,8 @@ function updateLoopLyrics(lyrics, empty = false, songwriters = currentTrackWrite
     global.rerenderAmLyrics = rerenderAmLyrics;
     global.getGeniusLyricsURL = getGeniusLyricsURL;
     global.ensureLyricsFooter = ensureLyricsFooter;
+    global.ensureLyricsSubmitterCard = ensureLyricsSubmitterCard;
+    global.updateLyricsSubmitterCard = updateLyricsSubmitterCard;
     global.ensureLyricsResumeButton = ensureLyricsResumeButton;
     global.setLyricsResumeAffordanceVisible = setLyricsResumeAffordanceVisible;
     global.syncLyricsFooterVisibility = syncLyricsFooterVisibility;
